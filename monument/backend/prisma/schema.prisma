@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Monument {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  location    Unsupported("geography(Point, 4326)")
+  points      Int
+  discoveries Discovery[]
+}
+
+model Discovery {
+  id         Int      @id @default(autoincrement())
+  monument   Monument @relation(fields: [monumentId], references: [id])
+  monumentId Int
+  userId     String
+  timestamp  DateTime @default(now())
+  imageUrl   String?
+}

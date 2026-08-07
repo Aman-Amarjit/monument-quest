@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Monument Quest</string>
+    <string name="mapbox_access_token">PLACEHOLDER_FOR_MAPBOX_ACCESS_TOKEN</string>
+</resources>

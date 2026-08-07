@@ -1,0 +1,88 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  name         String
+  userRank     String       @default("Bhubaneswar Explorer")
+  points       Int          @default(100)
+  role         String       @default("EXPLORER") // EXPLORER, HISTORIAN, CUSTODIAN, ADMIN
+  guildId      String?
+  guild        Guild?       @relation(fields: [guildId], references: [id])
+  posts        Post[]
+  discoveries  Discovery[]
+  timeCapsules TimeCapsule[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Guild {
+  id          String   @id @default(uuid())
+  name        String
+  region      String
+  totalPoints Int      @default(0)
+  members     User[]
+  createdAt   DateTime @default(now())
+}
+
+model Monument {
+  id                       String        @id @default(uuid())
+  name                     String
+  locationName             String
+  latitude                 Float
+  longitude                Float
+  pointsValue              Int           @default(500)
+  category                 String
+  isVerified               Boolean       @default(true)
+  custodianId              String?
+  totalContributionPoints  Int           @default(0)
+  posts                    Post[]
+  timeCapsules             TimeCapsule[]
+  discoveries              Discovery[]
+  createdAt                DateTime      @default(now())
+}
+
+model Post {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  monumentId   String
+  monument     Monument   @relation(fields: [monumentId], references: [id])
+  caption      String
+  imageUrl     String?
+  postType     String     @default("CHECKIN") // DISCOVERY, CHECKIN, TIME_CAPSULE, REFLECTION
+  likesCount   Int        @default(0)
+  createdAt    DateTime   @default(now())
+}
+
+model Discovery {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  monumentId   String
+  monument     Monument   @relation(fields: [monumentId], references: [id])
+  imageUrl     String?
+  pointsEarned Int        @default(1000)
+  isFirst      Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+}
+
+model TimeCapsule {
+  id           String     @id @default(uuid())
+  monumentId   String
+  monument     Monument   @relation(fields: [monumentId], references: [id])
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  message      String
+  latitude     Float
+  longitude    Float
+  createdAt    DateTime   @default(now())
+}
