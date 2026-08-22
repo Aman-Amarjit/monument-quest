@@ -14,12 +14,24 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
 import java.util.Locale
 import javax.inject.Inject
+
+data class CoverageStats(
+    val coveredAreaFormatted: String = "0.0 km²",
+    val areaPercentageFormatted: String = "(0% of district)",
+    val totalTrackFormatted: String = "0.0 km",
+    val structuresVisitedCount: Int = 0,
+    val roadsTraveledCount: Int = 0,
+    val publicSpacesCount: Int = 0
+)
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
@@ -61,6 +73,31 @@ class MapViewModel @Inject constructor(
     private val _tacticalGeometry = MutableStateFlow(TacticalGeometry(emptyList(), emptyList()))
     val tacticalGeometry: StateFlow<TacticalGeometry> = _tacticalGeometry
 
+    // Dynamic Live Area Coverage Stats Flow
+    val coverageStats: StateFlow<CoverageStats> = combine(
+        _exploredZones,
+        _totalDistanceWalked,
+        _monuments,
+        _walkPathPoints
+    ) { zones, totalDistMeters, monumentsList, pathPoints ->
+        val totalAreaKm2 = Math.max(0.1, zones.size * 0.0025)
+        val areaPercent = Math.min(99, ((totalAreaKm2 / 12.0) * 100).toInt())
+        val totalTrackKm = totalDistMeters / 1000.0
+
+        val visitedCount = monumentsList.count { it.distanceMeters in 1..150 }
+        val roadsCount = Math.max(1, pathPoints.size / 6)
+        val publicSpaces = Math.max(1, zones.size / 4)
+
+        CoverageStats(
+            coveredAreaFormatted = String.format(Locale.US, "%.1f km²", totalAreaKm2),
+            areaPercentageFormatted = "($areaPercent% of district)",
+            totalTrackFormatted = if (totalTrackKm >= 1.0) String.format(Locale.US, "%.1f km", totalTrackKm) else String.format(Locale.US, "%d m", totalDistMeters.toInt()),
+            structuresVisitedCount = Math.max(1, visitedCount),
+            roadsTraveledCount = roadsCount,
+            publicSpacesCount = publicSpaces
+        )
+    }.stateIn(viewModelScope, SharingStarted.Lazily, CoverageStats())
+
     private val prefs = context.getSharedPreferences("discovery_prefs", Context.MODE_PRIVATE)
     private var lastLocation: Location? = null
     private var isOverpassFetched = false
@@ -88,7 +125,6 @@ class MapViewModel @Inject constructor(
                             isOverpassFetched = true
                         }
 
-                        // Filter speed & pace
                         val rawSpeedKmh = if (location.hasSpeed()) location.speed * 3.6f else 0f
                         val filteredSpeedKmh = if (rawSpeedKmh >= 1.5f) rawSpeedKmh else 0f
                         _currentSpeedKmh.value = filteredSpeedKmh
@@ -146,10 +182,9 @@ class MapViewModel @Inject constructor(
     }
 
     private fun updateExploredZones(lat: Double, lon: Double) {
-        // Use a simple grid system (approx 50m resolution) to mark explored areas
         val gridLat = (lat * 2000).toInt()
         val gridLon = (lon * 2000).toInt()
-        
+
         val currentZones = _exploredZones.value
         if (!currentZones.contains(gridLat to gridLon)) {
             val newZones = currentZones + (gridLat to gridLon)

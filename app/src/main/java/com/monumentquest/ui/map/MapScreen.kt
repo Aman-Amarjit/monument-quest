@@ -5,18 +5,12 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Shader
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,11 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
@@ -62,7 +52,6 @@ import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
-// ── 3D Stylized Vector City Model Tile Source ─────────────────────────────
 private val Stylized3DCityTileSource = object : OnlineTileSourceBase(
     "Stylized3DCity",
     0, 19, 256, ".png",
@@ -89,10 +78,9 @@ private val PhotorealisticSatelliteTileSource = object : OnlineTileSourceBase(
     }
 }
 
-// ── 3D Isometric City Model Canvas Overlay ──────────────────────────────────
 class Isometric3DCityOverlay : Overlay() {
     private val highwayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#F59E0B") // Warm Golden Highway
+        color = AndroidColor.parseColor("#F59E0B")
         style = Paint.Style.STROKE
         strokeWidth = 22f
         strokeCap = Paint.Cap.ROUND
@@ -101,7 +89,7 @@ class Isometric3DCityOverlay : Overlay() {
     }
 
     private val highwayBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#D97706") // Highway Edge Border
+        color = AndroidColor.parseColor("#D97706")
         style = Paint.Style.STROKE
         strokeWidth = 26f
         strokeCap = Paint.Cap.ROUND
@@ -109,23 +97,23 @@ class Isometric3DCityOverlay : Overlay() {
     }
 
     private val buildingBlockPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#94A3B8") // 3D Slate Grey Building
+        color = AndroidColor.parseColor("#94A3B8")
         style = Paint.Style.FILL
         setShadowLayer(6f, 3f, 6f, AndroidColor.parseColor("#30000000"))
     }
 
     private val buildingRoofPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#CBD5E1") // Lighter Roof Top
+        color = AndroidColor.parseColor("#CBD5E1")
         style = Paint.Style.FILL
     }
 
     private val parkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#86EFAC") // Pastel Green Park
+        color = AndroidColor.parseColor("#86EFAC")
         style = Paint.Style.FILL
     }
 
     private val waterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#38BDF8") // Vibrant Blue Water
+        color = AndroidColor.parseColor("#38BDF8")
         style = Paint.Style.FILL
     }
 
@@ -135,7 +123,6 @@ class Isometric3DCityOverlay : Overlay() {
         val h = mapView.height.toFloat()
         if (w <= 0 || h <= 0) return
 
-        // 1. Draw Water Canals & Ponds
         val waterPath = Path().apply {
             moveTo(0f, h * 0.7f)
             cubicTo(w * 0.3f, h * 0.65f, w * 0.5f, h * 0.85f, w, h * 0.75f)
@@ -145,7 +132,6 @@ class Isometric3DCityOverlay : Overlay() {
         }
         canvas.drawPath(waterPath, waterPaint)
 
-        // 2. Draw Pastel Green Parks
         val parkPath = Path().apply {
             moveTo(w * 0.6f, h * 0.1f)
             lineTo(w * 0.95f, h * 0.15f)
@@ -155,7 +141,6 @@ class Isometric3DCityOverlay : Overlay() {
         }
         canvas.drawPath(parkPath, parkPaint)
 
-        // 3. Draw Elevated 3D Golden Highways & Overpass Loop
         val highwayPath = Path().apply {
             moveTo(-50f, h * 0.25f)
             cubicTo(w * 0.35f, h * 0.2f, w * 0.45f, h * 0.45f, w + 50f, h * 0.55f)
@@ -163,29 +148,23 @@ class Isometric3DCityOverlay : Overlay() {
         canvas.drawPath(highwayPath, highwayBorderPaint)
         canvas.drawPath(highwayPath, highwayPaint)
 
-        // Golden Overpass Roundabout Loop
         val loopCenterX = w * 0.45f
         val loopCenterY = h * 0.45f
         canvas.drawCircle(loopCenterX, loopCenterY, 38f, highwayBorderPaint)
         canvas.drawCircle(loopCenterX, loopCenterY, 38f, highwayPaint)
         canvas.drawCircle(loopCenterX, loopCenterY, 18f, parkPaint)
 
-        // 4. Draw Extruded 3D Slate Grey Building Blocks
         val stepX = 120f
         val stepY = 90f
         var startY = 80f
         while (startY < h * 0.65f) {
             var startX = 40f
             while (startX < w - 60f) {
-                // Skip highway path collision
                 if (Math.abs(startX - loopCenterX) > 60f || Math.abs(startY - loopCenterY) > 60f) {
                     val bw = 65f
                     val bh = 45f
                     val depth = 12f
-
-                    // 3D Building Base Side
                     canvas.drawRect(startX, startY + depth, startX + bw, startY + bh + depth, buildingBlockPaint)
-                    // 3D Building Roof Top
                     canvas.drawRect(startX, startY, startX + bw, startY + bh, buildingRoofPaint)
                 }
                 startX += stepX
@@ -195,26 +174,21 @@ class Isometric3DCityOverlay : Overlay() {
     }
 }
 
-// ── 3D Golden Loop Pin Marker (Matching Reference Image) ────────────────────
 private fun createGolden3DLoopMarker(context: Context, isSelected: Boolean): Drawable {
     val size = if (isSelected) 96 else 80
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    // Outer Glow Ring
     paint.color = if (isSelected) AndroidColor.parseColor("#FFFFD700") else AndroidColor.parseColor("#80F59E0B")
     canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
 
-    // Inner White Container
     paint.color = AndroidColor.parseColor("#FFFFFF")
     canvas.drawCircle(size / 2f, size / 2f, size / 2f - 6f, paint)
 
-    // Core Golden Pin Loop
     paint.color = AndroidColor.parseColor("#F59E0B")
     canvas.drawCircle(size / 2f, size / 2f, size / 2f - 14f, paint)
 
-    // Center Core Dot
     paint.color = AndroidColor.parseColor("#FFFFFF")
     canvas.drawCircle(size / 2f, size / 2f, 8f, paint)
 
@@ -256,6 +230,7 @@ fun MapScreen(
     val detectedCityName    by viewModel.detectedCityName.collectAsState()
     val speedKmh            by viewModel.currentSpeedKmh.collectAsState()
     val bearing             by viewModel.currentBearing.collectAsState()
+    val coverageStats       by viewModel.coverageStats.collectAsState()
 
     var selectedMonument by remember { mutableStateOf<MapMonumentItem?>(null) }
     var mapViewInstance  by remember { mutableStateOf<MapView?>(null) }
@@ -321,7 +296,7 @@ fun MapScreen(
                     setTileSource(if (isSatelliteMode) PhotorealisticSatelliteTileSource else Stylized3DCityTileSource)
                     setMultiTouchControls(true)
                     controller.setZoom(17.5)
-                    mapOrientation = 45f // 3D Isometric Perspective Tilt
+                    mapOrientation = 45f
 
                     userLocation?.let { controller.setCenter(it) }
                     mapViewInstance = this
@@ -332,7 +307,6 @@ fun MapScreen(
                     }
                     overlays.add(locationOverlay)
 
-                    // Add 3D Stylized City Model Overlay
                     if (!isSatelliteMode) {
                         overlays.add(0, Isometric3DCityOverlay())
                     }
@@ -408,7 +382,6 @@ fun MapScreen(
                         }
                     }
 
-                    // 1-Tap Map Mode Toggle Pill
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(18.dp))
@@ -535,6 +508,7 @@ fun MapScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // 🌟 Dynamic Real-Time GPS Metrics Row 🌟
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -542,14 +516,14 @@ fun MapScreen(
                     Column {
                         Text("Total Covered Area", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B), fontSize = 11.sp)
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("4.2 km²", fontWeight = FontWeight.Black, color = Color(0xFF0F172A), fontSize = 17.sp)
-                            Text("(35% of district)", style = MaterialTheme.typography.labelSmall, color = Color(0xFF00C9A7), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(coverageStats.coveredAreaFormatted, fontWeight = FontWeight.Black, color = Color(0xFF0F172A), fontSize = 17.sp)
+                            Text(coverageStats.areaPercentageFormatted, style = MaterialTheme.typography.labelSmall, color = Color(0xFF00C9A7), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     Column(horizontalAlignment = Alignment.End) {
                         Text("Total Track", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B), fontSize = 11.sp)
-                        Text("12.5 km", fontWeight = FontWeight.Black, color = Color(0xFF0F172A), fontSize = 17.sp)
+                        Text(coverageStats.totalTrackFormatted, fontWeight = FontWeight.Black, color = Color(0xFF0F172A), fontSize = 17.sp)
                     }
                 }
 
@@ -559,9 +533,9 @@ fun MapScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Structures\nVisited: 15", style = MaterialTheme.typography.labelSmall, color = Color(0xFF475569), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text("Roads Fully\nTraveled: 21", style = MaterialTheme.typography.labelSmall, color = Color(0xFF475569), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text("Public Spaces\nExplored: 3", style = MaterialTheme.typography.labelSmall, color = Color(0xFF475569), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("Structures\nVisited: ${coverageStats.structuresVisitedCount}", style = MaterialTheme.typography.labelSmall, color = Color(0xFF475569), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("Roads Fully\nTraveled: ${coverageStats.roadsTraveledCount}", style = MaterialTheme.typography.labelSmall, color = Color(0xFF475569), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("Public Spaces\nExplored: ${coverageStats.publicSpacesCount}", style = MaterialTheme.typography.labelSmall, color = Color(0xFF475569), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
 
                 if (isSheetExpanded) {
