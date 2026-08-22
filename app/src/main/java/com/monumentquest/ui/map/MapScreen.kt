@@ -10,6 +10,7 @@ import android.graphics.Path
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -235,6 +236,9 @@ fun MapScreen(
     var selectedMonument by remember { mutableStateOf<MapMonumentItem?>(null) }
     var mapViewInstance  by remember { mutableStateOf<MapView?>(null) }
     var userMarker       by remember { mutableStateOf<Marker?>(null) }
+    val monumentMarkers  = remember { mutableMapOf<String, Marker>() }
+    val isometricOverlay = remember { Isometric3DCityOverlay() }
+
     var isFollowingUser  by remember { mutableStateOf(true) }
     var isSatelliteMode  by remember { mutableStateOf(false) }
 
@@ -252,6 +256,11 @@ fun MapScreen(
     LaunchedEffect(isSatelliteMode) {
         mapViewInstance?.let { map ->
             map.setTileSource(if (isSatelliteMode) PhotorealisticSatelliteTileSource else Stylized3DCityTileSource)
+            if (!isSatelliteMode && map.overlays.none { it is Isometric3DCityOverlay }) {
+                map.overlays.add(0, isometricOverlay)
+            } else if (isSatelliteMode) {
+                map.overlays.remove(isometricOverlay)
+            }
             map.invalidate()
         }
     }
@@ -277,6 +286,38 @@ fun MapScreen(
 
                 map.invalidate()
             }
+        }
+    }
+
+    // Stable Marker Update Effect (Zero Re-creation Flickering)
+    LaunchedEffect(monuments, selectedMonument) {
+        mapViewInstance?.let { map ->
+            monuments.forEach { item ->
+                val isSel = selectedMonument?.id == item.id
+                val existing = monumentMarkers[item.id]
+
+                if (existing == null) {
+                    val marker = Marker(map).apply {
+                        position = item.geoPoint
+                        title = item.name
+                        subDescription = "${item.category} · ${item.points} XP"
+                        icon = createGolden3DLoopMarker(context, isSel)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        setOnMarkerClickListener { _, _ ->
+                            selectedMonument = item
+                            isFollowingUser = false
+                            map.controller.animateTo(item.geoPoint)
+                            true
+                        }
+                    }
+                    map.overlays.add(marker)
+                    monumentMarkers[item.id] = marker
+                } else {
+                    existing.position = item.geoPoint
+                    existing.icon = createGolden3DLoopMarker(context, isSel)
+                }
+            }
+            map.invalidate()
         }
     }
 
@@ -308,37 +349,11 @@ fun MapScreen(
                     overlays.add(locationOverlay)
 
                     if (!isSatelliteMode) {
-                        overlays.add(0, Isometric3DCityOverlay())
+                        overlays.add(0, isometricOverlay)
                     }
                 }
             },
-            update = { map ->
-                map.overlays.removeAll { it is Marker && it != userMarker }
-                if (!isSatelliteMode && map.overlays.none { it is Isometric3DCityOverlay }) {
-                    map.overlays.add(0, Isometric3DCityOverlay())
-                } else if (isSatelliteMode) {
-                    map.overlays.removeAll { it is Isometric3DCityOverlay }
-                }
-
-                monuments.forEach { item ->
-                    val isSel = selectedMonument?.id == item.id
-                    val marker = Marker(map).apply {
-                        position = item.geoPoint
-                        title = item.name
-                        subDescription = "${item.category} · ${item.points} XP"
-                        icon = createGolden3DLoopMarker(context, isSel)
-                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                        setOnMarkerClickListener { _, _ ->
-                            selectedMonument = item
-                            isFollowingUser = false
-                            map.controller.animateTo(item.geoPoint)
-                            true
-                        }
-                    }
-                    map.overlays.add(marker)
-                }
-                map.invalidate()
-            },
+            update = { /* Overlays updated in LaunchedEffects for 60FPS smoothness */ },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -508,7 +523,6 @@ fun MapScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 🌟 Dynamic Real-Time GPS Metrics Row 🌟
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
