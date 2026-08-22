@@ -11,13 +11,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -26,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,10 +42,10 @@ fun AuthScreen(
 
     var isSignUpMode by remember { mutableStateOf(false) }
 
-    var email           by remember { mutableStateOf("") }
-    var password        by remember { mutableStateOf("") }
-    var name            by remember { mutableStateOf("") }
-    var selectedGuild   by remember { mutableStateOf("Temple City Guild") }
+    var email             by remember { mutableStateOf("") }
+    var password          by remember { mutableStateOf("") }
+    var name              by remember { mutableStateOf("") }
+    var selectedGuild     by remember { mutableStateOf("Temple City Guild") }
     var isPasswordVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
@@ -61,7 +57,7 @@ fun AuthScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(Bg)
     ) {
         Column(
             modifier = Modifier
@@ -73,69 +69,71 @@ fun AuthScreen(
         ) {
             Spacer(modifier = Modifier.height(40.dp))
 
-            // App Logo & Header Badge
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(64.dp)
                     .clip(CircleShape)
-                    .background(GoldBright.copy(alpha = 0.15f))
-                    .border(1.5.dp, GoldBright, CircleShape),
+                    .background(Surface1)
+                    .border(1.5.dp, Border, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Explore, contentDescription = null, tint = GoldBright, modifier = Modifier.size(36.dp))
+                Icon(
+                    Icons.Default.Explore,
+                    contentDescription = null,
+                    tint = Gold,
+                    modifier = Modifier.size(32.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "MONUMENT QUEST",
+                text = "Monument Quest",
                 style = MaterialTheme.typography.headlineMedium,
-                color = CreamWhite,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 2.sp
+                color = TextPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 24.sp
             )
 
             Text(
-                text = if (isSignUpMode) "Begin your heritage expedition & claim +100 XP!" else "Sign in to log discoveries & access leagues",
+                text = if (isSignUpMode) "Create your account" else "Sign in to continue",
                 style = MaterialTheme.typography.bodySmall,
-                color = MutedGray,
-                fontSize = 12.sp,
+                color = TextSecondary,
+                fontSize = 13.sp,
                 modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
             )
 
-            // Auth Card Surface
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = GlassSurface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, SubtleGray),
-                shadowElevation = 12.dp
+                shape = RoundedCornerShape(16.dp),
+                color = Surface1,
+                border = androidx.compose.foundation.BorderStroke(1.dp, Border)
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Mode Selector Tabs (Login / Sign Up)
+                    // Tab switcher
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(ElevatedSurface)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Surface2)
                             .padding(4.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (!isSignUpMode) GoldBright else Color.Transparent)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (!isSignUpMode) Surface1 else Color.Transparent)
                                 .clickable { isSignUpMode = false }
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "Log In",
-                                fontWeight = FontWeight.Bold,
-                                color = if (!isSignUpMode) ObsidianBlack else MutedGray,
+                                fontWeight = FontWeight.Medium,
+                                color = if (!isSignUpMode) TextPrimary else TextSecondary,
                                 fontSize = 13.sp
                             )
                         }
@@ -143,36 +141,37 @@ fun AuthScreen(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSignUpMode) GoldBright else Color.Transparent)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSignUpMode) Surface1 else Color.Transparent)
                                 .clickable { isSignUpMode = true }
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Sign Up (+100 XP)",
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSignUpMode) ObsidianBlack else MutedGray,
+                                text = "Sign Up",
+                                fontWeight = FontWeight.Medium,
+                                color = if (isSignUpMode) TextPrimary else TextSecondary,
                                 fontSize = 13.sp
                             )
                         }
                     }
 
-                    // Form Fields
                     if (isSignUpMode) {
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it },
-                            label = { Text("Full Name / Explorer Alias") },
-                            leadingIcon = { Icon(Icons.Default.Person, null, tint = GoldBright) },
+                            label = { Text("Full Name") },
+                            leadingIcon = { Icon(Icons.Default.Person, null, tint = TextSecondary) },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = GoldBright,
-                                unfocusedBorderColor = SubtleGray,
-                                focusedTextColor = CreamWhite,
-                                unfocusedTextColor = CreamWhite
+                                focusedBorderColor   = Gold,
+                                unfocusedBorderColor = Border,
+                                focusedTextColor     = TextPrimary,
+                                unfocusedTextColor   = TextPrimary,
+                                focusedLabelColor    = TextSecondary,
+                                unfocusedLabelColor  = TextSecondary
                             )
                         )
                     }
@@ -181,16 +180,18 @@ fun AuthScreen(
                         value = email,
                         onValueChange = { email = it },
                         label = { Text("Email Address") },
-                        leadingIcon = { Icon(Icons.Default.Email, null, tint = GoldBright) },
+                        leadingIcon = { Icon(Icons.Default.Email, null, tint = TextSecondary) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = GoldBright,
-                            unfocusedBorderColor = SubtleGray,
-                            focusedTextColor = CreamWhite,
-                            unfocusedTextColor = CreamWhite
+                            focusedBorderColor   = Gold,
+                            unfocusedBorderColor = Border,
+                            focusedTextColor     = TextPrimary,
+                            unfocusedTextColor   = TextPrimary,
+                            focusedLabelColor    = TextSecondary,
+                            unfocusedLabelColor  = TextSecondary
                         )
                     )
 
@@ -198,40 +199,40 @@ fun AuthScreen(
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Password") },
-                        leadingIcon = { Icon(Icons.Default.Lock, null, tint = GoldBright) },
+                        leadingIcon = { Icon(Icons.Default.Lock, null, tint = TextSecondary) },
                         trailingIcon = {
                             IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                                 Icon(
                                     imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                     contentDescription = null,
-                                    tint = MutedGray
+                                    tint = TextSecondary
                                 )
                             }
                         },
                         visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = GoldBright,
-                            unfocusedBorderColor = SubtleGray,
-                            focusedTextColor = CreamWhite,
-                            unfocusedTextColor = CreamWhite
+                            focusedBorderColor   = Gold,
+                            unfocusedBorderColor = Border,
+                            focusedTextColor     = TextPrimary,
+                            unfocusedTextColor   = TextPrimary,
+                            focusedLabelColor    = TextSecondary,
+                            unfocusedLabelColor  = TextSecondary
                         )
                     )
 
-                    // Error Banner
                     if (uiState is AuthUiState.Error) {
                         Text(
                             text = (uiState as AuthUiState.Error).message,
-                            color = ErrorRed,
+                            color = RedAccent,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 11.sp
                         )
                     }
 
-                    // Main Action Button
                     Button(
                         onClick = {
                             if (isSignUpMode) {
@@ -242,37 +243,50 @@ fun AuthScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = GoldBright, contentColor = ObsidianBlack),
-                        shape = RoundedCornerShape(14.dp),
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Gold,
+                            contentColor   = Bg
+                        ),
+                        shape = RoundedCornerShape(12.dp),
                         enabled = uiState !is AuthUiState.Loading
                     ) {
                         if (uiState is AuthUiState.Loading) {
-                            CircularProgressIndicator(color = ObsidianBlack, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                color = Bg,
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp
+                            )
                         } else {
                             Text(
-                                text = if (isSignUpMode) "Create Account & Claim 100 XP" else "Log In to Expedition",
-                                fontWeight = FontWeight.Bold,
+                                text = if (isSignUpMode) "Create Account" else "Sign In",
+                                fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
                             )
                         }
                     }
 
-                    HorizontalDivider(color = SubtleGray, modifier = Modifier.padding(vertical = 4.dp))
+                    HorizontalDivider(color = Border, modifier = Modifier.padding(vertical = 2.dp))
 
-                    // 1-Tap Guest Access Button
                     OutlinedButton(
                         onClick = { viewModel.continueAsGuest() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, ForestMint),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ForestMint)
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Border),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Surface2,
+                            contentColor   = TextSecondary
+                        )
                     ) {
-                        Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Default.Shield,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Continue as Guest (Instant Access)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("Continue as Guest", fontWeight = FontWeight.Medium, fontSize = 13.sp)
                     }
                 }
             }

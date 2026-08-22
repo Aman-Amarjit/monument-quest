@@ -17,81 +17,81 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Dark Colour Scheme  (primary usage — app defaults to dark)
+// Dark Colour Scheme
 // ─────────────────────────────────────────────────────────────────────────────
 private val DarkColorScheme = darkColorScheme(
-    primary                = ForestMid,
-    onPrimary              = CreamWhite,
-    primaryContainer       = ForestDeep,
-    onPrimaryContainer     = ForestMint,
+    primary                = Gold,
+    onPrimary              = Bg,
+    primaryContainer       = GoldTint,
+    onPrimaryContainer     = Gold,
 
-    secondary              = GoldBright,
-    onSecondary            = ObsidianBlack,
-    secondaryContainer     = GoldDark,
-    onSecondaryContainer   = GoldShimmer,
+    secondary              = GreenAccent,
+    onSecondary            = Bg,
+    secondaryContainer     = Surface2,
+    onSecondaryContainer   = GreenAccent,
 
-    tertiary               = EmberMid,
-    onTertiary             = CreamWhite,
+    tertiary               = RedAccent,
+    onTertiary             = TextPrimary,
     tertiaryContainer      = EmberDeep,
     onTertiaryContainer    = EmberGlow,
 
-    background             = ObsidianBlack,
-    onBackground           = CreamWhite,
+    background             = Bg,
+    onBackground           = TextPrimary,
 
-    surface                = NightSurface,
-    onSurface              = CreamWhite,
-    surfaceVariant         = ElevatedSurface,
-    onSurfaceVariant       = ParchmentLight,
+    surface                = Surface1,
+    onSurface              = TextPrimary,
+    surfaceVariant         = Surface2,
+    onSurfaceVariant       = TextSecondary,
 
-    outline                = SubtleGray,
-    outlineVariant         = Color(0xFF2A2A2A),
+    outline                = Border,
+    outlineVariant         = BorderSubtle,
 
-    error                  = ErrorRed,
-    onError                = CreamWhite,
+    error                  = RedAccent,
+    onError                = TextPrimary,
     errorContainer         = Color(0xFF4D1218),
     onErrorContainer       = Color(0xFFFFB3B3),
 
-    inverseSurface         = CreamWhite,
-    inverseOnSurface       = ObsidianBlack,
-    inversePrimary         = ForestLight,
+    inverseSurface         = TextPrimary,
+    inverseOnSurface       = Bg,
+    inversePrimary         = GoldDim,
     scrim                  = Color(0x99000000),
-    surfaceTint            = ForestMid,
+    surfaceTint            = Color.Transparent,
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Light Colour Scheme
 // ─────────────────────────────────────────────────────────────────────────────
 private val LightColorScheme = lightColorScheme(
-    primary                = ForestMid,
-    onPrimary              = CreamWhite,
-    primaryContainer       = Color(0xFFB7E4C7),
-    onPrimaryContainer     = ForestDeep,
+    primary                = Gold,
+    onPrimary              = Bg,
+    primaryContainer       = Color(0xFFFFE8A0),
+    onPrimaryContainer     = GoldDim,
 
-    secondary              = GoldMid,
-    onSecondary            = CreamWhite,
-    secondaryContainer     = Color(0xFFFFEEAA),
-    onSecondaryContainer   = GoldDark,
+    secondary              = GreenAccent,
+    onSecondary            = TextPrimary,
+    secondaryContainer     = Color(0xFFB7F5D0),
+    onSecondaryContainer   = Color(0xFF14532D),
 
-    tertiary               = EmberMid,
-    onTertiary             = CreamWhite,
+    tertiary               = RedAccent,
+    onTertiary             = TextPrimary,
     tertiaryContainer      = Color(0xFFFFD1C1),
     onTertiaryContainer    = EmberDeep,
 
     background             = Color(0xFFF5F0E8),
-    onBackground           = ObsidianBlack,
+    onBackground           = Bg,
 
-    surface                = CreamWhite,
-    onSurface              = ObsidianBlack,
+    surface                = TextPrimary,
+    onSurface              = Bg,
     surfaceVariant         = Color(0xFFEDE8DC),
     onSurfaceVariant       = Color(0xFF4A4A4A),
 
     outline                = Color(0xFFAAAAAA),
-    error                  = ErrorRed,
-    onError                = CreamWhite,
+    error                  = RedAccent,
+    onError                = TextPrimary,
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shapes — slightly more rounded for a premium feel
+// Shapes
 // ─────────────────────────────────────────────────────────────────────────────
 val MonumentShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
@@ -106,7 +106,7 @@ val MonumentShapes = Shapes(
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun MonumentQuestTheme(
-    darkTheme: Boolean = true,          // default dark — feels more cinematic
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
@@ -116,10 +116,9 @@ fun MonumentQuestTheme(
         SideEffect {
             val activity = view.context.findActivity() ?: return@SideEffect
             val window = activity.window
-            // Fully transparent status and navigation bars
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
-            
+
             WindowCompat.setDecorFitsSystemWindows(window, false)
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
             WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme

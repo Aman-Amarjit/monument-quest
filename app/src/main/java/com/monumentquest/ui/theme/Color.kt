@@ -3,54 +3,57 @@ package com.monumentquest.ui.theme
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
-// ── Explorer Reference Palette ───────────────────────────────────────────
-val MidnightNavy     = Color(0xFF0A192F)   // Deep navy background
-val AmberHighlight   = Color(0xFFFF6B00)   // Vibrant orange for paths
-val DeepTeal         = Color(0xFF112240)   // Dark secondary surfaces
-val GlassCard        = Color(0xE6112240)   // Semi-transparent card base
+// ── Base surfaces ─────────────────────────────────────────────────────────────
+val Bg           = Color(0xFF0A0A0F)   // page background
+val Surface1     = Color(0xFF111118)   // card background
+val Surface2     = Color(0xFF1A1A24)   // elevated card / modal
+val Surface3     = Color(0xFF222232)   // highest elevation
+val Border       = Color(0xFF1E1E2E)   // card border
+val BorderSubtle = Color(0xFF14141E)   // very subtle divider
 
-// ── Ultra-Modern Dark Glass Palette ─────────────────────────────────────────────
-val ObsidianBlack    = Color(0xFF08090C)   // Deepest luxury dark background
-val NightSurface     = Color(0xFF10121A)   // Ultra dark slate surface
-val ElevatedSurface  = Color(0xFF181B26)   // Floating surface
-val CardSurface      = Color(0xFF202433)   // Modern card container
-val GlassSurface     = Color(0xF2141724)   // Frosted glass composite
+// ── Accent ────────────────────────────────────────────────────────────────────
+val Gold     = Color(0xFFF0A500)   // primary accent — use sparingly
+val GoldDim  = Color(0xFF8A5E00)   // muted gold for secondary uses
+val GoldTint = Color(0xFF1A1200)   // gold background tint
 
-// ── Primary: Modern Emerald & Mint ───────────────────────────────────────────
-val ForestDeep       = Color(0xFF0F382B)
-val ForestMid        = Color(0xFF1E5B45)
-val ForestLight      = Color(0xFF2D8C68)
-val ForestMint       = Color(0xFF4ECCA3)   // Electric Mint Highlight
+// ── Semantic ──────────────────────────────────────────────────────────────────
+val GreenAccent = Color(0xFF22C55E)
+val RedAccent   = Color(0xFFEF4444)
+val BlueAccent  = Color(0xFF3B82F6)
 
-// ── Secondary: Luxury Imperial Gold ──────────────────────────────────────────
-val GoldDark         = Color(0xFF9E771B)
-val GoldMid          = Color(0xFFC79822)
-val GoldBright       = Color(0xFFF3B61D)   // Vibrant Metallic Gold
-val GoldShimmer      = Color(0xFFFFD700)
+// ── Text ──────────────────────────────────────────────────────────────────────
+val TextPrimary   = Color(0xFFF1F5F9)
+val TextSecondary = Color(0xFF64748B)
+val TextTertiary  = Color(0xFF334155)
 
-// ── Tertiary: Ember & Terracotta ─────────────────────────────────────────────
-val EmberDeep        = Color(0xFF7B1E0A)
-val EmberMid         = Color(0xFFD64527)
-val EmberLight       = Color(0xFFFF6F59)
-val EmberGlow        = Color(0xFFFF8C6B)
-
-// ── Text & Typography Colors ──────────────────────────────────────────────────
-val CreamWhite       = Color(0xFFF8F9FA)
-val ParchmentLight   = Color(0xFFE2E8F0)
-val MutedGray        = Color(0xFF94A3B8)
-val SubtleGray       = Color(0xFF2D3748)
-
-// ── Semantic Colors ───────────────────────────────────────────────────────────
-val SuccessGreen     = Color(0xFF4ECCA3)
-val ErrorRed         = Color(0xFFFF4D4D)
-val WarningAmber     = Color(0xFFFFB703)
-
-// ── Medals ────────────────────────────────────────────────────────────────────
-val MedalGold        = Color(0xFFFFD700)
-val MedalSilver      = Color(0xFFE2E8F0)
-val MedalBronze      = Color(0xFFE08D49)
-
-// ── Modern Gradient Brushes ───────────────────────────────────────────────────
-val GoldLinearGradient = Brush.horizontalGradient(listOf(GoldBright, Color(0xFFFFE57F)))
-val EmeraldLinearGradient = Brush.horizontalGradient(listOf(ForestMint, ForestMid))
-val GlassBorderGradient = Brush.linearGradient(listOf(GoldBright.copy(alpha = 0.6f), ForestMint.copy(alpha = 0.4f)))
+// ── Legacy aliases (keep for backward compat with ViewModels / data classes) ──
+val ObsidianBlack   = Bg
+val NightSurface    = Surface1
+val ElevatedSurface = Surface2
+val CardSurface     = Surface1
+val GlassSurface    = Surface2
+val ForestDeep      = Color(0xFF0A0A0F)
+val ForestMid       = Color(0xFF1A1A24)
+val ForestLight     = Color(0xFF222232)
+val ForestMint      = GreenAccent
+val GoldBright      = Gold
+val GoldMid         = GoldDim
+val GoldShimmer     = Gold
+val GoldDark        = GoldDim
+val CreamWhite      = TextPrimary
+val ParchmentLight  = TextPrimary
+val MutedGray       = TextSecondary
+val SubtleGray      = Surface3
+val ErrorRed        = RedAccent
+val SuccessGreen    = GreenAccent
+val EmberMid        = Color(0xFFEF4444)
+val EmberDeep       = Color(0xFF4D1218)
+val EmberLight      = Color(0xFFFF6F59)
+val EmberGlow       = Color(0xFFFF8C6B)
+val MedalGold       = Gold
+val MedalSilver     = Color(0xFF94A3B8)
+val MedalBronze     = Color(0xFFB45309)
+val WarningAmber    = Color(0xFFF59E0B)
+val GoldLinearGradient    = Brush.horizontalGradient(listOf(Gold, Color(0xFFFFD97A)))
+val EmeraldLinearGradient = Brush.horizontalGradient(listOf(GreenAccent, Color(0xFF16A34A)))
+val GlassBorderGradient   = Brush.linearGradient(listOf(Gold.copy(alpha = 0.4f), GreenAccent.copy(alpha = 0.2f)))

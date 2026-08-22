@@ -7,14 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,8 +39,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -73,6 +68,7 @@ import com.monumentquest.ui.splash.SplashScreen
 import com.monumentquest.ui.theme.CardSurface
 import com.monumentquest.ui.theme.ForestMid
 import com.monumentquest.ui.theme.GoldBright
+import com.monumentquest.ui.theme.Border
 import com.monumentquest.ui.theme.MonumentQuestTheme
 import com.monumentquest.ui.theme.MutedGray
 import com.monumentquest.ui.theme.ObsidianBlack
@@ -249,57 +245,43 @@ private fun PremiumNavBar(
     currentDestination: androidx.navigation.NavDestination?,
     onNavigate: (Screen) -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color.Transparent, ObsidianBlack.copy(alpha = 0.98f))
+    NavigationBar(
+        containerColor = com.monumentquest.ui.theme.Surface1,
+        tonalElevation = 0.dp,
+        modifier = Modifier.border(
+            width = 1.dp,
+            color = com.monumentquest.ui.theme.Border,
+            shape = androidx.compose.ui.graphics.RectangleShape
+        )
+    ) {
+        items.forEach { screen ->
+            val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+
+            NavigationBarItem(
+                selected = isSelected,
+                onClick  = { onNavigate(screen) },
+                icon = {
+                    Icon(
+                        imageVector = if (isSelected) screen.icon else screen.outlinedIcon,
+                        contentDescription = screen.label,
+                        modifier = Modifier.size(22.dp)
+                    )
+                },
+                label = {
+                    Text(
+                        text = screen.label,
+                        fontSize = 10.sp,
+                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+                    )
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor   = GoldBright,
+                    selectedTextColor   = GoldBright,
+                    indicatorColor      = Color.Transparent,
+                    unselectedIconColor = MutedGray,
+                    unselectedTextColor = MutedGray
                 )
             )
-    ) {
-        NavigationBar(
-            containerColor = CardSurface.copy(alpha = 0.95f),
-            tonalElevation = 0.dp,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-        ) {
-            items.forEach { screen ->
-                val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                val scale by animateFloatAsState(
-                    targetValue = if (isSelected) 1.1f else 1f,
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "nav_scale"
-                )
-
-                NavigationBarItem(
-                    selected = isSelected,
-                    onClick  = { onNavigate(screen) },
-                    icon = {
-                        Icon(
-                            imageVector = if (isSelected) screen.icon else screen.outlinedIcon,
-                            contentDescription = screen.label,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .scale(scale)
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = screen.label,
-                            fontSize = 9.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            letterSpacing = 0.2.sp
-                        )
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor   = GoldBright,
-                        selectedTextColor   = GoldBright,
-                        indicatorColor      = ForestMid.copy(alpha = 0.25f),
-                        unselectedIconColor = MutedGray,
-                        unselectedTextColor = MutedGray
-                    )
-                )
-            }
         }
     }
 }

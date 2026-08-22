@@ -1,7 +1,5 @@
 package com.monumentquest.ui.social
 
-import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,26 +14,18 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -57,121 +47,109 @@ fun SocialFeedScreen(
     onNavigateToWall: (String) -> Unit,
     viewModel: SocialFeedViewModel = hiltViewModel()
 ) {
-    val posts by viewModel.posts.collectAsState()
-    val stories by viewModel.stories.collectAsState()
-    val currentFilter by viewModel.currentFilter.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val followedUsers by viewModel.followedUsers.collectAsState()
-    val savedPostIds by viewModel.savedPostIds.collectAsState()
+    val posts           by viewModel.posts.collectAsState()
+    val stories         by viewModel.stories.collectAsState()
+    val currentFilter   by viewModel.currentFilter.collectAsState()
+    val searchQuery     by viewModel.searchQuery.collectAsState()
+    val followedUsers   by viewModel.followedUsers.collectAsState()
+    val savedPostIds    by viewModel.savedPostIds.collectAsState()
     val postCommentsMap by viewModel.postComments.collectAsState()
 
-    var showCreateModal by remember { mutableStateOf(false) }
+    var showCreateModal      by remember { mutableStateOf(false) }
     var activeCommentsPostId by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
-        containerColor = ObsidianBlack,
+        containerColor = Bg,
         topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(ForestDeep.copy(alpha = 0.95f), ObsidianBlack)
-                        )
-                    )
+                    .background(Bg)
                     .statusBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Editorial Human Top Title Header
+                // Top row: title + FAB
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "CHRONICLES",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = GoldBright,
-                            letterSpacing = 2.5.sp,
-                            fontWeight = FontWeight.Black
-                        )
-                        Text(
-                            text = "Live Explorer Expeditions & Discoveries",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MutedGray,
-                            fontSize = 11.sp
-                        )
-                    }
+                    Text(
+                        text = "Chronicles",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp
+                    )
 
-                    FloatingActionButton(
-                        onClick = { showCreateModal = true },
-                        containerColor = GoldBright,
-                        contentColor = ObsidianBlack,
-                        shape = CircleShape,
-                        modifier = Modifier.size(42.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Gold)
+                            .clickable { showCreateModal = true },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Create Log", modifier = Modifier.size(22.dp))
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Create Log",
+                            tint = Bg,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
-                // Professional Search Input Bar
-                TextField(
+                // Search bar — use OutlinedTextField to avoid height-clipping cursor issue
+                OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     placeholder = {
-                        Text("Search monuments, explorers, or #hashtags…", color = MutedGray, fontSize = 12.sp)
+                        Text("Search monuments, explorers…", color = TextSecondary, fontSize = 13.sp)
                     },
                     leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = "Search", tint = GoldBright, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Search, null, tint = TextSecondary, modifier = Modifier.size(18.dp))
                     },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                Icon(Icons.Default.Close, null, tint = MutedGray, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Close, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
                             }
                         }
                     },
-                    shape = RoundedCornerShape(24.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor   = CardSurface,
-                        unfocusedContainerColor = ElevatedSurface,
-                        focusedTextColor        = CreamWhite,
-                        unfocusedTextColor      = CreamWhite,
-                        cursorColor             = GoldBright,
-                        focusedIndicatorColor   = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor    = Border,
+                        unfocusedBorderColor  = Border,
+                        focusedContainerColor = Surface1,
+                        unfocusedContainerColor = Surface1,
+                        focusedTextColor      = TextPrimary,
+                        unfocusedTextColor    = TextPrimary,
+                        cursorColor           = Gold
                     ),
                     singleLine = true
                 )
 
-                // Tab Filter Chips
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
+                // Filter tabs
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    FeedTabItem(
+                        text = "Global",
                         selected = currentFilter == FeedFilter.GLOBAL,
-                        onClick = { viewModel.setFilter(FeedFilter.GLOBAL) },
-                        label = { Text("Global Feed", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = GoldBright,
-                            selectedLabelColor = ObsidianBlack
-                        ),
-                        shape = RoundedCornerShape(10.dp)
+                        onClick = { viewModel.setFilter(FeedFilter.GLOBAL) }
                     )
-                    FilterChip(
+                    FeedTabItem(
+                        text = "My Guild",
                         selected = currentFilter == FeedFilter.GUILD,
-                        onClick = { viewModel.setFilter(FeedFilter.GUILD) },
-                        label = { Text("My Guild", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = ForestMid,
-                            selectedLabelColor = CreamWhite
-                        ),
-                        shape = RoundedCornerShape(10.dp)
+                        onClick = { viewModel.setFilter(FeedFilter.GUILD) }
                     )
                 }
+
+                // Bottom border
+                HorizontalDivider(color = BorderSubtle)
             }
         }
     ) { innerPadding ->
@@ -180,7 +158,7 @@ fun SocialFeedScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
             contentPadding = PaddingValues(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
                 StoriesBar(stories = stories, onAddStory = { showCreateModal = true })
@@ -197,16 +175,16 @@ fun SocialFeedScreen(
             } else {
                 items(posts, key = { it.id }) { post ->
                     val isFollowed = followedUsers.contains(post.userId)
-                    val isSaved = savedPostIds.contains(post.id)
+                    val isSaved    = savedPostIds.contains(post.id)
 
-                    HumanPostCard(
-                        post = post,
-                        isFollowed = isFollowed,
-                        isSaved = isSaved,
-                        onLikeToggle = { viewModel.toggleLike(post.id) },
-                        onFollowToggle = { viewModel.toggleFollow(post.userId) },
-                        onSaveToggle = { viewModel.toggleSavePost(post.id) },
-                        onOpenComments = { activeCommentsPostId = post.id },
+                    PostCard(
+                        post               = post,
+                        isFollowed         = isFollowed,
+                        isSaved            = isSaved,
+                        onLikeToggle       = { viewModel.toggleLike(post.id) },
+                        onFollowToggle     = { viewModel.toggleFollow(post.userId) },
+                        onSaveToggle       = { viewModel.toggleSavePost(post.id) },
+                        onOpenComments     = { activeCommentsPostId = post.id },
                         onNavigateToNarrator = onNavigateToNarrator
                     )
                 }
@@ -216,7 +194,7 @@ fun SocialFeedScreen(
         if (showCreateModal) {
             CreatePostModal(
                 onDismiss = { showCreateModal = false },
-                onSubmit = { caption, monument ->
+                onSubmit  = { caption, monument ->
                     viewModel.createPost(caption, monument)
                     showCreateModal = false
                 }
@@ -226,11 +204,39 @@ fun SocialFeedScreen(
         activeCommentsPostId?.let { postId ->
             val commentsList = postCommentsMap[postId] ?: emptyList()
             CommentsSheetModal(
-                comments = commentsList,
-                onDismiss = { activeCommentsPostId = null },
+                comments     = commentsList,
+                onDismiss    = { activeCommentsPostId = null },
                 onAddComment = { text -> viewModel.addComment(postId, text) }
             )
         }
+    }
+}
+
+@Composable
+private fun FeedTabItem(text: String, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.Start,
+        modifier = Modifier
+            .width(IntrinsicSize.Min)
+            .clickable { onClick() }
+            .padding(bottom = 2.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (selected) TextPrimary else TextSecondary,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            fontSize = 14.sp
+        )
+        Spacer(modifier = Modifier.height(5.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(
+                    color = if (selected) Gold else Color.Transparent,
+                    shape = RoundedCornerShape(1.dp)
+                )
+        )
     }
 }
 
@@ -240,8 +246,8 @@ private fun StoriesBar(
     onAddStory: () -> Unit
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Column(
@@ -251,15 +257,20 @@ private fun StoriesBar(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(52.dp)
                         .clip(CircleShape)
-                        .background(ElevatedSurface)
-                        .border(1.5.dp, GoldBright, CircleShape),
+                        .background(Surface2)
+                        .border(1.dp, Border, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.AddAPhoto, contentDescription = "Add Check-in", tint = GoldBright, modifier = Modifier.size(24.dp))
+                    Icon(
+                        Icons.Default.AddAPhoto,
+                        contentDescription = "Add",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
-                Text("Log Visit", style = MaterialTheme.typography.labelSmall, color = MutedGray, fontSize = 10.sp)
+                Text("Add", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
             }
         }
 
@@ -268,15 +279,21 @@ private fun StoriesBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                UserAvatar(name = story.userName, size = 64.dp, borderColor = GoldBright)
-                Text(story.userName.split(" ")[0], style = MaterialTheme.typography.labelSmall, color = CreamWhite, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                // Gold ring on story avatars so they're visible
+                UserAvatar(name = story.userName, size = 52.dp, borderColor = Gold)
+                Text(
+                    story.userName.split(" ")[0],
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary,
+                    fontSize = 10.sp
+                )
             }
         }
     }
 }
 
 @Composable
-private fun HumanPostCard(
+private fun PostCard(
     post: SocialPost,
     isFollowed: Boolean,
     isSaved: Boolean,
@@ -290,8 +307,9 @@ private fun HumanPostCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = CardSurface)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface1),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Header
@@ -302,47 +320,41 @@ private fun HumanPostCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    UserAvatar(name = post.userName, size = 44.dp)
+                    UserAvatar(name = post.userName, size = 40.dp)
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(post.userName, fontWeight = FontWeight.Bold, color = CreamWhite, fontSize = 14.sp)
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isFollowed) ForestMid.copy(alpha = 0.3f) else GoldBright.copy(alpha = 0.2f))
-                                    .clickable { onFollowToggle() }
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = if (isFollowed) "Following" else "+ Follow",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isFollowed) ForestMint else GoldBright
-                                )
-                            }
-                        }
-                        Text("${post.userRank} · ${post.timestampFormatted}", style = MaterialTheme.typography.labelSmall, color = MutedGray, fontSize = 11.sp)
+                        Text(
+                            post.userName,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            "${post.userRank} · ${post.timestampFormatted}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
                     }
                 }
 
-                val (tagColor, tagText) = when (post.postType) {
-                    "DISCOVERY" -> Pair(GoldBright, "✦ DISCOVERY")
-                    "TIME_CAPSULE" -> Pair(Color(0xFF8E44AD), "📜 TIME CAPSULE")
-                    "REFLECTION" -> Pair(EmberMid, "✍️ REFLECTION")
-                    else -> Pair(ForestMint, "📍 CHECK-IN")
+                val (tagBg, tagFg, tagLabel) = when (post.postType) {
+                    "DISCOVERY"    -> Triple(Color(0xFF1A1200), Gold,                  "Discovery")
+                    "TIME_CAPSULE" -> Triple(Color(0xFF160A24), Color(0xFFB06EE8),     "Time Capsule")
+                    "REFLECTION"   -> Triple(Color(0xFF1A0A00), Color(0xFFFF8C42),     "Reflection")
+                    else           -> Triple(Surface3,          TextSecondary,         "Check-in")
                 }
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(tagColor.copy(alpha = 0.15f))
-                        .border(1.dp, tagColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(tagBg)
+                        .border(1.dp, tagFg.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
-                    Text(tagText, style = MaterialTheme.typography.labelSmall, color = tagColor, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                    Text(tagLabel, color = tagFg, fontSize = 10.sp, fontWeight = FontWeight.Medium)
                 }
             }
 
@@ -351,24 +363,25 @@ private fun HumanPostCard(
             Text(
                 text = post.caption,
                 style = MaterialTheme.typography.bodyMedium,
-                color = CreamWhite,
+                color = TextPrimary,
+                fontSize = 14.sp,
                 lineHeight = 22.sp
             )
 
             post.imageUrl?.let { url ->
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 AsyncImage(
                     model = url,
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(220.dp)
-                        .clip(RoundedCornerShape(16.dp)),
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Footer
             Row(
@@ -376,7 +389,10 @@ private fun HumanPostCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Row(
                         modifier = Modifier.clickable { onLikeToggle() },
                         verticalAlignment = Alignment.CenterVertically,
@@ -385,10 +401,14 @@ private fun HumanPostCard(
                         Icon(
                             imageVector = if (post.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Like",
-                            tint = if (post.isLiked) ErrorRed else MutedGray,
-                            modifier = Modifier.size(20.dp)
+                            tint = if (post.isLiked) RedAccent else TextSecondary,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Text("${post.likesCount}", style = MaterialTheme.typography.labelSmall, color = MutedGray, fontWeight = FontWeight.Bold)
+                        Text(
+                            "${post.likesCount}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
                     }
 
                     Row(
@@ -396,29 +416,43 @@ private fun HumanPostCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comments", tint = MutedGray, modifier = Modifier.size(20.dp))
-                        Text("${post.commentsCount}", style = MaterialTheme.typography.labelSmall, color = MutedGray, fontWeight = FontWeight.Bold)
+                        Icon(
+                            Icons.Default.ChatBubbleOutline,
+                            contentDescription = "Comments",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            "${post.commentsCount}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
                     }
 
-                    IconButton(onClick = onSaveToggle, modifier = Modifier.size(20.dp)) {
+                    IconButton(onClick = onSaveToggle, modifier = Modifier.size(18.dp)) {
                         Icon(
                             imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                             contentDescription = "Save",
-                            tint = if (isSaved) GoldBright else MutedGray,
-                            modifier = Modifier.size(20.dp)
+                            tint = if (isSaved) Gold else TextSecondary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
                 OutlinedButton(
                     onClick = { onNavigateToNarrator(post.monumentName) },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, SubtleGray)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                    modifier = Modifier.height(28.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Border),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Surface2,
+                        contentColor   = TextSecondary
+                    )
                 ) {
-                    Icon(Icons.Default.Explore, null, tint = GoldBright, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Default.Explore, null, tint = Gold, modifier = Modifier.size(11.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("AI Narrator", color = GoldBright, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("AI Narrator", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -435,12 +469,16 @@ private fun CommentsSheetModal(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = CardSurface,
+        containerColor = Surface1,
         title = {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Expedition Comments", fontWeight = FontWeight.Black, color = CreamWhite, fontSize = 16.sp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Comments", fontWeight = FontWeight.SemiBold, color = TextPrimary, fontSize = 16.sp)
                 IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Close, null, tint = MutedGray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Close, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
                 }
             }
         },
@@ -457,18 +495,43 @@ private fun CommentsSheetModal(
                 ) {
                     if (comments.isEmpty()) {
                         item {
-                            Text("No comments yet. Be the first explorer to comment!", style = MaterialTheme.typography.bodySmall, color = MutedGray)
+                            Text(
+                                "No comments yet.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
                         }
                     } else {
                         items(comments) { comment ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
                                 UserAvatar(name = comment.userName, size = 28.dp)
                                 Column {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(comment.userName, fontWeight = FontWeight.Bold, color = CreamWhite, fontSize = 12.sp)
-                                        Text(comment.timeAgo, style = MaterialTheme.typography.labelSmall, color = MutedGray, fontSize = 9.sp)
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            comment.userName,
+                                            fontWeight = FontWeight.Medium,
+                                            color = TextPrimary,
+                                            fontSize = 12.sp
+                                        )
+                                        Text(
+                                            comment.timeAgo,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = TextSecondary,
+                                            fontSize = 10.sp
+                                        )
                                     }
-                                    Text(comment.text, style = MaterialTheme.typography.bodySmall, color = ParchmentLight, fontSize = 11.sp)
+                                    Text(
+                                        comment.text,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextPrimary,
+                                        fontSize = 11.sp
+                                    )
                                 }
                             }
                         }
@@ -482,10 +545,16 @@ private fun CommentsSheetModal(
                     OutlinedTextField(
                         value = commentText,
                         onValueChange = { commentText = it },
-                        placeholder = { Text("Add a comment…", fontSize = 11.sp) },
+                        placeholder = { Text("Add a comment…", fontSize = 11.sp, color = TextSecondary) },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(20.dp),
-                        singleLine = true
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor   = Gold,
+                            unfocusedBorderColor = Border,
+                            focusedTextColor     = TextPrimary,
+                            unfocusedTextColor   = TextPrimary
+                        )
                     )
                     IconButton(
                         onClick = {
@@ -495,11 +564,11 @@ private fun CommentsSheetModal(
                             }
                         },
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(GoldBright)
+                            .background(Gold)
                     ) {
-                        Icon(Icons.Default.Send, null, tint = ObsidianBlack, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Send, null, tint = Bg, modifier = Modifier.size(14.dp))
                     }
                 }
             }
@@ -513,14 +582,14 @@ private fun CreatePostModal(
     onDismiss: () -> Unit,
     onSubmit: (String, String) -> Unit
 ) {
-    var caption by remember { mutableStateOf("") }
+    var caption      by remember { mutableStateOf("") }
     var monumentName by remember { mutableStateOf("Lingaraj Temple") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = CardSurface,
+        containerColor = Surface1,
         title = {
-            Text("Create Expedition Log", fontWeight = FontWeight.Black, color = CreamWhite)
+            Text("Create Expedition Log", fontWeight = FontWeight.SemiBold, color = TextPrimary)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -529,32 +598,48 @@ private fun CreatePostModal(
                     onValueChange = { monumentName = it },
                     label = { Text("Monument Site") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = Gold,
+                        unfocusedBorderColor = Border,
+                        focusedTextColor     = TextPrimary,
+                        unfocusedTextColor   = TextPrimary,
+                        focusedLabelColor    = TextSecondary,
+                        unfocusedLabelColor  = TextSecondary
+                    )
                 )
 
                 OutlinedTextField(
                     value = caption,
                     onValueChange = { caption = it },
-                    label = { Text("Share your historical discovery…") },
+                    label = { Text("Share your discovery…") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(100.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = Gold,
+                        unfocusedBorderColor = Border,
+                        focusedTextColor     = TextPrimary,
+                        unfocusedTextColor   = TextPrimary,
+                        focusedLabelColor    = TextSecondary,
+                        unfocusedLabelColor  = TextSecondary
+                    )
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = { onSubmit(caption, monumentName) },
-                colors = ButtonDefaults.buttonColors(containerColor = GoldBright, contentColor = ObsidianBlack),
+                colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Bg),
                 enabled = caption.isNotBlank()
             ) {
-                Text("Publish Log", fontWeight = FontWeight.Bold)
+                Text("Publish", fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = MutedGray)
+                Text("Cancel", color = TextSecondary)
             }
         }
     )

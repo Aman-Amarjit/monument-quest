@@ -13,14 +13,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -62,17 +60,13 @@ fun NarratorScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(Bg)
     ) {
         // ── Top Header ───────────────────────────────────────────────────────
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(ForestDeep.copy(alpha = 0.95f), Color.Transparent)
-                    )
-                )
+                .background(Bg)
         ) {
             Row(
                 modifier = Modifier
@@ -85,7 +79,7 @@ fun NarratorScreen(
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
-                        tint = CreamWhite
+                        tint = TextPrimary
                     )
                 }
 
@@ -95,14 +89,14 @@ fun NarratorScreen(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(GoldBright.copy(alpha = 0.15f))
-                        .border(1.dp, GoldBright.copy(alpha = 0.5f), CircleShape),
+                        .background(Surface2)
+                        .border(1.dp, Border, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.AutoStories,
                         contentDescription = null,
-                        tint = GoldBright,
+                        tint = Gold,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -113,35 +107,42 @@ fun NarratorScreen(
                     Text(
                         text = monumentName,
                         style = MaterialTheme.typography.titleMedium,
-                        color = CreamWhite,
-                        fontWeight = FontWeight.Black
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
                     )
                     Text(
-                        text = "AI Cultural & Architectural Historian",
+                        text = "AI Cultural Historian",
                         style = MaterialTheme.typography.labelSmall,
-                        color = GoldBright
+                        color = TextSecondary,
+                        fontSize = 12.sp
                     )
                 }
             }
+
+            HorizontalDivider(color = BorderSubtle)
         }
 
         // ── Quick Question Chips ─────────────────────────────────────────────
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(quickQuestions) { question ->
-                SuggestionChip(
-                    onClick = {
-                        if (!isLoading) {
-                            viewModel.sendMessage(monumentName, question)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Surface2)
+                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                        .clickable {
+                            if (!isLoading) {
+                                viewModel.sendMessage(monumentName, question)
+                            }
                         }
-                    },
-                    label = { Text(question, fontSize = 11.sp, color = CreamWhite) },
-                    border = androidx.compose.foundation.BorderStroke(1.dp, SubtleGray),
-                    colors = SuggestionChipDefaults.suggestionChipColors(containerColor = ElevatedSurface),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(question, fontSize = 11.sp, color = TextSecondary)
+                }
             }
         }
 
@@ -167,75 +168,64 @@ fun NarratorScreen(
         }
 
         // ── Input Dock ───────────────────────────────────────────────────────
-        Box(
+        HorizontalDivider(color = BorderSubtle)
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, NightSurface.copy(alpha = 0.98f))
-                    )
-                )
+                .background(Bg)
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                TextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = {
-                        Text(
-                            "Ask about $monumentName's culture, rituals & history…",
-                            color = MutedGray,
-                            fontSize = 12.sp
-                        )
-                    },
-                    shape = RoundedCornerShape(24.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor   = ElevatedSurface,
-                        unfocusedContainerColor = CardSurface,
-                        focusedTextColor        = CreamWhite,
-                        unfocusedTextColor      = CreamWhite,
-                        cursorColor             = GoldBright,
-                        focusedIndicatorColor   = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    singleLine = true
-                )
+            TextField(
+                value = inputText,
+                onValueChange = { inputText = it },
+                modifier = Modifier.weight(1f),
+                placeholder = {
+                    Text(
+                        "Ask about $monumentName…",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor   = Surface1,
+                    unfocusedContainerColor = Surface1,
+                    focusedTextColor        = TextPrimary,
+                    unfocusedTextColor      = TextPrimary,
+                    cursorColor             = Gold,
+                    focusedIndicatorColor   = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                singleLine = true
+            )
 
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (inputText.isNotBlank() && !isLoading)
-                                Brush.linearGradient(listOf(ForestMid, GoldBright))
-                            else
-                                Brush.linearGradient(listOf(SubtleGray, SubtleGray))
-                        ),
-                    contentAlignment = Alignment.Center
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (inputText.isNotBlank() && !isLoading) Gold else Surface2
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(
+                    onClick = {
+                        if (inputText.isNotBlank() && !isLoading) {
+                            viewModel.sendMessage(monumentName, inputText)
+                            inputText = ""
+                        }
+                    },
+                    enabled = inputText.isNotBlank() && !isLoading
                 ) {
-                    IconButton(
-                        onClick = {
-                            if (inputText.isNotBlank() && !isLoading) {
-                                viewModel.sendMessage(monumentName, inputText)
-                                inputText = ""
-                            }
-                        },
-                        enabled = inputText.isNotBlank() && !isLoading
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "Send",
-                            tint = if (inputText.isNotBlank() && !isLoading) CreamWhite else MutedGray,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Send",
+                        tint = if (inputText.isNotBlank() && !isLoading) Bg else TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }
@@ -252,25 +242,26 @@ private fun TypingIndicator() {
             modifier = Modifier
                 .size(32.dp)
                 .clip(CircleShape)
-                .background(ForestMid.copy(alpha = 0.3f)),
+                .background(Surface2)
+                .border(1.dp, Border, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.AutoStories,
                 contentDescription = null,
-                tint = ForestMint,
+                tint = GreenAccent,
                 modifier = Modifier.size(16.dp)
             )
         }
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
-                .background(ElevatedSurface)
+                .background(Surface2)
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                color = GoldBright,
+                modifier = Modifier.size(14.dp),
+                color = Gold,
                 strokeWidth = 2.dp
             )
         }
@@ -291,14 +282,14 @@ fun ChatBubble(message: ChatMessage) {
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(ForestMid.copy(alpha = 0.3f))
-                    .border(1.dp, ForestMint.copy(alpha = 0.4f), CircleShape),
+                    .background(Surface2)
+                    .border(1.dp, Border, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.AutoStories,
                     contentDescription = null,
-                    tint = ForestMint,
+                    tint = GreenAccent,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -316,18 +307,13 @@ fun ChatBubble(message: ChatMessage) {
                         bottomEnd   = if (isUser) 4.dp else 20.dp
                     )
                 )
-                .background(
-                    if (isUser)
-                        Brush.linearGradient(listOf(ForestMid, ForestDeep))
-                    else
-                        Brush.linearGradient(listOf(ElevatedSurface, CardSurface))
-                )
+                .background(if (isUser) Gold else Surface2)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Text(
                 text = message.message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isUser) CreamWhite else ParchmentLight,
+                color = if (isUser) Bg else TextPrimary,
                 lineHeight = 20.sp
             )
         }
@@ -338,15 +324,14 @@ fun ChatBubble(message: ChatMessage) {
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(GoldBright.copy(alpha = 0.2f))
-                    .border(1.dp, GoldBright.copy(alpha = 0.4f), CircleShape),
+                    .background(Gold),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "U",
                     style = MaterialTheme.typography.labelMedium,
-                    color = GoldBright,
-                    fontWeight = FontWeight.Bold
+                    color = Bg,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
