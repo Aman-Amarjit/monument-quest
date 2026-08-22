@@ -3,6 +3,12 @@ package com.monumentquest.ui.theme
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
+// ── Explorer Reference Palette ───────────────────────────────────────────
+val MidnightNavy     = Color(0xFF0A192F)   // Deep navy background
+val AmberHighlight   = Color(0xFFFF6B00)   // Vibrant orange for paths
+val DeepTeal         = Color(0xFF112240)   // Dark secondary surfaces
+val GlassCard        = Color(0xE6112240)   // Semi-transparent card base
+
 // ── Ultra-Modern Dark Glass Palette ─────────────────────────────────────────────
 val ObsidianBlack    = Color(0xFF08090C)   // Deepest luxury dark background
 val NightSurface     = Color(0xFF10121A)   // Ultra dark slate surface

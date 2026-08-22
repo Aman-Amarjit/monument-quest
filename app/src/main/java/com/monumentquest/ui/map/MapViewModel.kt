@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.monumentquest.core.location.LocationManager
 import com.monumentquest.data.model.MapMonumentItem
+import com.monumentquest.data.model.TacticalGeometry
 import com.monumentquest.data.repository.OverpassRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -36,6 +37,9 @@ class MapViewModel @Inject constructor(
     private val _walkPathPoints = MutableStateFlow<List<GeoPoint>>(emptyList())
     val walkPathPoints: StateFlow<List<GeoPoint>> = _walkPathPoints
 
+    private val _exploredZones = MutableStateFlow<Set<Pair<Int, Int>>>(emptySet())
+    val exploredZones: StateFlow<Set<Pair<Int, Int>>> = _exploredZones
+
     private val _currentSpeedKmh = MutableStateFlow(0f)
     val currentSpeedKmh: StateFlow<Float> = _currentSpeedKmh
 
@@ -54,10 +58,16 @@ class MapViewModel @Inject constructor(
     private val _monuments = MutableStateFlow<List<MapMonumentItem>>(emptyList())
     val monuments: StateFlow<List<MapMonumentItem>> = _monuments
 
+    private val _tacticalGeometry = MutableStateFlow(TacticalGeometry(emptyList(), emptyList()))
+    val tacticalGeometry: StateFlow<TacticalGeometry> = _tacticalGeometry
+
+    private val prefs = context.getSharedPreferences("discovery_prefs", Context.MODE_PRIVATE)
     private var lastLocation: Location? = null
     private var isOverpassFetched = false
+    private var lastGeometryFetchLocation: Location? = null
 
     init {
+        loadExploredZones()
         startLiveGpsTracking()
     }
 
@@ -121,11 +131,52 @@ class MapViewModel @Inject constructor(
                             lastLocation = location
                         }
 
+                        updateExploredZones(location.latitude, location.longitude)
                         recalculateDistances(location)
+
+                        if (lastGeometryFetchLocation == null || lastGeometryFetchLocation!!.distanceTo(location) > 600f) {
+                            fetchTacticalBlueprint(location.latitude, location.longitude)
+                            lastGeometryFetchLocation = location
+                        }
                     }
             } catch (e: Exception) {
                 // Fallback
             }
+        }
+    }
+
+    private fun updateExploredZones(lat: Double, lon: Double) {
+        // Use a simple grid system (approx 50m resolution) to mark explored areas
+        val gridLat = (lat * 2000).toInt()
+        val gridLon = (lon * 2000).toInt()
+        
+        val currentZones = _exploredZones.value
+        if (!currentZones.contains(gridLat to gridLon)) {
+            val newZones = currentZones + (gridLat to gridLon)
+            _exploredZones.value = newZones
+            saveExploredZones(newZones)
+        }
+    }
+
+    private fun saveExploredZones(zones: Set<Pair<Int, Int>>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val data = zones.joinToString("|") { "${it.first},${it.second}" }
+            prefs.edit().putString("explored_zones", data).apply()
+        }
+    }
+
+    private fun loadExploredZones() {
+        val data = prefs.getString("explored_zones", "") ?: ""
+        if (data.isNotBlank()) {
+            val zones = data.split("|").mapNotNull {
+                val parts = it.split(",")
+                if (parts.size == 2) {
+                    parts[0].toIntOrNull()?.let { lat ->
+                        parts[1].toIntOrNull()?.let { lon -> lat to lon }
+                    }
+                } else null
+            }.toSet()
+            _exploredZones.value = zones
         }
     }
 
@@ -154,6 +205,15 @@ class MapViewModel @Inject constructor(
                 _monuments.value = realMonuments
             } else {
                 generateDynamicFallback(lat, lon)
+            }
+        }
+    }
+
+    private fun fetchTacticalBlueprint(lat: Double, lon: Double) {
+        viewModelScope.launch {
+            val geometry = overpassRepository.fetchTacticalGeometry(lat, lon)
+            if (geometry.roads.isNotEmpty() || geometry.buildings.isNotEmpty()) {
+                _tacticalGeometry.value = geometry
             }
         }
     }

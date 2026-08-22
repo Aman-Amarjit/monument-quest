@@ -1,8 +1,10 @@
 package com.monumentquest.data.repository
 
 import com.monumentquest.data.model.MapMonumentItem
+import com.monumentquest.data.model.TacticalGeometry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import org.osmdroid.util.GeoPoint
 import java.net.HttpURLConnection
@@ -13,6 +15,76 @@ import javax.inject.Singleton
 
 @Singleton
 class OverpassRepository @Inject constructor() {
+
+    suspend fun fetchTacticalGeometry(lat: Double, lon: Double, radiusMeters: Int = 1200): TacticalGeometry = withContext(Dispatchers.IO) {
+        val query = """
+            [out:json][timeout:20];
+            (
+              way["highway"](around:$radiusMeters,$lat,$lon);
+              way["building"](around:$radiusMeters,$lat,$lon);
+            );
+            out body;
+            >;
+            out skel qt;
+        """.trimIndent()
+
+        val encodedQuery = URLEncoder.encode(query, "UTF-8")
+        val overpassUrl = "https://overpass-api.de/api/interpreter?data=$encodedQuery"
+
+        try {
+            val url = URL(overpassUrl)
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 10000
+            conn.readTimeout = 10000
+
+            if (conn.responseCode == 200) {
+                val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(responseText)
+                val elements = json.optJSONArray("elements") ?: return@withContext TacticalGeometry(emptyList(), emptyList())
+
+                val nodesMap = mutableMapOf<Long, GeoPoint>()
+                val ways = mutableListOf<JSONObject>()
+
+                for (i in 0 until elements.length()) {
+                    val elem = elements.getJSONObject(i)
+                    when (elem.optString("type")) {
+                        "node" -> {
+                            val id = elem.optLong("id")
+                            val nLat = elem.optDouble("lat")
+                            val nLon = elem.optDouble("lon")
+                            nodesMap[id] = GeoPoint(nLat, nLon)
+                        }
+                        "way" -> ways.add(elem)
+                    }
+                }
+
+                val roads = mutableListOf<List<GeoPoint>>()
+                val buildings = mutableListOf<List<GeoPoint>>()
+
+                for (way in ways) {
+                    val nodeIds = way.optJSONArray("nodes") ?: continue
+                    val points = mutableListOf<GeoPoint>()
+                    for (j in 0 until nodeIds.length()) {
+                        nodesMap[nodeIds.getLong(j)]?.let { points.add(it) }
+                    }
+
+                    if (points.isNotEmpty()) {
+                        val tags = way.optJSONObject("tags")
+                        if (tags?.has("building") == true) {
+                            buildings.add(points)
+                        } else if (tags?.has("highway") == true) {
+                            roads.add(points)
+                        }
+                    }
+                }
+                return@withContext TacticalGeometry(roads, buildings)
+            }
+        } catch (e: Exception) {
+            // Error
+        }
+        TacticalGeometry(emptyList(), emptyList())
+    }
 
     suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 10000): List<MapMonumentItem> = withContext(Dispatchers.IO) {
         val query = """

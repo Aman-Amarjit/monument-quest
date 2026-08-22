@@ -116,8 +116,13 @@ fun MonumentQuestTheme(
         SideEffect {
             val activity = view.context.findActivity() ?: return@SideEffect
             val window = activity.window
+            // Fully transparent status and navigation bars
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+            
             WindowCompat.setDecorFitsSystemWindows(window, false)
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
