@@ -23,7 +23,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -42,93 +41,93 @@ fun DiscoveryFormScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(Bg)
             .verticalScroll(rememberScrollState())
     ) {
-        // ── Captured Image ───────────────────────────────────────────────────
+        // ── Photo preview ─────────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(280.dp)
+                .height(260.dp)
         ) {
             AsyncImage(
-                model = imageUri,
+                model            = imageUri,
                 contentDescription = "Captured Monument",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                modifier         = Modifier.fillMaxSize(),
+                contentScale     = ContentScale.Crop
             )
+            // Bottom fade
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
+                    .height(80.dp)
                     .align(Alignment.BottomCenter)
                     .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, ObsidianBlack)
-                        )
+                        Brush.verticalGradient(listOf(Color.Transparent, Bg))
                     )
             )
+            // Discovery tag
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
+                    .statusBarsPadding()
                     .padding(16.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(GoldBright.copy(alpha = 0.9f))
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(Gold)
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "DISCOVERY LOG",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = ObsidianBlack,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp
+                    "Discovery Log",
+                    style      = MaterialTheme.typography.labelSmall,
+                    color      = Bg,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
 
+        // ── Form ──────────────────────────────────────────────────────────────
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Name Your Discovery",
-                style = MaterialTheme.typography.headlineSmall,
-                color = CreamWhite,
-                fontWeight = FontWeight.Black
+                "Name your discovery",
+                fontWeight = FontWeight.SemiBold,
+                color      = TextPrimary,
+                fontSize   = 20.sp
             )
 
             Text(
-                text = "Points and multipliers are dynamically calculated based on how many explorers have uploaded this monument before you.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MutedGray,
+                "Points are calculated based on how many explorers have uploaded this monument before you — the fewer, the more XP you earn.",
+                style      = MaterialTheme.typography.bodySmall,
+                color      = TextSecondary,
                 lineHeight = 18.sp
             )
 
             OutlinedTextField(
-                value = name,
+                value       = name,
                 onValueChange = { name = it },
-                label = { Text("Monument Name") },
-                placeholder = { Text("e.g. Lingaraj Temple, Mukteshvara…", color = MutedGray) },
+                label       = { Text("Monument Name") },
+                placeholder = { Text("e.g. Lingaraj Temple…", color = TextSecondary) },
                 leadingIcon = {
-                    Icon(Icons.Default.Landscape, null, tint = GoldBright, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Landscape, null, tint = Gold, modifier = Modifier.size(20.dp))
                 },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
+                modifier  = Modifier.fillMaxWidth(),
+                shape     = RoundedCornerShape(12.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor      = GoldBright,
-                    unfocusedBorderColor    = SubtleGray,
-                    focusedLabelColor       = GoldBright,
-                    unfocusedLabelColor     = MutedGray,
-                    focusedTextColor        = CreamWhite,
-                    unfocusedTextColor      = CreamWhite,
-                    cursorColor             = GoldBright,
-                    focusedContainerColor   = ElevatedSurface,
-                    unfocusedContainerColor = CardSurface
+                    focusedBorderColor      = Gold,
+                    unfocusedBorderColor    = Border,
+                    focusedLabelColor       = Gold,
+                    unfocusedLabelColor     = TextSecondary,
+                    focusedTextColor        = TextPrimary,
+                    unfocusedTextColor      = TextPrimary,
+                    cursorColor             = Gold,
+                    focusedContainerColor   = Surface1,
+                    unfocusedContainerColor = Surface1
                 )
             )
 
-            // Dynamic Rarity Points Area
             when (state) {
                 is DiscoveryState.Loading -> {
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -136,8 +135,12 @@ fun DiscoveryFormScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            CircularProgressIndicator(color = GoldBright, strokeWidth = 3.dp)
-                            Text("Checking previous uploaders & calculating rarity XP multiplier…", style = MaterialTheme.typography.bodySmall, color = MutedGray)
+                            CircularProgressIndicator(color = Gold, strokeWidth = 2.5.dp)
+                            Text(
+                                "Calculating rarity XP multiplier…",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
                         }
                     }
                 }
@@ -146,55 +149,53 @@ fun DiscoveryFormScreen(
                     val result = (state as DiscoveryState.Success).result
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = CardSurface),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldBright)
+                        shape    = RoundedCornerShape(14.dp),
+                        colors   = CardDefaults.cardColors(containerColor = Surface1),
+                        border   = androidx.compose.foundation.BorderStroke(1.dp, Gold.copy(alpha = 0.5f))
                     ) {
                         Column(
-                            modifier = Modifier.padding(18.dp),
+                            modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                                verticalAlignment    = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(Icons.Default.MilitaryTech, null, tint = GoldBright, modifier = Modifier.size(28.dp))
+                                Icon(Icons.Default.MilitaryTech, null, tint = Gold, modifier = Modifier.size(26.dp))
                                 Column {
-                                    Text(result.rarityBadge, fontWeight = FontWeight.Black, color = GoldBright, fontSize = 15.sp)
+                                    Text(result.rarityBadge, fontWeight = FontWeight.SemiBold, color = Gold, fontSize = 14.sp)
                                     Text(
-                                        text = "${result.previousUploadersCount} explorers uploaded this monument before you",
+                                        "${result.previousUploadersCount} explorers uploaded this before you",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MutedGray
+                                        color = TextSecondary
                                     )
                                 }
                             }
 
-                            HorizontalDivider(color = SubtleGray)
+                            HorizontalDivider(color = Border)
 
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier              = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment     = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text("XP MULTIPLIER", style = MaterialTheme.typography.labelSmall, color = MutedGray)
-                                    Text("${result.multiplier}x Bonus", fontWeight = FontWeight.Bold, color = ForestMint, fontSize = 16.sp)
+                                    Text("MULTIPLIER", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
+                                    Text("${result.multiplier}x Bonus", fontWeight = FontWeight.Bold, color = GreenAccent, fontSize = 15.sp)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("TOTAL AWARDED", style = MaterialTheme.typography.labelSmall, color = MutedGray)
-                                    Text("+${result.pointsEarned} XP", fontWeight = FontWeight.Black, color = GoldBright, fontSize = 18.sp)
+                                    Text("XP EARNED", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
+                                    Text("+${result.pointsEarned} XP", fontWeight = FontWeight.Bold, color = Gold, fontSize = 18.sp)
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
-
                             Button(
-                                onClick = onSuccess,
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = ForestMid),
-                                shape = RoundedCornerShape(12.dp)
+                                onClick  = onSuccess,
+                                modifier = Modifier.fillMaxWidth().height(46.dp),
+                                colors   = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Bg),
+                                shape    = RoundedCornerShape(10.dp)
                             ) {
-                                Text("Continue to Map", fontWeight = FontWeight.Bold)
+                                Text("Back to Map", fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -204,34 +205,29 @@ fun DiscoveryFormScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(ErrorRed.copy(alpha = 0.1f))
-                            .border(1.dp, ErrorRed.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-                            .padding(16.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(RedAccent.copy(alpha = 0.08f))
+                            .border(1.dp, RedAccent.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                            .padding(14.dp)
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment     = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Error, null, tint = ErrorRed, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Default.Error, null, tint = RedAccent, modifier = Modifier.size(20.dp))
                             Text(
-                                "Error: ${(state as DiscoveryState.Error).message}",
-                                color = ErrorRed,
+                                (state as DiscoveryState.Error).message,
+                                color = RedAccent,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    SubmitButton(label = "Retry", enabled = true) {
-                        viewModel.uploadDiscovery(name, imageUri)
-                    }
+                    SubmitButton(enabled = true) { viewModel.uploadDiscovery(name, imageUri) }
                 }
 
                 else -> {
-                    SubmitButton(
-                        label = "Submit & Calculate Rarity XP",
-                        enabled = name.isNotBlank()
-                    ) {
+                    SubmitButton(enabled = name.isNotBlank()) {
                         viewModel.uploadDiscovery(name, imageUri)
                     }
                 }
@@ -243,34 +239,21 @@ fun DiscoveryFormScreen(
 }
 
 @Composable
-private fun SubmitButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                if (enabled)
-                    Brush.horizontalGradient(listOf(ForestMid, GoldDark))
-                else
-                    Brush.horizontalGradient(listOf(SubtleGray, SubtleGray))
-            )
+private fun SubmitButton(enabled: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick  = onClick,
+        enabled  = enabled,
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+        colors   = ButtonDefaults.buttonColors(
+            containerColor         = Gold,
+            contentColor           = Bg,
+            disabledContainerColor = Surface2,
+            disabledContentColor   = TextSecondary
+        ),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Button(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor   = CreamWhite,
-                disabledContainerColor = Color.Transparent,
-                disabledContentColor = MutedGray
-            ),
-            shape = RoundedCornerShape(16.dp),
-            elevation = ButtonDefaults.buttonElevation(0.dp)
-        ) {
-            Icon(Icons.Default.CloudUpload, null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(label, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-        }
+        Icon(Icons.Default.CloudUpload, null, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("Submit & Calculate XP", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
     }
 }
