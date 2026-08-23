@@ -76,40 +76,44 @@ private val OsmTileSource = object : OnlineTileSourceBase(
 // ── Marker helpers ────────────────────────────────────────────────────────────
 
 private fun createMonumentMarker(context: Context, isSelected: Boolean): Drawable {
-    val size   = if (isSelected) 80 else 60
+    val size   = if (isSelected) 52 else 40
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint  = Paint(Paint.ANTI_ALIAS_FLAG)
     val cx     = size / 2f
 
-    paint.color = AndroidColor.parseColor(if (isSelected) "#50F0A500" else "#30F0A500")
+    // Shadow
+    paint.color = AndroidColor.parseColor("#30000000")
+    canvas.drawCircle(cx, cx + 2f, cx - 3f, paint)
+    // White border
+    paint.color = AndroidColor.WHITE
     canvas.drawCircle(cx, cx, cx - 2f, paint)
-    paint.color = AndroidColor.WHITE
-    canvas.drawCircle(cx, cx, cx - 7f, paint)
+    // Gold fill
     paint.color = AndroidColor.parseColor("#F0A500")
-    canvas.drawCircle(cx, cx, cx - 14f, paint)
+    canvas.drawCircle(cx, cx, cx - 6f, paint)
+    // White centre
     paint.color = AndroidColor.WHITE
-    canvas.drawCircle(cx, cx, if (isSelected) 8f else 6f, paint)
+    canvas.drawCircle(cx, cx, if (isSelected) 7f else 5f, paint)
 
     return BitmapDrawable(context.resources, bitmap)
 }
 
 private fun createUserDot(context: Context): Drawable {
-    val size   = 48
+    val size   = 36
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint  = Paint(Paint.ANTI_ALIAS_FLAG)
     val cx     = size / 2f
 
-    // Outer pulse ring
-    paint.color = AndroidColor.parseColor("#300080FF")
-    canvas.drawCircle(cx, cx, cx - 2f, paint)
-    // White border
+    // White border ring
     paint.color = AndroidColor.WHITE
-    canvas.drawCircle(cx, cx, cx / 2f + 2f, paint)
+    canvas.drawCircle(cx, cx, cx - 1f, paint)
     // Blue fill
-    paint.color = AndroidColor.parseColor("#0080FF")
-    canvas.drawCircle(cx, cx, cx / 2f - 1f, paint)
+    paint.color = AndroidColor.parseColor("#1A73E8")
+    canvas.drawCircle(cx, cx, cx - 4f, paint)
+    // White centre dot
+    paint.color = AndroidColor.WHITE
+    canvas.drawCircle(cx, cx, 4f, paint)
 
     return BitmapDrawable(context.resources, bitmap)
 }
@@ -169,92 +173,94 @@ fun MapScreen(
     }
 
     val currentSatelliteMode by rememberUpdatedState(isSatelliteMode)
+    // Keep a stable ref to mapViewInstance for use in effects that run before the factory completes
+    val mapViewRef = remember { mutableStateOf<MapView?>(null) }
 
     // ── Walk path polyline ────────────────────────────────────────────────────
-    LaunchedEffect(walkPathPoints) {
-        mapViewInstance?.let { map ->
-            if (walkPathPoints.size < 2) return@let
-            val existing = walkPolyline.value
-            if (existing == null) {
-                val poly = Polyline(map).apply {
-                    outlinePaint.color       = AndroidColor.parseColor("#CC3B82F6")
-                    outlinePaint.strokeWidth = 10f
-                    outlinePaint.strokeCap   = Paint.Cap.ROUND
-                    outlinePaint.strokeJoin  = Paint.Join.ROUND
-                    setPoints(walkPathPoints)
-                }
-                map.overlays.add(0, poly)
-                walkPolyline.value = poly
-            } else {
-                existing.setPoints(walkPathPoints)
+    // Use DisposableEffect + derive from mapViewRef so we always have the map
+    LaunchedEffect(walkPathPoints, mapViewRef.value) {
+        val map = mapViewRef.value ?: return@LaunchedEffect
+        if (walkPathPoints.size < 2) return@LaunchedEffect
+        val existing = walkPolyline.value
+        if (existing == null) {
+            val poly = Polyline(map).apply {
+                outlinePaint.color       = AndroidColor.parseColor("#CC3B82F6")
+                outlinePaint.strokeWidth = 10f
+                outlinePaint.strokeCap   = Paint.Cap.ROUND
+                outlinePaint.strokeJoin  = Paint.Join.ROUND
+                setPoints(walkPathPoints)
             }
-            map.invalidate()
+            // Insert at index 0 so it renders below markers
+            map.overlays.add(0, poly)
+            walkPolyline.value = poly
+        } else {
+            existing.setPoints(walkPathPoints)
         }
+        map.invalidate()
     }
 
     // ── User location ─────────────────────────────────────────────────────────
-    LaunchedEffect(userLocation) {
-        mapViewInstance?.let { map ->
-            userLocation?.let { geo ->
-                if (userMarker == null) {
-                    val m = Marker(map).apply {
-                        title = "You"
-                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                        icon = createUserDot(context)
-                    }
-                    map.overlays.add(m)
-                    userMarker = m
+    LaunchedEffect(userLocation, mapViewRef.value) {
+        val map = mapViewRef.value ?: return@LaunchedEffect
+        userLocation?.let { geo ->
+            if (userMarker == null) {
+                val m = Marker(map).apply {
+                    title = "You"
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    icon = createUserDot(context)
+                    infoWindow = null
                 }
-                userMarker?.position = geo
-
-                // First GPS fix: zoom in once
-                if (!hasZoomedToUser) {
-                    map.controller.setZoom(17.0)
-                    map.controller.setCenter(geo)
-                    hasZoomedToUser = true
-                } else if (isFollowingUser) {
-                    map.controller.animateTo(geo)
-                }
-                map.invalidate()
+                map.overlays.add(m)
+                userMarker = m
             }
+            userMarker?.position = geo
+
+            if (!hasZoomedToUser) {
+                map.controller.setZoom(17.0)
+                map.controller.setCenter(geo)
+                hasZoomedToUser = true
+            } else if (isFollowingUser) {
+                map.controller.animateTo(geo)
+            }
+            map.invalidate()
         }
     }
 
     // ── Monument markers ──────────────────────────────────────────────────────
-    LaunchedEffect(monuments, selectedMonument) {
-        mapViewInstance?.let { map ->
-            val newSelectedIds = mutableSetOf<String>()
-            selectedMonument?.let { newSelectedIds.add(it.id) }
+    LaunchedEffect(monuments, selectedMonument, mapViewRef.value) {
+        val map = mapViewRef.value ?: return@LaunchedEffect
+        val newSelectedIds = mutableSetOf<String>()
+        selectedMonument?.let { newSelectedIds.add(it.id) }
 
-            monuments.forEach { item ->
-                val isSel    = selectedMonument?.id == item.id
-                val existing = monumentMarkers[item.id]
-                if (existing == null) {
-                    val marker = Marker(map).apply {
-                        position = item.geoPoint
-                        title    = item.name
-                        icon     = createMonumentMarker(context, isSel)
-                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                        setOnMarkerClickListener { _, _ ->
-                            selectedMonument = item
-                            isFollowingUser  = false
-                            map.controller.animateTo(item.geoPoint)
-                            true
-                        }
-                    }
-                    map.overlays.add(marker)
-                    monumentMarkers[item.id] = marker
-                } else {
-                    existing.position = item.geoPoint
-                    val wasSelected = selectedMarkerIds.value.contains(item.id)
-                    if (isSel != wasSelected) {
-                        existing.icon = createMonumentMarker(context, isSel)
+        monuments.forEach { item ->
+            val isSel    = selectedMonument?.id == item.id
+            val existing = monumentMarkers[item.id]
+            if (existing == null) {
+                val marker = Marker(map).apply {
+                    position  = item.geoPoint
+                    title     = item.name
+                    icon      = createMonumentMarker(context, isSel)
+                    infoWindow = null  // use our own card, not OSMDroid bubble
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    setOnMarkerClickListener { _, _ ->
+                        selectedMonument = item
+                        isFollowingUser  = false
+                        map.controller.animateTo(item.geoPoint)
+                        true
                     }
                 }
+                map.overlays.add(marker)
+                monumentMarkers[item.id] = marker
+            } else {
+                existing.position = item.geoPoint
+                val wasSelected = selectedMarkerIds.value.contains(item.id)
+                if (isSel != wasSelected) {
+                    existing.icon = createMonumentMarker(context, isSel)
+                }
             }
-            selectedMarkerIds.value = newSelectedIds
-            map.invalidate()
         }
+        selectedMarkerIds.value = newSelectedIds
+        map.invalidate()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -265,16 +271,15 @@ fun MapScreen(
                 val cfg = Configuration.getInstance()
                 cfg.load(ctx, ctx.getSharedPreferences("osmdroid_pref", Context.MODE_PRIVATE))
                 cfg.userAgentValue = "${ctx.packageName}/1.0 (MonumentQuest)"
-                cfg.tileCacheMaxQueueSize = 12
 
                 MapView(ctx).apply {
                     setTileSource(OsmTileSource)
                     setMultiTouchControls(true)
-                    // Default view: India, zoom 5 — snaps to GPS on first fix
                     controller.setZoom(5.0)
                     controller.setCenter(GeoPoint(20.5937, 78.9629))
                     mapOrientation = 0f
                     mapViewInstance = this
+                    mapViewRef.value = this   // ← wire the stable ref so LaunchedEffects fire
                 }
             },
             update = { mv ->
@@ -291,7 +296,7 @@ fun MapScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, top = 12.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(Color.White.copy(alpha = 0.97f)),
             verticalAlignment = Alignment.CenterVertically
@@ -336,8 +341,8 @@ fun MapScreen(
         // ── Monument info card ────────────────────────────────────────────────
         AnimatedVisibility(
             visible  = selectedMonument != null,
-            enter    = slideInVertically({ it }, tween(300)) + fadeIn(tween(200)),
-            exit     = slideOutVertically({ it }, tween(240)) + fadeOut(tween(160)),
+            enter    = slideInVertically(animationSpec = tween(300)) { it } + fadeIn(tween(200)),
+            exit     = slideOutVertically(animationSpec = tween(240)) { it } + fadeOut(tween(160)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -417,8 +422,8 @@ fun MapScreen(
 
                 AnimatedVisibility(
                     visible = isSheetExpanded,
-                    enter   = fadeIn(tween(180)) + slideInVertically(tween(240)),
-                    exit    = fadeOut(tween(140)) + slideOutVertically(tween(200))
+                    enter   = fadeIn(tween(180)) + slideInVertically(animationSpec = tween(240)) { it },
+                    exit    = fadeOut(tween(140)) + slideOutVertically(animationSpec = tween(200)) { it }
                 ) {
                     Column {
                         Spacer(modifier = Modifier.height(14.dp))

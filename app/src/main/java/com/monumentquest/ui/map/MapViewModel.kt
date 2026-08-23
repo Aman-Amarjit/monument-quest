@@ -116,7 +116,21 @@ class MapViewModel @Inject constructor(
                     .catch { /* handle error */ }
                     .collect { location ->
                         val currentGeo = GeoPoint(location.latitude, location.longitude)
-                        _userLocation.value = currentGeo
+
+                        // Only move the dot when displacement >= 3m — stops standing-still jitter
+                        val prev = _userLocation.value
+                        val displacement = if (prev != null) {
+                            val r = FloatArray(1)
+                            android.location.Location.distanceBetween(
+                                prev.latitude, prev.longitude,
+                                location.latitude, location.longitude, r
+                            )
+                            r[0]
+                        } else Float.MAX_VALUE
+
+                        if (displacement >= 3f) {
+                            _userLocation.value = currentGeo
+                        }
 
                         detectCityName(location.latitude, location.longitude)
 
@@ -155,18 +169,16 @@ class MapViewModel @Inject constructor(
                             // Only log distance for genuine movement (> 3m, < 100m per step)
                             if (stepDist >= 3.0 && stepDist < 100.0) {
                                 _totalDistanceWalked.value += stepDist
-
                                 val currentPath = _walkPathPoints.value.toMutableList()
                                 currentPath.add(currentGeo)
                                 _walkPathPoints.value = currentPath
+                                lastLocation = location  // update here so next step is correct
                             }
                         }
 
                         if (lastLocation == null) {
                             lastLocation = location
                             _walkPathPoints.value = listOf(currentGeo)
-                        } else if (lastLocation!!.distanceTo(location) >= 2.5f) {
-                            lastLocation = location
                         }
 
                         updateExploredZones(location.latitude, location.longitude)
