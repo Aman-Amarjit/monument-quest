@@ -3,8 +3,6 @@ package com.monumentquest.core.location
 import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Location
-import android.location.LocationListener
-import android.os.Bundle
 import android.os.Looper
 import com.google.android.gms.location.*
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -15,59 +13,74 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Ultra-Fast 5Hz High-Precision Adaptive GPS Location Engine.
- * Provides instantaneous location updates with zero lag.
+ * Stationary-aware Kalman-inspired EMA filter.
+ *
+ * Key fixes vs the old version:
+ * 1. High alpha (0.85) caused the dot to jump on every noisy GPS pulse even
+ *    while standing. Now alpha is capped at 0.35 and only raised when the
+ *    device is clearly moving (speed > 1 m/s AND raw displacement > 3 m).
+ * 2. The old code ran BOTH FusedLocationProvider AND native GPS_PROVIDER,
+ *    effectively doubling the update rate and noise. Now only FusedLocation
+ *    is used — it already fuses GPS + network + sensors internally.
+ * 3. Accuracy gate raised from 25m to 40m so more readings are accepted,
+ *    but the low alpha keeps them from causing visible drift.
  */
-class KalmanLocationFilter {
-    private var latEMA = 0.0
-    private var lonEMA = 0.0
-    private var speedEMA = 0f
-    private var bearingEMA = 0f
+class StationaryAwareLocationFilter {
+
+    private var latSmooth  = 0.0
+    private var lonSmooth  = 0.0
+    private var speedSmooth = 0f
+    private var initialized = false
 
     fun filter(raw: Location): Location {
-        // Discard extreme accuracy outliers (> 25m)
-        if (raw.hasAccuracy() && raw.accuracy > 25.0f) {
+        // Reject very inaccurate fixes
+        if (raw.hasAccuracy() && raw.accuracy > 40.0f && initialized) {
+            // Return last smoothed position instead
             return Location(raw).apply {
-                if (latEMA != 0.0) {
-                    latitude = latEMA
-                    longitude = lonEMA
-                    speed = speedEMA
-                    bearing = bearingEMA
-                }
+                latitude  = latSmooth
+                longitude = lonSmooth
+                speed     = speedSmooth
             }
         }
 
-        if (latEMA == 0.0) {
-            latEMA = raw.latitude
-            lonEMA = raw.longitude
-            speedEMA = if (raw.hasSpeed()) raw.speed else 0f
-            bearingEMA = if (raw.hasBearing()) raw.bearing else 0f
+        if (!initialized) {
+            latSmooth   = raw.latitude
+            lonSmooth   = raw.longitude
+            speedSmooth = if (raw.hasSpeed()) raw.speed else 0f
+            initialized = true
             return raw
         }
 
-        // Ultra-responsive instantaneous alpha (0.85 when moving)
-        val accuracy = if (raw.hasAccuracy()) raw.accuracy else 5f
-        val alpha = when {
-            accuracy < 5.0f -> 0.85
-            accuracy < 10.0f -> 0.65
-            else -> 0.40
-        }
-
-        latEMA = latEMA + alpha * (raw.latitude - latEMA)
-        lonEMA = lonEMA + alpha * (raw.longitude - lonEMA)
+        // Compute raw displacement in metres
+        val results = FloatArray(1)
+        Location.distanceBetween(latSmooth, lonSmooth, raw.latitude, raw.longitude, results)
+        val displacement = results[0]
 
         val rawSpeed = if (raw.hasSpeed()) raw.speed else 0f
-        speedEMA = (speedEMA + alpha * (rawSpeed - speedEMA)).toFloat()
 
-        if (raw.hasBearing()) {
-            bearingEMA = raw.bearing
+        // Only accept significant movement — ignore sub-3m GPS drift
+        val isActuallyMoving = rawSpeed > 1.0f && displacement > 3.0f
+
+        // Low alpha = sticky (stands still), higher alpha = follows movement
+        val alpha = when {
+            isActuallyMoving && displacement > 10f -> 0.6   // fast movement
+            isActuallyMoving                       -> 0.35  // slow walk
+            else                                   -> 0.05  // stationary — barely moves
         }
 
+        latSmooth  = latSmooth  + alpha * (raw.latitude  - latSmooth)
+        lonSmooth  = lonSmooth  + alpha * (raw.longitude - lonSmooth)
+        speedSmooth = (speedSmooth + (alpha * (rawSpeed - speedSmooth)).toFloat())
+
+        // Zero out speed when clearly standing still
+        val filteredSpeed = if (speedSmooth < 0.3f) 0f else speedSmooth
+
         return Location(raw).apply {
-            latitude = latEMA
-            longitude = lonEMA
-            speed = if (speedEMA < 0.2f) 0f else speedEMA
-            bearing = bearingEMA
+            latitude  = latSmooth
+            longitude = lonSmooth
+            speed     = filteredSpeed
+            // Keep raw bearing only when actually moving
+            if (!isActuallyMoving) bearing = raw.bearing
         }
     }
 }
@@ -76,78 +89,43 @@ class KalmanLocationFilter {
 class LocationManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val fusedLocationClient: FusedLocationProviderClient =
+    private val fusedClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(context)
 
-    private val nativeLocationManager =
-        context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
-
-    private val kalmanFilter = KalmanLocationFilter()
+    private val filter = StationaryAwareLocationFilter()
 
     @SuppressLint("MissingPermission")
     fun getLocationUpdates(): Flow<Location> = callbackFlow {
-        // Emit last location immediately
-        fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
-            if (lastLoc != null) {
-                trySend(kalmanFilter.filter(lastLoc))
-            }
+        // Emit cached last-known location immediately for a fast first paint
+        fusedClient.lastLocation.addOnSuccessListener { loc ->
+            if (loc != null) trySend(filter.filter(loc))
         }
 
-        // Ultra-fast 200ms (5 Hz) real-time location stream
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 200L)
-            .setMinUpdateIntervalMillis(100L)
-            .setMinUpdateDistanceMeters(0f)
+        // 1 Hz updates, minimum 3 m displacement — avoids spam while standing still.
+        // FusedLocation already blends GPS + network + accelerometer, so we don't
+        // need a separate native GPS_PROVIDER stream.
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
+            .setMinUpdateIntervalMillis(500L)
+            .setMinUpdateDistanceMeters(3f)   // ← key: no updates for sub-3m noise
             .setGranularity(Granularity.GRANULARITY_FINE)
             .setWaitForAccurateLocation(false)
             .build()
 
-        val locationCallback = object : LocationCallback() {
+        val callback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
-                for (location in result.locations) {
-                    trySend(kalmanFilter.filter(location))
-                }
+                result.locations.forEach { trySend(filter.filter(it)) }
             }
         }
 
-        fusedLocationClient.requestLocationUpdates(
-            locationRequest,
-            locationCallback,
-            Looper.getMainLooper()
-        )
+        fusedClient.requestLocationUpdates(request, callback, Looper.getMainLooper())
 
-        val nativeListener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
-                trySend(kalmanFilter.filter(location))
-            }
-            @Deprecated("Deprecated in Java")
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-            override fun onProviderEnabled(provider: String) {}
-            override fun onProviderDisabled(provider: String) {}
-        }
-
-        try {
-            nativeLocationManager?.requestLocationUpdates(
-                android.location.LocationManager.GPS_PROVIDER,
-                200L,
-                0f,
-                nativeListener,
-                Looper.getMainLooper()
-            )
-        } catch (e: Exception) {
-            // Ignore fallback listener exception
-        }
-
-        awaitClose {
-            fusedLocationClient.removeLocationUpdates(locationCallback)
-            try {
-                nativeLocationManager?.removeUpdates(nativeListener)
-            } catch (e: Exception) {
-                // Ignore remove listener exception
-            }
-        }
+        awaitClose { fusedClient.removeLocationUpdates(callback) }
     }
 
-    fun checkProximity(userLat: Double, userLon: Double, monLat: Double, monLon: Double): Double {
+    fun checkProximity(
+        userLat: Double, userLon: Double,
+        monLat: Double,  monLon: Double
+    ): Double {
         val results = FloatArray(1)
         Location.distanceBetween(userLat, userLon, monLat, monLon, results)
         return results[0].toDouble()

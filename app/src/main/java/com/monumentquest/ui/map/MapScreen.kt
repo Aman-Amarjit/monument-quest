@@ -6,12 +6,15 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,14 +23,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Park
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Satellite
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,13 +39,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.monumentquest.data.model.MapMonumentItem
-import com.monumentquest.ui.common.UserAvatar
 import com.monumentquest.ui.theme.*
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
@@ -49,173 +54,75 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.util.MapTileIndex
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.Overlay
-import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
-import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import org.osmdroid.views.overlay.Polyline
 
-private val Stylized3DCityTileSource = object : OnlineTileSourceBase(
-    "Stylized3DCity",
-    0, 19, 256, ".png",
-    arrayOf("https://basemaps.cartocdn.com/rastertiles/voyager/")
+// ── Tile source — OpenStreetMap (free, no key, always works) ─────────────────
+private val OsmTileSource = object : OnlineTileSourceBase(
+    "Mapnik", 0, 19, 256, ".png",
+    arrayOf(
+        "https://a.tile.openstreetmap.org/",
+        "https://b.tile.openstreetmap.org/",
+        "https://c.tile.openstreetmap.org/"
+    )
 ) {
     override fun getTileURLString(pMapTileIndex: Long): String {
         val zoom = MapTileIndex.getZoom(pMapTileIndex)
-        val x = MapTileIndex.getX(pMapTileIndex)
-        val y = MapTileIndex.getY(pMapTileIndex)
-        return "https://basemaps.cartocdn.com/rastertiles/voyager/$zoom/$x/$y.png"
+        val x    = MapTileIndex.getX(pMapTileIndex)
+        val y    = MapTileIndex.getY(pMapTileIndex)
+        return "${baseUrl}$zoom/$x/$y.png"
     }
 }
 
-private val PhotorealisticSatelliteTileSource = object : OnlineTileSourceBase(
-    "PhotorealisticSatellite",
-    0, 20, 256, ".jpeg",
-    arrayOf("https://mt0.google.com/vt/lyrs=y&x=", "https://mt1.google.com/vt/lyrs=y&x=")
-) {
-    override fun getTileURLString(pMapTileIndex: Long): String {
-        val zoom = MapTileIndex.getZoom(pMapTileIndex)
-        val x = MapTileIndex.getX(pMapTileIndex)
-        val y = MapTileIndex.getY(pMapTileIndex)
-        return "https://mt1.google.com/vt/lyrs=y&x=$x&y=$y&z=$zoom"
-    }
-}
+// ── Marker helpers ────────────────────────────────────────────────────────────
 
-class Isometric3DCityOverlay : Overlay() {
-    private val highwayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#F59E0B")
-        style = Paint.Style.STROKE
-        strokeWidth = 22f
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-        setShadowLayer(8f, 0f, 6f, AndroidColor.parseColor("#40000000"))
-    }
-
-    private val highwayBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#D97706")
-        style = Paint.Style.STROKE
-        strokeWidth = 26f
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
-
-    private val buildingBlockPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#94A3B8")
-        style = Paint.Style.FILL
-        setShadowLayer(6f, 3f, 6f, AndroidColor.parseColor("#30000000"))
-    }
-
-    private val buildingRoofPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#CBD5E1")
-        style = Paint.Style.FILL
-    }
-
-    private val parkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#86EFAC")
-        style = Paint.Style.FILL
-    }
-
-    private val waterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.parseColor("#38BDF8")
-        style = Paint.Style.FILL
-    }
-
-    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
-        if (shadow) return
-        val w = mapView.width.toFloat()
-        val h = mapView.height.toFloat()
-        if (w <= 0 || h <= 0) return
-
-        val waterPath = Path().apply {
-            moveTo(0f, h * 0.7f)
-            cubicTo(w * 0.3f, h * 0.65f, w * 0.5f, h * 0.85f, w, h * 0.75f)
-            lineTo(w, h)
-            lineTo(0f, h)
-            close()
-        }
-        canvas.drawPath(waterPath, waterPaint)
-
-        val parkPath = Path().apply {
-            moveTo(w * 0.6f, h * 0.1f)
-            lineTo(w * 0.95f, h * 0.15f)
-            lineTo(w * 0.9f, h * 0.45f)
-            lineTo(w * 0.55f, h * 0.35f)
-            close()
-        }
-        canvas.drawPath(parkPath, parkPaint)
-
-        val highwayPath = Path().apply {
-            moveTo(-50f, h * 0.25f)
-            cubicTo(w * 0.35f, h * 0.2f, w * 0.45f, h * 0.45f, w + 50f, h * 0.55f)
-        }
-        canvas.drawPath(highwayPath, highwayBorderPaint)
-        canvas.drawPath(highwayPath, highwayPaint)
-
-        val loopCenterX = w * 0.45f
-        val loopCenterY = h * 0.45f
-        canvas.drawCircle(loopCenterX, loopCenterY, 38f, highwayBorderPaint)
-        canvas.drawCircle(loopCenterX, loopCenterY, 38f, highwayPaint)
-        canvas.drawCircle(loopCenterX, loopCenterY, 18f, parkPaint)
-
-        val stepX = 120f
-        val stepY = 90f
-        var startY = 80f
-        while (startY < h * 0.65f) {
-            var startX = 40f
-            while (startX < w - 60f) {
-                if (Math.abs(startX - loopCenterX) > 60f || Math.abs(startY - loopCenterY) > 60f) {
-                    val bw = 65f
-                    val bh = 45f
-                    val depth = 12f
-                    canvas.drawRect(startX, startY + depth, startX + bw, startY + bh + depth, buildingBlockPaint)
-                    canvas.drawRect(startX, startY, startX + bw, startY + bh, buildingRoofPaint)
-                }
-                startX += stepX
-            }
-            startY += stepY
-        }
-    }
-}
-
-private fun createGolden3DLoopMarker(context: Context, isSelected: Boolean): Drawable {
-    val size = if (isSelected) 96 else 80
+private fun createMonumentMarker(context: Context, isSelected: Boolean): Drawable {
+    val size   = if (isSelected) 80 else 60
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    val paint  = Paint(Paint.ANTI_ALIAS_FLAG)
+    val cx     = size / 2f
 
-    paint.color = if (isSelected) AndroidColor.parseColor("#FFFFD700") else AndroidColor.parseColor("#80F59E0B")
-    canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
-
-    paint.color = AndroidColor.parseColor("#FFFFFF")
-    canvas.drawCircle(size / 2f, size / 2f, size / 2f - 6f, paint)
-
-    paint.color = AndroidColor.parseColor("#F59E0B")
-    canvas.drawCircle(size / 2f, size / 2f, size / 2f - 14f, paint)
-
-    paint.color = AndroidColor.parseColor("#FFFFFF")
-    canvas.drawCircle(size / 2f, size / 2f, 8f, paint)
+    paint.color = AndroidColor.parseColor(if (isSelected) "#50F0A500" else "#30F0A500")
+    canvas.drawCircle(cx, cx, cx - 2f, paint)
+    paint.color = AndroidColor.WHITE
+    canvas.drawCircle(cx, cx, cx - 7f, paint)
+    paint.color = AndroidColor.parseColor("#F0A500")
+    canvas.drawCircle(cx, cx, cx - 14f, paint)
+    paint.color = AndroidColor.WHITE
+    canvas.drawCircle(cx, cx, if (isSelected) 8f else 6f, paint)
 
     return BitmapDrawable(context.resources, bitmap)
 }
 
-private fun createCyanVehicleMarker(context: Context): Drawable {
-    val size = 72
+private fun createUserDot(context: Context): Drawable {
+    val size   = 48
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    val paint  = Paint(Paint.ANTI_ALIAS_FLAG)
+    val cx     = size / 2f
 
-    paint.color = AndroidColor.parseColor("#4000E5FF")
-    canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2f, paint)
-
-    paint.color = AndroidColor.parseColor("#007AFF")
-    canvas.drawCircle(size / 2f, size / 2f, size / 4f, paint)
+    // Outer pulse ring
+    paint.color = AndroidColor.parseColor("#300080FF")
+    canvas.drawCircle(cx, cx, cx - 2f, paint)
+    // White border
+    paint.color = AndroidColor.WHITE
+    canvas.drawCircle(cx, cx, cx / 2f + 2f, paint)
+    // Blue fill
+    paint.color = AndroidColor.parseColor("#0080FF")
+    canvas.drawCircle(cx, cx, cx / 2f - 1f, paint)
 
     return BitmapDrawable(context.resources, bitmap)
 }
+
+// ── Data ──────────────────────────────────────────────────────────────────────
 
 data class RecentStopItem(
     val name: String,
     val time: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
+
+// ── Screen ────────────────────────────────────────────────────────────────────
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -226,86 +133,111 @@ fun MapScreen(
     viewModel: MapViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val monuments           by viewModel.monuments.collectAsState()
-    val userLocation        by viewModel.userLocation.collectAsState()
-    val detectedCityName    by viewModel.detectedCityName.collectAsState()
-    val speedKmh            by viewModel.currentSpeedKmh.collectAsState()
-    val bearing             by viewModel.currentBearing.collectAsState()
-    val coverageStats       by viewModel.coverageStats.collectAsState()
 
-    var selectedMonument by remember { mutableStateOf<MapMonumentItem?>(null) }
-    var mapViewInstance  by remember { mutableStateOf<MapView?>(null) }
-    var userMarker       by remember { mutableStateOf<Marker?>(null) }
-    val monumentMarkers  = remember { mutableMapOf<String, Marker>() }
-    val isometricOverlay = remember { Isometric3DCityOverlay() }
+    val monuments      by viewModel.monuments.collectAsState()
+    val userLocation   by viewModel.userLocation.collectAsState()
+    val bearing        by viewModel.currentBearing.collectAsState()
+    val coverageStats  by viewModel.coverageStats.collectAsState()
+    val walkPathPoints by viewModel.walkPathPoints.collectAsState()
+
+    var selectedMonument  by remember { mutableStateOf<MapMonumentItem?>(null) }
+    var mapViewInstance   by remember { mutableStateOf<MapView?>(null) }
+    var userMarker        by remember { mutableStateOf<Marker?>(null) }
+    val monumentMarkers   = remember { mutableMapOf<String, Marker>() }
+    val selectedMarkerIds = remember { mutableStateOf<Set<String>>(emptySet()) }
+    val walkPolyline      = remember { mutableStateOf<Polyline?>(null) }
 
     var isFollowingUser  by remember { mutableStateOf(true) }
     var isSatelliteMode  by remember { mutableStateOf(false) }
-
     var searchQuery      by remember { mutableStateOf("") }
-    var isSheetExpanded  by remember { mutableStateOf(true) }
+    var isSheetExpanded  by remember { mutableStateOf(false) }
+    // Track if we've done the first GPS zoom-in
+    var hasZoomedToUser  by remember { mutableStateOf(false) }
+
+    val sheetBottomPadding: Dp by animateDpAsState(
+        targetValue   = if (isSheetExpanded) 300.dp else 152.dp,
+        animationSpec = tween(280),
+        label         = "sheetPad"
+    )
 
     val recentStops = remember {
         listOf(
-            RecentStopItem("Old Town Heritage Cafe", "10:30 AM", Icons.Default.LocalCafe),
-            RecentStopItem("Ekambrakanan Park Gate", "1:15 PM", Icons.Default.Park),
-            RecentStopItem("Mukteshvara Temple Gate", "3:00 PM", Icons.Default.Place)
+            RecentStopItem("Old Town Heritage Cafe",  "10:30 AM", Icons.Default.LocalCafe),
+            RecentStopItem("Ekambrakanan Park Gate",  "1:15 PM",  Icons.Default.Park),
+            RecentStopItem("Mukteshvara Temple Gate", "3:00 PM",  Icons.Default.Place)
         )
     }
 
-    LaunchedEffect(isSatelliteMode) {
+    val currentSatelliteMode by rememberUpdatedState(isSatelliteMode)
+
+    // ── Walk path polyline ────────────────────────────────────────────────────
+    LaunchedEffect(walkPathPoints) {
         mapViewInstance?.let { map ->
-            map.setTileSource(if (isSatelliteMode) PhotorealisticSatelliteTileSource else Stylized3DCityTileSource)
-            if (!isSatelliteMode && map.overlays.none { it is Isometric3DCityOverlay }) {
-                map.overlays.add(0, isometricOverlay)
-            } else if (isSatelliteMode) {
-                map.overlays.remove(isometricOverlay)
+            if (walkPathPoints.size < 2) return@let
+            val existing = walkPolyline.value
+            if (existing == null) {
+                val poly = Polyline(map).apply {
+                    outlinePaint.color       = AndroidColor.parseColor("#CC3B82F6")
+                    outlinePaint.strokeWidth = 10f
+                    outlinePaint.strokeCap   = Paint.Cap.ROUND
+                    outlinePaint.strokeJoin  = Paint.Join.ROUND
+                    setPoints(walkPathPoints)
+                }
+                map.overlays.add(0, poly)
+                walkPolyline.value = poly
+            } else {
+                existing.setPoints(walkPathPoints)
             }
             map.invalidate()
         }
     }
 
-    LaunchedEffect(userLocation, bearing) {
+    // ── User location ─────────────────────────────────────────────────────────
+    LaunchedEffect(userLocation) {
         mapViewInstance?.let { map ->
-            userLocation?.let { currentGeo ->
+            userLocation?.let { geo ->
                 if (userMarker == null) {
                     val m = Marker(map).apply {
-                        title = "Live Position"
+                        title = "You"
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                        icon = createCyanVehicleMarker(context)
+                        icon = createUserDot(context)
                     }
                     map.overlays.add(m)
                     userMarker = m
                 }
-                userMarker?.position = currentGeo
-                userMarker?.rotation = bearing
+                userMarker?.position = geo
 
-                if (isFollowingUser) {
-                    map.controller.animateTo(currentGeo)
+                // First GPS fix: zoom in once
+                if (!hasZoomedToUser) {
+                    map.controller.setZoom(17.0)
+                    map.controller.setCenter(geo)
+                    hasZoomedToUser = true
+                } else if (isFollowingUser) {
+                    map.controller.animateTo(geo)
                 }
-
                 map.invalidate()
             }
         }
     }
 
-    // Stable Marker Update Effect (Zero Re-creation Flickering)
+    // ── Monument markers ──────────────────────────────────────────────────────
     LaunchedEffect(monuments, selectedMonument) {
         mapViewInstance?.let { map ->
-            monuments.forEach { item ->
-                val isSel = selectedMonument?.id == item.id
-                val existing = monumentMarkers[item.id]
+            val newSelectedIds = mutableSetOf<String>()
+            selectedMonument?.let { newSelectedIds.add(it.id) }
 
+            monuments.forEach { item ->
+                val isSel    = selectedMonument?.id == item.id
+                val existing = monumentMarkers[item.id]
                 if (existing == null) {
                     val marker = Marker(map).apply {
                         position = item.geoPoint
-                        title = item.name
-                        subDescription = "${item.category} · ${item.points} XP"
-                        icon = createGolden3DLoopMarker(context, isSel)
+                        title    = item.name
+                        icon     = createMonumentMarker(context, isSel)
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         setOnMarkerClickListener { _, _ ->
                             selectedMonument = item
-                            isFollowingUser = false
+                            isFollowingUser  = false
                             map.controller.animateTo(item.geoPoint)
                             true
                         }
@@ -314,290 +246,315 @@ fun MapScreen(
                     monumentMarkers[item.id] = marker
                 } else {
                     existing.position = item.geoPoint
-                    existing.icon = createGolden3DLoopMarker(context, isSel)
+                    val wasSelected = selectedMarkerIds.value.contains(item.id)
+                    if (isSel != wasSelected) {
+                        existing.icon = createMonumentMarker(context, isSel)
+                    }
                 }
             }
+            selectedMarkerIds.value = newSelectedIds
             map.invalidate()
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFE5ECE9))
-    ) {
-        // ── 1. 3D Isometric Stylized City Map Canvas ───────────────────────
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // ── OSMDroid map ──────────────────────────────────────────────────────
         AndroidView(
             factory = { ctx ->
-                val config = Configuration.getInstance()
-                config.load(ctx, ctx.getSharedPreferences("osmdroid_pref", Context.MODE_PRIVATE))
-                config.userAgentValue = ctx.packageName
+                val cfg = Configuration.getInstance()
+                cfg.load(ctx, ctx.getSharedPreferences("osmdroid_pref", Context.MODE_PRIVATE))
+                cfg.userAgentValue = "${ctx.packageName}/1.0 (MonumentQuest)"
+                cfg.tileCacheMaxQueueSize = 12
 
                 MapView(ctx).apply {
-                    setTileSource(if (isSatelliteMode) PhotorealisticSatelliteTileSource else Stylized3DCityTileSource)
+                    setTileSource(OsmTileSource)
                     setMultiTouchControls(true)
-                    controller.setZoom(17.5)
-                    mapOrientation = 45f
-
-                    userLocation?.let { controller.setCenter(it) }
+                    // Default view: India, zoom 5 — snaps to GPS on first fix
+                    controller.setZoom(5.0)
+                    controller.setCenter(GeoPoint(20.5937, 78.9629))
+                    mapOrientation = 0f
                     mapViewInstance = this
-
-                    val locationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(ctx), this).apply {
-                        enableMyLocation()
-                        enableFollowLocation()
-                    }
-                    overlays.add(locationOverlay)
-
-                    if (!isSatelliteMode) {
-                        overlays.add(0, isometricOverlay)
-                    }
                 }
             },
-            update = { /* Overlays updated in LaunchedEffects for 60FPS smoothness */ },
+            update = { mv ->
+                if (mv.tileProvider.tileSource != OsmTileSource) {
+                    mv.setTileSource(OsmTileSource)
+                    mv.invalidate()
+                }
+            },
             modifier = Modifier.fillMaxSize()
         )
 
-        // ── 2. Top Floating Pill Search Bar ─────────────────────────────────
-        Column(
+        // ── Search bar ────────────────────────────────────────────────────────
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(top = 14.dp, start = 16.dp, end = 16.dp)
+                .padding(horizontal = 16.dp, top = 12.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color.White.copy(alpha = 0.97f)),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                shape = RoundedCornerShape(28.dp),
-                color = Color.White.copy(alpha = 0.96f),
-                shadowElevation = 12.dp,
-                modifier = Modifier.fillMaxWidth()
+            Icon(
+                Icons.Default.Search, null,
+                tint     = Color(0xFF94A3B8),
+                modifier = Modifier.padding(start = 14.dp).size(18.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 10.dp, vertical = 13.dp)
+            ) {
+                if (searchQuery.isEmpty()) {
+                    Text("Search monuments or places…", color = Color(0xFFB0BEC5), fontSize = 13.sp)
+                }
+                BasicTextField(
+                    value         = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    singleLine    = true,
+                    textStyle     = TextStyle(fontSize = 13.sp, color = Color(0xFF1E293B))
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFF0A500))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalAlignment    = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    UserAvatar(name = "Aarav Patnaik", size = 36.dp)
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Search, contentDescription = "Search", tint = Color(0xFF64748B), modifier = Modifier.size(18.dp))
-                        Box(modifier = Modifier.weight(1f)) {
-                            if (searchQuery.isEmpty()) {
-                                Text("Search area or landmarks...", color = Color(0xFF94A3B8), fontSize = 13.sp)
-                            }
-                            BasicTextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                singleLine = true
-                            )
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(if (isSatelliteMode) Color(0xFF0F172A) else Color(0xFFF59E0B))
-                            .clickable { isSatelliteMode = !isSatelliteMode }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(
-                                imageVector = if (isSatelliteMode) Icons.Default.Satellite else Icons.Default.Map,
-                                contentDescription = "Toggle Map Mode",
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = if (isSatelliteMode) "Satellite" else "3D City",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
+                    Icon(Icons.Default.Map, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                    Text("Map", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
 
-        // ── 3. Bottom Left "📍 My Location" Pill Button ──────────────────────
-        Surface(
+        // ── Monument info card ────────────────────────────────────────────────
+        AnimatedVisibility(
+            visible  = selectedMonument != null,
+            enter    = slideInVertically({ it }, tween(300)) + fadeIn(tween(200)),
+            exit     = slideOutVertically({ it }, tween(240)) + fadeOut(tween(160)),
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(
-                    start = 16.dp,
-                    bottom = if (isSheetExpanded) 310.dp else 170.dp
-                ),
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            shadowElevation = 10.dp
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = sheetBottomPadding + 12.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .clickable {
-                        isFollowingUser = true
-                        userLocation?.let { mapViewInstance?.controller?.animateTo(it) }
-                    }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Icon(Icons.Default.MyLocation, contentDescription = null, tint = Color(0xFF007AFF), modifier = Modifier.size(16.dp))
-                Text("My Location", fontWeight = FontWeight.Bold, color = Color(0xFF1E293B), fontSize = 13.sp)
+            selectedMonument?.let { mon ->
+                MonumentCard(
+                    monument   = mon,
+                    onDismiss  = { selectedMonument = null },
+                    onExplore  = { onNavigateToNarrator(mon.id) },
+                    onLogVisit = { onNavigateToCamera() }
+                )
             }
         }
 
-        // ── 4. Bottom Right FAB Zoom Control ────────────────────────────────
-        Surface(
+        // ── Right FABs ────────────────────────────────────────────────────────
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(
-                    end = 16.dp,
-                    bottom = if (isSheetExpanded) 310.dp else 170.dp
-                ),
-            shape = RoundedCornerShape(16.dp),
-            color = Color.White,
-            shadowElevation = 10.dp
+                .padding(end = 14.dp, bottom = sheetBottomPadding + 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButton(
-                onClick = { mapViewInstance?.controller?.zoomIn() },
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Zoom In", tint = Color(0xFF1E293B), modifier = Modifier.size(20.dp))
+            MapFab(onClick = { mapViewInstance?.controller?.zoomIn() }) {
+                Icon(Icons.Default.Add, null, tint = Color(0xFF334155), modifier = Modifier.size(18.dp))
+            }
+            MapFab(onClick = {
+                isFollowingUser = true
+                userLocation?.let { mapViewInstance?.controller?.animateTo(it) }
+            }) {
+                Icon(Icons.Default.MyLocation, null, tint = Color(0xFF0080FF), modifier = Modifier.size(18.dp))
             }
         }
 
-        // ── 5. Bottom "AREA COVERAGE & EXPLORATION" Slide Sheet ──────────────
-        Surface(
+        // ── Camera FAB ────────────────────────────────────────────────────────
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter),
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            color = Color.White,
-            shadowElevation = 24.dp
+                .align(Alignment.BottomStart)
+                .padding(start = 16.dp, bottom = sheetBottomPadding + 14.dp)
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFF0A500))
+                .clickable { onNavigateToCamera() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.AddAPhoto, "Log Visit", tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+
+        // ── Bottom sheet ──────────────────────────────────────────────────────
+        Surface(
+            modifier        = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+            shape           = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            color           = Color.White,
+            shadowElevation = 16.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 12.dp)
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .width(40.dp)
-                        .height(4.dp)
+                        .width(36.dp).height(3.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFCBD5E1))
+                        .background(Color(0xFFE2E8F0))
                         .align(Alignment.CenterHorizontally)
                         .clickable { isSheetExpanded = !isSheetExpanded }
                 )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
+                Spacer(modifier = Modifier.height(14.dp))
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isSheetExpanded = !isSheetExpanded },
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "AREA COVERAGE & EXPLORATION",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color(0xFF1E293B),
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.1.sp,
-                        fontSize = 12.sp
-                    )
-
-                    Text(
-                        text = if (isSheetExpanded) "Collapse ▲" else "Expand ▼",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF007AFF),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp
-                    )
+                    CoverageStat("Distance", coverageStats.totalTrackFormatted,         Modifier.weight(1f))
+                    CoverageStat("Area",     coverageStats.coveredAreaFormatted,         Modifier.weight(1f))
+                    CoverageStat("Sites",    "${coverageStats.structuresVisitedCount}",  Modifier.weight(1f))
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                AnimatedVisibility(
+                    visible = isSheetExpanded,
+                    enter   = fadeIn(tween(180)) + slideInVertically(tween(240)),
+                    exit    = fadeOut(tween(140)) + slideOutVertically(tween(200))
                 ) {
                     Column {
-                        Text("Total Covered Area", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B), fontSize = 11.sp)
-                        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(coverageStats.coveredAreaFormatted, fontWeight = FontWeight.Black, color = Color(0xFF0F172A), fontSize = 17.sp)
-                            Text(coverageStats.areaPercentageFormatted, style = MaterialTheme.typography.labelSmall, color = Color(0xFF00C9A7), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("Total Track", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B), fontSize = 11.sp)
-                        Text(coverageStats.totalTrackFormatted, fontWeight = FontWeight.Black, color = Color(0xFF0F172A), fontSize = 17.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Structures\nVisited: ${coverageStats.structuresVisitedCount}", style = MaterialTheme.typography.labelSmall, color = Color(0xFF475569), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text("Roads Fully\nTraveled: ${coverageStats.roadsTraveledCount}", style = MaterialTheme.typography.labelSmall, color = Color(0xFF475569), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text("Public Spaces\nExplored: ${coverageStats.publicSpacesCount}", style = MaterialTheme.typography.labelSmall, color = Color(0xFF475569), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-
-                if (isSheetExpanded) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Recent Stops",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = Color(0xFF1E293B),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        recentStops.forEach { stop ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Recent Stops", fontWeight = FontWeight.SemiBold, color = Color(0xFF1E293B), fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            recentStops.forEach { stop ->
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    modifier              = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment     = Alignment.CenterVertically
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFFF1F5F9)),
-                                        contentAlignment = Alignment.Center
+                                    Row(
+                                        verticalAlignment    = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Icon(stop.icon, null, tint = Color(0xFF475569), modifier = Modifier.size(15.dp))
+                                        Box(
+                                            modifier = Modifier.size(30.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF8FAFC)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(stop.icon, null, tint = Color(0xFF64748B), modifier = Modifier.size(15.dp))
+                                        }
+                                        Text(stop.name, fontWeight = FontWeight.Medium, color = Color(0xFF334155), fontSize = 13.sp)
                                     }
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(stop.name, fontWeight = FontWeight.Bold, color = Color(0xFF334155), fontSize = 12.sp)
-                                        Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(14.dp))
-                                    }
+                                    Text(stop.time, color = Color(0xFF94A3B8), fontSize = 11.sp)
                                 }
-                                Text(stop.time, style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B), fontSize = 10.sp)
                             }
                         }
                     }
                 }
+
+                Row(
+                    modifier              = Modifier.fillMaxWidth().padding(top = 10.dp).clickable { isSheetExpanded = !isSheetExpanded },
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        if (isSheetExpanded) "Show less ▲" else "Recent stops ▼",
+                        color = Color(0xFF94A3B8), fontSize = 11.sp
+                    )
+                }
             }
         }
     }
+}
+
+// ── Monument card ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun MonumentCard(
+    monument: MapMonumentItem,
+    onDismiss: () -> Unit,
+    onExplore: () -> Unit,
+    onLogVisit: () -> Unit = {}
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp), color = Color.White,
+        shadowElevation = 16.dp, modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment     = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(monument.name, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A), fontSize = 15.sp)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        monument.category.lowercase().replaceFirstChar { it.uppercase() },
+                        color = Color(0xFF64748B), fontSize = 12.sp
+                    )
+                }
+                Box(
+                    modifier = Modifier.size(26.dp).clip(CircleShape).background(Color(0xFFF1F5F9)).clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Close, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(13.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.clip(RoundedCornerShape(7.dp)).background(Color(0xFFFEF3C7)).padding(horizontal = 9.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(Icons.Default.Star, null, tint = Color(0xFFF0A500), modifier = Modifier.size(12.dp))
+                    Text("${monument.points} XP", color = Color(0xFFB45309), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Box(modifier = Modifier.clip(RoundedCornerShape(7.dp)).background(Color(0xFFEFF6FF)).padding(horizontal = 9.dp, vertical = 4.dp)) {
+                    Text(formatDistance(monument.distanceMeters), color = Color(0xFF1D4ED8), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onExplore, modifier = Modifier.weight(1f).height(42.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF334155))
+                ) { Text("Narrator", fontSize = 13.sp, fontWeight = FontWeight.Medium) }
+                Button(
+                    onClick = onLogVisit, modifier = Modifier.weight(1.4f).height(42.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF0A500))
+                ) {
+                    Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(15.dp), tint = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Log Visit", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CoverageStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier            = modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFFF8FAFC)).padding(vertical = 10.dp, horizontal = 12.dp),
+        horizontalAlignment = Alignment.Start
+    ) {
+        Text(value, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A), fontSize = 15.sp)
+        Text(label, color = Color(0xFF94A3B8), fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun MapFab(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Surface(modifier = Modifier.size(40.dp), shape = RoundedCornerShape(10.dp), color = Color.White, shadowElevation = 8.dp) {
+        Box(modifier = Modifier.fillMaxSize().clickable { onClick() }, contentAlignment = Alignment.Center) { content() }
+    }
+}
+
+private fun formatDistance(meters: Int): String = when {
+    meters <= 0   -> "Nearby"
+    meters < 1000 -> "$meters m away"
+    else          -> String.format("%.1f km away", meters / 1000.0)
 }

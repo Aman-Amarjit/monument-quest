@@ -126,7 +126,8 @@ class MapViewModel @Inject constructor(
                         }
 
                         val rawSpeedKmh = if (location.hasSpeed()) location.speed * 3.6f else 0f
-                        val filteredSpeedKmh = if (rawSpeedKmh >= 1.5f) rawSpeedKmh else 0f
+                        // Only count as moving if > 3 km/h (GPS noise is typically < 1.5 km/h)
+                        val filteredSpeedKmh = if (rawSpeedKmh >= 3.0f) rawSpeedKmh else 0f
                         _currentSpeedKmh.value = filteredSpeedKmh
 
                         if (filteredSpeedKmh > 0.5f) {
@@ -144,14 +145,15 @@ class MapViewModel @Inject constructor(
 
                         _movementStatus.value = when {
                             filteredSpeedKmh > 15f -> "IN TRANSIT"
-                            filteredSpeedKmh > 6f  -> "RUNNING"
-                            filteredSpeedKmh > 1.5f -> "WALKING"
+                            filteredSpeedKmh > 8f  -> "RUNNING"
+                            filteredSpeedKmh > 3f  -> "WALKING"
                             else                   -> "STANDSTILL"
                         }
 
                         lastLocation?.let { prev ->
                             val stepDist = prev.distanceTo(location).toDouble()
-                            if (stepDist >= 2.5 && stepDist < 120.0) {
+                            // Only log distance for genuine movement (> 3m, < 100m per step)
+                            if (stepDist >= 3.0 && stepDist < 100.0) {
                                 _totalDistanceWalked.value += stepDist
 
                                 val currentPath = _walkPathPoints.value.toMutableList()

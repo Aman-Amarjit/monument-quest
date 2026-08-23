@@ -63,9 +63,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.9")
 
-    // MapLibre & Osmdroid (100% Free OpenStreetMap Solutions - No API Keys required)
-    implementation("org.maplibre.compose:maplibre-compose:0.11.1")
-    implementation("org.maplibre.compose:maplibre-compose-material3:0.11.1")
+    // OSMDroid — free OpenStreetMap tiles, no API key required
     implementation("org.osmdroid:osmdroid-android:6.1.20")
 
     // ARCore
