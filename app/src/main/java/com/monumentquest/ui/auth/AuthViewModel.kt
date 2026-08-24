@@ -133,17 +133,39 @@ class AuthViewModel @Inject constructor(
     }
 
     fun continueAsGuest() {
-        val guestSession = UserSession(
-            uid = "guest_${System.currentTimeMillis()}",
-            name = "Guest Explorer",
-            email = "guest@monumentquest.app",
-            userRank = "Novice Wanderer",
-            points = 100,
-            isGuest = true,
-            guildName = "Unattached Explorer"
-        )
-        _currentSession.value = guestSession
-        _uiState.value = AuthUiState.Authenticated(guestSession)
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            // Sign in anonymously so Firebase Security Rules (auth != null) pass.
+            // Falls back to local guest session if Firebase anonymous auth fails.
+            auth.signInAnonymously()
+                .addOnSuccessListener { result ->
+                    val guestSession = UserSession(
+                        uid       = result.user?.uid ?: "guest_${System.currentTimeMillis()}",
+                        name      = "Guest Explorer",
+                        email     = "guest@monumentquest.app",
+                        userRank  = "Novice Wanderer",
+                        points    = 100,
+                        isGuest   = true,
+                        guildName = "Unattached Explorer"
+                    )
+                    _currentSession.value = guestSession
+                    _uiState.value = AuthUiState.Authenticated(guestSession)
+                }
+                .addOnFailureListener {
+                    // Firebase not configured / offline — use local guest session
+                    val guestSession = UserSession(
+                        uid       = "guest_${System.currentTimeMillis()}",
+                        name      = "Guest Explorer",
+                        email     = "guest@monumentquest.app",
+                        userRank  = "Novice Wanderer",
+                        points    = 100,
+                        isGuest   = true,
+                        guildName = "Unattached Explorer"
+                    )
+                    _currentSession.value = guestSession
+                    _uiState.value = AuthUiState.Authenticated(guestSession)
+                }
+        }
     }
 
     fun logout() {

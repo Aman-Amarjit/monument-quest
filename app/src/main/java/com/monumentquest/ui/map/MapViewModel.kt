@@ -37,7 +37,7 @@ data class CoverageStats(
 class MapViewModel @Inject constructor(
     private val locationManager: LocationManager,
     private val overpassRepository: OverpassRepository,
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _userLocation = MutableStateFlow<GeoPoint?>(null)
@@ -45,6 +45,13 @@ class MapViewModel @Inject constructor(
 
     private val _detectedCityName = MutableStateFlow("Detecting Location…")
     val detectedCityName: StateFlow<String> = _detectedCityName
+
+    // Search results from Nominatim geocoding
+    private val _searchResults = MutableStateFlow<List<MapMonumentItem>>(emptyList())
+    val searchResults: StateFlow<List<MapMonumentItem>> = _searchResults
+
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching
 
     private val _walkPathPoints = MutableStateFlow<List<GeoPoint>>(emptyList())
     val walkPathPoints: StateFlow<List<GeoPoint>> = _walkPathPoints
@@ -172,14 +179,16 @@ class MapViewModel @Inject constructor(
                                 val currentPath = _walkPathPoints.value.toMutableList()
                                 currentPath.add(currentGeo)
                                 _walkPathPoints.value = currentPath
-                                lastLocation = location  // update here so next step is correct
                             }
                         }
 
+                        // Always advance lastLocation — previously only updated inside
+                        // the stepDist block, so standing still never advanced the anchor
+                        // and the very first movement step computed distance from null.
                         if (lastLocation == null) {
-                            lastLocation = location
                             _walkPathPoints.value = listOf(currentGeo)
                         }
+                        lastLocation = location
 
                         updateExploredZones(location.latitude, location.longitude)
                         recalculateDistances(location)
@@ -285,5 +294,67 @@ class MapViewModel @Inject constructor(
             mon.copy(distanceMeters = dist)
         }
         _monuments.value = updated
+    }
+
+    fun searchPlaces(query: String) {
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            _isSearching.value = true          // set on main thread so UI reacts immediately
+            kotlinx.coroutines.withContext(Dispatchers.IO) {
+            try {
+                // Use Nominatim — free OSM geocoder, no API key needed
+                val encoded = java.net.URLEncoder.encode(query, "UTF-8")
+                val userLoc = _userLocation.value
+                val viewbox = if (userLoc != null) {
+                    "&viewbox=${userLoc.longitude - 0.5},${userLoc.latitude + 0.5},${userLoc.longitude + 0.5},${userLoc.latitude - 0.5}&bounded=1"
+                } else ""
+                val url = "https://nominatim.openstreetmap.org/search?q=$encoded&format=json&limit=8$viewbox"
+                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                conn.setRequestProperty("User-Agent", "${context.packageName}/1.0 (MonumentQuest)")
+                conn.connectTimeout = 8000
+                conn.readTimeout    = 8000
+                if (conn.responseCode == 200) {
+                    val text = conn.inputStream.bufferedReader().readText()
+                    val arr  = org.json.JSONArray(text)
+                    val results = mutableListOf<MapMonumentItem>()
+                    for (i in 0 until arr.length()) {
+                        val obj  = arr.getJSONObject(i)
+                        val name = obj.optString("display_name", "").substringBefore(",")
+                        val lat  = obj.optDouble("lat", 0.0)
+                        val lon  = obj.optDouble("lon", 0.0)
+                        if (name.isNotBlank() && lat != 0.0) {
+                            val dist = if (userLoc != null) {
+                                val r = FloatArray(1)
+                                Location.distanceBetween(userLoc.latitude, userLoc.longitude, lat, lon, r)
+                                r[0].toInt()
+                            } else 0
+                            results.add(MapMonumentItem(
+                                id            = "search_$i",
+                                name          = name,
+                                locationName  = obj.optString("display_name", "").substringAfter(", ").take(40),
+                                geoPoint      = GeoPoint(lat, lon),
+                                points        = 0,
+                                category      = obj.optString("type", "place").replace("_", " ").uppercase(),
+                                distanceMeters = dist
+                            ))
+                        }
+                    }
+                    _searchResults.value = results
+                }
+            } catch (e: Exception) {
+                _searchResults.value = emptyList()
+            } finally {
+                _isSearching.value = false
+            }
+            }
+        }
+    }
+
+    fun clearSearch() {
+        _searchResults.value = emptyList()
+        _isSearching.value   = false
     }
 }
