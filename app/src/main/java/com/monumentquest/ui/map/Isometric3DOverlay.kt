@@ -21,15 +21,15 @@ import com.monumentquest.data.model.TacticalGeometry
  *  - Draw building polygons with 3D extrusion (roof + south wall + east wall)
  *  - All geometry comes from Overpass API via TacticalGeometry
  *
- * OSMDroid Projection.toPixels() is called with a reusable Point â the only
- * correct way to convert GeoPoint â screen pixel in an Overlay draw pass.
+ * OSMDroid Projection.toPixels() is called with a reusable Point â€” the only
+ * correct way to convert GeoPoint â†’ screen pixel in an Overlay draw pass.
  */
 class Isometric3DOverlay : Overlay() {
 
-    var enabled: Boolean = true
+    var isOverlayEnabled: Boolean = true
     var geometry: TacticalGeometry = TacticalGeometry(emptyList(), emptyList())
 
-    // ââ Paint objects â allocated once, never inside draw() ââââââââââââââââââ
+    // â”€â”€ Paint objects â€” allocated once, never inside draw() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private val streetPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color      = Color.parseColor("#E8EAF0")
@@ -78,14 +78,14 @@ class Isometric3DOverlay : Overlay() {
         style = Paint.Style.FILL
     }
 
-    // ââ Reusable draw scratch objects âââââââââââââââââââââââââââââââââââââââââ
+    // â”€â”€ Reusable draw scratch objects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     private val reusablePt = Point()
     private val path       = Path()
 
-    // ââ Draw entry point ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // â”€â”€ Draw entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
-        if (shadow || !enabled) return
+        if (shadow || !isOverlayEnabled) return
         val proj = mapView.projection
         val zoom = mapView.zoomLevelDouble
 

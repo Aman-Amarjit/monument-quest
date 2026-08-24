@@ -317,7 +317,7 @@ fun MapScreen(
     LaunchedEffect(tacticalGeometry, mapViewRef.value, isAerialView) {
         val map = mapViewRef.value ?: return@LaunchedEffect
         isometricOverlay.geometry = tacticalGeometry
-        isometricOverlay.enabled = isAerialView
+        isometricOverlay.isOverlayEnabled = isAerialView
         if (!map.overlays.contains(isometricOverlay)) {
             map.overlays.add(minOf(1, map.overlays.size), isometricOverlay)
         }
@@ -551,7 +551,7 @@ fun MapScreen(
             MapControlFab(
                 onClick = {
                     isAerialView = !isAerialView
-                    isometricOverlay.enabled = isAerialView
+                    isometricOverlay.isOverlayEnabled = isAerialView
                     mapViewInstance?.mapOrientation = if (isAerialView) 22f else 0f
                     mapViewInstance?.invalidate()
                 },
