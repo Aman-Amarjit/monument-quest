@@ -60,7 +60,7 @@
 ### Mobile Tech Stack:
 - **UI Framework**: Android Jetpack Compose + Material 3 (Obsidian Dark Glassmorphism)
 - **Architecture**: Clean Architecture + MVVM + Dagger Hilt Dependency Injection
-- **Map & Satellite**: Osmdroid + CartoDB Dark Matter + Google Hybrid 4K Satellite Tiles
+- **Map & Isometric Overlay**: Osmdroid + CartoDB Voyager + OSM Overpass geometry
 - **Location Engine**: Google Play Services Fused Location Client (5Hz 200ms rate) + Kalman Filter
 - **Networking**: Retrofit2 + OkHttp3 + Coroutines Flow
 - **Image Loading**: Coil AsyncImage
@@ -78,7 +78,7 @@
 ### 1. Mobile Android App
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/monument-quest.git
+git clone https://github.com/Aman-Amarjit/monument-quest.git
 cd monument-quest
 
 # Build Debug APK
