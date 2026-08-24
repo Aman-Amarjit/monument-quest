@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -387,7 +388,14 @@ fun MapScreen(
                     mv.invalidate()
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    if (isAerialView) {
+                        rotationX = 48f
+                        cameraDistance = 16f * density
+                    }
+                }
         )
 
         // ââ TOP: Search bar âââââââââââââââââââââââââââââââââââââââââââââââââââ
