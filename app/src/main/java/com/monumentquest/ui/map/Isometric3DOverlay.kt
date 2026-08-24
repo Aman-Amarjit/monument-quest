@@ -12,7 +12,7 @@ import org.osmdroid.views.overlay.Overlay
 import com.monumentquest.data.model.TacticalGeometry
 
 /**
- * Custom OSMDroid Overlay — renders a 3D isometric city aesthetic matching the
+ * Custom OSMDroid Overlay â renders a 3D isometric city aesthetic matching the
  * reference image: grey extruded buildings, gold highways, green parks, blue water,
  * white street grid.
  *
@@ -21,15 +21,15 @@ import com.monumentquest.data.model.TacticalGeometry
  *  - Draw building polygons with 3D extrusion (roof + south wall + east wall)
  *  - All geometry comes from Overpass API via TacticalGeometry
  *
- * OSMDroid Projection.toPixels() is called with a reusable Point — the only
- * correct way to convert GeoPoint → screen pixel in an Overlay draw pass.
+ * OSMDroid Projection.toPixels() is called with a reusable Point â the only
+ * correct way to convert GeoPoint â screen pixel in an Overlay draw pass.
  */
 class Isometric3DOverlay : Overlay() {
 
     var enabled: Boolean = true
     var geometry: TacticalGeometry = TacticalGeometry(emptyList(), emptyList())
 
-    // ── Paint objects — allocated once, never inside draw() ──────────────────
+    // ââ Paint objects â allocated once, never inside draw() ââââââââââââââââââ
 
     private val streetPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color      = Color.parseColor("#E8EAF0")
@@ -73,11 +73,16 @@ class Isometric3DOverlay : Overlay() {
         strokeWidth = 0.7f
     }
 
-    // ── Reusable draw scratch objects ─────────────────────────────────────────
+    private val buildingShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#260F172A")
+        style = Paint.Style.FILL
+    }
+
+    // ââ Reusable draw scratch objects âââââââââââââââââââââââââââââââââââââââââ
     private val reusablePt = Point()
     private val path       = Path()
 
-    // ── Draw entry point ──────────────────────────────────────────────────────
+    // ââ Draw entry point ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
         if (shadow || !enabled) return
@@ -87,19 +92,19 @@ class Isometric3DOverlay : Overlay() {
         val streetW  = (zoom * 0.32f).toFloat().coerceIn(2f, 8f)
         val hwBorder = (zoom * 0.95f).toFloat().coerceIn(4f, 18f)
         val hwFill   = (zoom * 0.68f).toFloat().coerceIn(3f, 13f)
-        val extH     = (zoom * 1.65f).toFloat().coerceIn(5f, 28f)
+        val extH     = (zoom * 1.15f).toFloat().coerceIn(6f, 22f)
 
         streetPaint.strokeWidth      = streetW
         highwayBorderPaint.strokeWidth = hwBorder
         highwayPaint.strokeWidth     = hwFill
 
-        // ── Roads (below buildings) ───────────────────────────────────────────
+        // ââ Roads (below buildings) âââââââââââââââââââââââââââââââââââââââââââ
         for (road in geometry.roads) {
             if (road.size < 2) continue
             // Overpass gives us geometry but not a stable visual class here.
             // Longer ways are a good proxy for arterials; short ways stay as
             // the pale street grid visible between the extruded buildings.
-            if (road.size >= 5) {
+            if (road.size >= 8) {
                 drawPolyline(canvas, proj, road, highwayBorderPaint)
                 drawPolyline(canvas, proj, road, highwayPaint)
             } else {
@@ -107,14 +112,14 @@ class Isometric3DOverlay : Overlay() {
             }
         }
 
-        // ── Buildings with 3D extrusion ───────────────────────────────────────
-        for (building in geometry.buildings) {
+        // ââ Buildings with 3D extrusion âââââââââââââââââââââââââââââââââââââââ
+        for (building in geometry.buildings.sortedByDescending { polygonArea(it) }) {
             if (building.size < 3) continue
             draw3DBuilding(canvas, proj, building, extH)
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ââ Helpers âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
     private fun drawPolyline(
         canvas: Canvas,
@@ -144,20 +149,28 @@ class Isometric3DOverlay : Overlay() {
             Pair(reusablePt.x.toFloat(), reusablePt.y.toFloat())
         }
 
-        // Bounding box — skip tiny specks
+        // Bounding box â skip tiny specks
         val minX = screen.minOf { it.first }
         val maxX = screen.maxOf { it.first }
         val minY = screen.minOf { it.second }
         val maxY = screen.maxOf { it.second }
         val bw   = maxX - minX
         val bh   = maxY - minY
-        if (bw < 5f && bh < 5f) return
+        if (bw < 4f || bh < 4f) return
 
         // Isometric extrusion offset: top-right (east) and down (south)
         val offX = extH * 0.55f   // rightward shift for east/south walls
         val offY = extH            // downward shift
 
-        // ── South wall — bottom edges of the footprint ────────────────────────
+        path.rewind()
+        screen.forEachIndexed { idx, (px, py) ->
+            if (idx == 0) path.moveTo(px + offX, py + offY)
+            else path.lineTo(px + offX, py + offY)
+        }
+        path.close()
+        canvas.drawPath(path, buildingShadowPaint)
+
+        // ââ South wall â bottom edges of the footprint ââââââââââââââââââââââââ
         // Heuristic: edge whose midpoint Y > maxY - bh * 0.4
         for (i in screen.indices) {
             val j  = (i + 1) % screen.size
@@ -173,7 +186,7 @@ class Isometric3DOverlay : Overlay() {
             canvas.drawPath(path, southWallPaint)
         }
 
-        // ── East wall — right edges of the footprint ─────────────────────────
+        // ââ East wall â right edges of the footprint âââââââââââââââââââââââââ
         for (i in screen.indices) {
             val j  = (i + 1) % screen.size
             val x0 = screen[i].first;  val y0 = screen[i].second
@@ -188,7 +201,7 @@ class Isometric3DOverlay : Overlay() {
             canvas.drawPath(path, eastWallPaint)
         }
 
-        // ── Roof (top face = original footprint) ─────────────────────────────
+        // ââ Roof (top face = original footprint) âââââââââââââââââââââââââââââ
         path.rewind()
         screen.forEachIndexed { idx, (px, py) ->
             if (idx == 0) path.moveTo(px, py) else path.lineTo(px, py)
@@ -196,5 +209,13 @@ class Isometric3DOverlay : Overlay() {
         path.close()
         canvas.drawPath(path, roofPaint)
         canvas.drawPath(path, roofOutlinePaint)
+    }
+
+    private fun polygonArea(polygon: List<GeoPoint>): Double {
+        if (polygon.size < 3) return 0.0
+        return kotlin.math.abs(polygon.indices.sumOf { i ->
+            val next = polygon[(i + 1) % polygon.size]
+            polygon[i].longitude * next.latitude - next.longitude * polygon[i].latitude
+        })
     }
 }
