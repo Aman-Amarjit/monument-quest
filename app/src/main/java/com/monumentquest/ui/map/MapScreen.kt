@@ -314,9 +314,10 @@ fun MapScreen(
     // Paint the fetched OSM blueprint above the raster tiles. This is the
     // layer that turns the ordinary map into the grey-roof / gold-road city
     // model shown in the reference image.
-    LaunchedEffect(tacticalGeometry, mapViewRef.value) {
+    LaunchedEffect(tacticalGeometry, mapViewRef.value, isAerialView) {
         val map = mapViewRef.value ?: return@LaunchedEffect
         isometricOverlay.geometry = tacticalGeometry
+        isometricOverlay.enabled = isAerialView
         if (!map.overlays.contains(isometricOverlay)) {
             map.overlays.add(minOf(1, map.overlays.size), isometricOverlay)
         }
@@ -356,9 +357,9 @@ fun MapScreen(
         // ── Map ───────────────────────────────────────────────────────────────
         AndroidView(
             factory = { ctx ->
-                // Wipe OSMDroid prefs so no cached tile source overrides ours
+                // Keep OSMDroid's tile cache between launches. Clearing these
+                // prefs here made the map re-download tiles every time.
                 val prefs = ctx.getSharedPreferences("osmdroid", Context.MODE_PRIVATE)
-                prefs.edit().clear().apply()
                 val cfg = Configuration.getInstance()
                 cfg.load(ctx, prefs)
                 cfg.userAgentValue = "${ctx.packageName}/1.0 (MonumentQuest)"
@@ -550,6 +551,7 @@ fun MapScreen(
             MapControlFab(
                 onClick = {
                     isAerialView = !isAerialView
+                    isometricOverlay.enabled = isAerialView
                     mapViewInstance?.mapOrientation = if (isAerialView) 22f else 0f
                     mapViewInstance?.invalidate()
                 },
