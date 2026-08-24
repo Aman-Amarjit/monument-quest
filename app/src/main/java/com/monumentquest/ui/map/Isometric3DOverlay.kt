@@ -83,10 +83,10 @@ class Isometric3DOverlay : Overlay() {
         val proj = mapView.projection
         val zoom = mapView.zoomLevelDouble
 
-        val streetW  = (zoom * 0.55f).toFloat().coerceIn(2f, 12f)
-        val hwBorder = (zoom * 1.4f).toFloat().coerceIn(5f, 26f)
-        val hwFill   = (zoom * 1.0f).toFloat().coerceIn(4f, 20f)
-        val extH     = (zoom * 2.2f).toFloat().coerceIn(4f, 32f)
+        val streetW  = (zoom * 0.32f).toFloat().coerceIn(2f, 8f)
+        val hwBorder = (zoom * 0.95f).toFloat().coerceIn(4f, 18f)
+        val hwFill   = (zoom * 0.68f).toFloat().coerceIn(3f, 13f)
+        val extH     = (zoom * 1.65f).toFloat().coerceIn(5f, 28f)
 
         streetPaint.strokeWidth      = streetW
         highwayBorderPaint.strokeWidth = hwBorder
@@ -95,8 +95,15 @@ class Isometric3DOverlay : Overlay() {
         // ── Roads (below buildings) ───────────────────────────────────────────
         for (road in geometry.roads) {
             if (road.size < 2) continue
-            drawPolyline(canvas, proj, road, highwayBorderPaint)
-            drawPolyline(canvas, proj, road, highwayPaint)
+            // Overpass gives us geometry but not a stable visual class here.
+            // Longer ways are a good proxy for arterials; short ways stay as
+            // the pale street grid visible between the extruded buildings.
+            if (road.size >= 5) {
+                drawPolyline(canvas, proj, road, highwayBorderPaint)
+                drawPolyline(canvas, proj, road, highwayPaint)
+            } else {
+                drawPolyline(canvas, proj, road, streetPaint)
+            }
         }
 
         // ── Buildings with 3D extrusion ───────────────────────────────────────
