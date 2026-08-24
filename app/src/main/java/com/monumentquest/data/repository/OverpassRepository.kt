@@ -41,7 +41,7 @@ class OverpassRepository @Inject constructor() {
             if (conn.responseCode == 200) {
                 val responseText = conn.inputStream.bufferedReader().use { it.readText() }
                 val json = JSONObject(responseText)
-                val elements = json.optJSONArray("elements") ?: return@withContext TacticalGeometry(emptyList(), emptyList())
+                val elements = json.optJSONArray("elements") ?: return@withContext TacticalGeometry()
 
                 val nodesMap = mutableMapOf<Long, GeoPoint>()
                 val ways = mutableListOf<JSONObject>()
@@ -59,8 +59,8 @@ class OverpassRepository @Inject constructor() {
                     }
                 }
 
-                val roads = mutableListOf<List<GeoPoint>>()
-                val buildings = mutableListOf<List<GeoPoint>>()
+                val roads = mutableListOf<com.monumentquest.data.model.RoadSegment>()
+                val buildings = mutableListOf<com.monumentquest.data.model.BuildingFootprint>()
 
                 for (way in ways) {
                     val nodeIds = way.optJSONArray("nodes") ?: continue
@@ -72,18 +72,21 @@ class OverpassRepository @Inject constructor() {
                     if (points.isNotEmpty()) {
                         val tags = way.optJSONObject("tags")
                         if (tags?.has("building") == true) {
-                            buildings.add(points)
+                            val levels = tags.optString("building:levels", "").toIntOrNull() ?: 3
+                            buildings.add(com.monumentquest.data.model.BuildingFootprint(points, levels))
                         } else if (tags?.has("highway") == true) {
-                            roads.add(points)
+                            val hType = tags.optString("highway", "")
+                            val isMajor = hType in setOf("motorway", "trunk", "primary", "secondary", "tertiary")
+                            roads.add(com.monumentquest.data.model.RoadSegment(points, isMajor))
                         }
                     }
                 }
-                return@withContext TacticalGeometry(roads, buildings)
+                return@withContext TacticalGeometry(buildings = buildings, roads = roads)
             }
         } catch (e: Exception) {
             // Error
         }
-        TacticalGeometry(emptyList(), emptyList())
+        TacticalGeometry()
     }
 
     suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 10000): List<MapMonumentItem> = withContext(Dispatchers.IO) {

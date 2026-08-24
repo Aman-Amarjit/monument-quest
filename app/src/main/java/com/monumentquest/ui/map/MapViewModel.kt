@@ -77,7 +77,7 @@ class MapViewModel @Inject constructor(
     private val _monuments = MutableStateFlow<List<MapMonumentItem>>(emptyList())
     val monuments: StateFlow<List<MapMonumentItem>> = _monuments
 
-    private val _tacticalGeometry = MutableStateFlow(TacticalGeometry(emptyList(), emptyList()))
+    private val _tacticalGeometry = MutableStateFlow(TacticalGeometry())
     val tacticalGeometry: StateFlow<TacticalGeometry> = _tacticalGeometry
 
     // Dynamic Live Area Coverage Stats Flow

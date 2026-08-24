@@ -5,217 +5,232 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Point
+import android.graphics.PointF
+import com.monumentquest.data.model.AreaFeature
+import com.monumentquest.data.model.BuildingFootprint
+import com.monumentquest.data.model.RoadSegment
+import com.monumentquest.data.model.TacticalGeometry
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.Projection
 import org.osmdroid.views.overlay.Overlay
-import com.monumentquest.data.model.TacticalGeometry
 
 /**
- * Custom OSMDroid Overlay â renders a 3D isometric city aesthetic matching the
- * reference image: grey extruded buildings, gold highways, green parks, blue water,
- * white street grid.
+ * Paints [TacticalGeometry] as a stylised "extruded city" — grey building
+ * blocks, gold arterial roads with a light casing, flat green parks and
+ * blue water — to match the low-poly isometric look-book reference.
  *
- * Strategy:
- *  - Draw roads as thick polylines (white/gold by highway type)
- *  - Draw building polygons with 3D extrusion (roof + south wall + east wall)
- *  - All geometry comes from Overpass API via TacticalGeometry
+ * OSMDroid has no real camera pitch, so the "3D" here is the classic 2.5D
+ * trick: each building's roof polygon is its footprint shifted by a fixed
+ * screen-space vector scaled by floor count, with wall quads filled in
+ * between roof and footprint. Cheap, no GL dependency, reads as isometric
+ * at a glance — especially once buildings sit close together like a real
+ * city block.
  *
- * OSMDroid Projection.toPixels() is called with a reusable Point â€” the only
- * correct way to convert GeoPoint â†’ screen pixel in an Overlay draw pass.
+ * This is already wired up in MapScreen.kt:
+ *   isometricOverlay.geometry = tacticalGeometry
+ *   isometricOverlay.isOverlayEnabled = isAerialView
+ *   map.overlays.add(minOf(1, map.overlays.size), isometricOverlay)
  */
 class Isometric3DOverlay : Overlay() {
 
+    var geometry: TacticalGeometry? = null
     var isOverlayEnabled: Boolean = true
-    var geometry: TacticalGeometry = TacticalGeometry(emptyList(), emptyList())
 
-    // â”€â”€ Paint objects â€” allocated once, never inside draw() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Direction + scale of the fake extrusion, in screen px per floor.
+    // Mostly vertical with a slight lean so roofs read as "lifted" rather
+    // than just smeared upward. Tune these to taste.
+    var extrudeDxPerLevel = -1.1f
+    var extrudeDyPerLevel = -4.6f
+    var maxLevelsForHeight = 9
+    var minZoomForExtrusion = 15.3
 
-    private val streetPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color      = Color.parseColor("#E8EAF0")
-        style      = Paint.Style.STROKE
-        strokeCap  = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
-
-    private val highwayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color      = Color.parseColor("#F0A500")
-        style      = Paint.Style.STROKE
-        strokeCap  = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
-
-    private val highwayBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color      = Color.parseColor("#D08800")
-        style      = Paint.Style.STROKE
-        strokeCap  = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
-
+    // ── Paint palette, kept as fields so draw() never allocates a Paint ──
     private val roofPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#C0C4CE")
         style = Paint.Style.FILL
+        color = Color.parseColor("#9AA3B4")
     }
-
-    private val eastWallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#969AAA")
+    private val roofStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.4f
+        color = Color.parseColor("#66FFFFFF")
+    }
+    private val wallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
+        color = Color.parseColor("#727B8E")
     }
-
-    private val southWallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#7C8090")
+    private val flatBuildingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
+        color = Color.parseColor("#A8B0C0")
     }
 
-    private val roofOutlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color       = Color.parseColor("#D8DCE8")
-        style       = Paint.Style.STROKE
-        strokeWidth = 0.7f
+    private val roadCasingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        color = Color.parseColor("#F5F3EE")
+    }
+    private val roadFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        color = Color.parseColor("#F0A93B")
     }
 
-    private val buildingShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#260F172A")
+    private val parkFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
+        color = Color.parseColor("#9AD08A")
+    }
+    private val parkStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.2f
+        color = Color.parseColor("#7CB86C")
     }
 
-    // â”€â”€ Reusable draw scratch objects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    private val reusablePt = Point()
-    private val path       = Path()
+    private val waterFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.parseColor("#79C3EA")
+    }
+    private val waterStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.2f
+        color = Color.parseColor("#57A9D6")
+    }
 
-    // â”€â”€ Draw entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Scratch objects reused every frame so draw() stays allocation-light.
+    private val scratchPoint = Point()
+    private val path = Path()
+    private val scratchScreenPts = ArrayList<PointF>(16)
 
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
         if (shadow || !isOverlayEnabled) return
-        val proj = mapView.projection
+        val geo = geometry ?: return
+        val projection = mapView.projection
+
+        // Ground layer first: water, then parks, then major roads.
+        // Buildings always paint last so they sit above everything else.
+        geo.water.forEach { drawArea(canvas, projection, it.outline, waterFillPaint, waterStroke) }
+        geo.parks.forEach { drawArea(canvas, projection, it.outline, parkFillPaint, parkStroke) }
+        for (road in geo.roads) if (road.isMajor) drawRoad(canvas, projection, road)
+
         val zoom = mapView.zoomLevelDouble
+        val extrude = zoom >= minZoomForExtrusion
+        val heightScale = (((zoom - 14.0) / 4.0).coerceIn(0.15, 1.4)).toFloat()
 
-        val streetW  = (zoom * 0.32f).toFloat().coerceIn(2f, 8f)
-        val hwBorder = (zoom * 0.95f).toFloat().coerceIn(4f, 18f)
-        val hwFill   = (zoom * 0.68f).toFloat().coerceIn(3f, 13f)
-        val extH     = (zoom * 1.15f).toFloat().coerceIn(6f, 22f)
-
-        streetPaint.strokeWidth      = streetW
-        highwayBorderPaint.strokeWidth = hwBorder
-        highwayPaint.strokeWidth     = hwFill
-
-        // ââ Roads (below buildings) âââââââââââââââââââââââââââââââââââââââââââ
-        for (road in geometry.roads) {
-            if (road.size < 2) continue
-            // Overpass gives us geometry but not a stable visual class here.
-            // Longer ways are a good proxy for arterials; short ways stay as
-            // the pale street grid visible between the extruded buildings.
-            if (road.size >= 8) {
-                drawPolyline(canvas, proj, road, highwayBorderPaint)
-                drawPolyline(canvas, proj, road, highwayPaint)
-            } else {
-                drawPolyline(canvas, proj, road, streetPaint)
-            }
-        }
-
-        // ââ Buildings with 3D extrusion âââââââââââââââââââââââââââââââââââââââ
-        for (building in geometry.buildings.sortedByDescending { polygonArea(it) }) {
-            if (building.size < 3) continue
-            draw3DBuilding(canvas, proj, building, extH)
-        }
+        geo.buildings
+            .sortedBy { footprintDepth(projection, it.outline) }
+            .forEach { drawBuilding(canvas, projection, it, extrude, heightScale) }
     }
 
-    // ââ Helpers âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    private fun toScreen(projection: Projection, gp: GeoPoint): PointF {
+        projection.toPixels(gp, scratchPoint)
+        return PointF(scratchPoint.x.toFloat(), scratchPoint.y.toFloat())
+    }
 
-    private fun drawPolyline(
+    private fun footprintDepth(projection: Projection, outline: List<GeoPoint>): Float {
+        // Painter's algorithm: buildings lower on screen are "nearer" the
+        // viewer and must be drawn after (on top of) ones higher up.
+        var maxY = Float.NEGATIVE_INFINITY
+        for (gp in outline) {
+            val p = toScreen(projection, gp)
+            if (p.y > maxY) maxY = p.y
+        }
+        return maxY
+    }
+
+    private fun drawBuilding(
         canvas: Canvas,
-        proj:   Projection,
-        pts:    List<GeoPoint>,
-        paint:  Paint
+        projection: Projection,
+        building: BuildingFootprint,
+        extrude: Boolean,
+        heightScale: Float
     ) {
-        path.rewind()
-        pts.forEachIndexed { index, gpt ->
-            proj.toPixels(gpt, reusablePt)
-            val px = reusablePt.x.toFloat()
-            val py = reusablePt.y.toFloat()
-            if (index == 0) path.moveTo(px, py) else path.lineTo(px, py)
+        if (building.outline.size < 3) return
+        scratchScreenPts.clear()
+        for (gp in building.outline) scratchScreenPts.add(toScreen(projection, gp))
+
+        if (!extrude) {
+            // Zoomed out too far for extrusion to read cleanly — flat
+            // silhouette still gives the "city block" texture.
+            drawPolygon(canvas, scratchScreenPts, flatBuildingPaint, null)
+            return
         }
-        canvas.drawPath(path, paint)
+
+        val levels = building.levels.coerceIn(1, maxLevelsForHeight)
+        val dx = extrudeDxPerLevel * levels * heightScale
+        val dy = extrudeDyPerLevel * levels * heightScale
+
+        val n = scratchScreenPts.size
+        var cx = 0f
+        var cy = 0f
+        for (p in scratchScreenPts) { cx += p.x; cy += p.y }
+        cx /= n; cy /= n
+
+        // Only paint walls on the side of the building that faces the
+        // viewer once the roof lifts away — edges whose midpoint sits
+        // opposite the extrusion direction relative to the centroid.
+        // This is winding-order independent, unlike a pure edge-normal test,
+        // so it works regardless of how the source OSM way was wound.
+        for (i in 0 until n) {
+            val a = scratchScreenPts[i]
+            val b = scratchScreenPts[(i + 1) % n]
+            val midX = (a.x + b.x) / 2f
+            val midY = (a.y + b.y) / 2f
+            val outX = midX - cx
+            val outY = midY - cy
+            val facingDot = outX * -dx + outY * -dy
+            if (facingDot <= 0f) continue
+
+            val ra = PointF(a.x + dx, a.y + dy)
+            val rb = PointF(b.x + dx, b.y + dy)
+            path.reset()
+            path.moveTo(a.x, a.y)
+            path.lineTo(b.x, b.y)
+            path.lineTo(rb.x, rb.y)
+            path.lineTo(ra.x, ra.y)
+            path.close()
+            canvas.drawPath(path, wallPaint)
+        }
+
+        val roofPts = ArrayList<PointF>(n)
+        for (p in scratchScreenPts) roofPts.add(PointF(p.x + dx, p.y + dy))
+        drawPolygon(canvas, roofPts, roofPaint, roofStroke)
     }
 
-    private fun draw3DBuilding(
-        canvas:  Canvas,
-        proj:    Projection,
-        polygon: List<GeoPoint>,
-        extH:    Float
-    ) {
-        // Project all polygon vertices to screen space
-        val screen = polygon.map { gpt ->
-            proj.toPixels(gpt, reusablePt)
-            Pair(reusablePt.x.toFloat(), reusablePt.y.toFloat())
+    private fun drawRoad(canvas: Canvas, projection: Projection, road: RoadSegment) {
+        if (road.points.size < 2) return
+        path.reset()
+        road.points.forEachIndexed { i, gp ->
+            val p = toScreen(projection, gp)
+            if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
         }
-
-        // Bounding box â skip tiny specks
-        val minX = screen.minOf { it.first }
-        val maxX = screen.maxOf { it.first }
-        val minY = screen.minOf { it.second }
-        val maxY = screen.maxOf { it.second }
-        val bw   = maxX - minX
-        val bh   = maxY - minY
-        if (bw < 4f || bh < 4f) return
-
-        // Isometric extrusion offset: top-right (east) and down (south)
-        val offX = extH * 0.55f   // rightward shift for east/south walls
-        val offY = extH            // downward shift
-
-        path.rewind()
-        screen.forEachIndexed { idx, (px, py) ->
-            if (idx == 0) path.moveTo(px + offX, py + offY)
-            else path.lineTo(px + offX, py + offY)
-        }
-        path.close()
-        canvas.drawPath(path, buildingShadowPaint)
-
-        // ââ South wall â bottom edges of the footprint ââââââââââââââââââââââââ
-        // Heuristic: edge whose midpoint Y > maxY - bh * 0.4
-        for (i in screen.indices) {
-            val j  = (i + 1) % screen.size
-            val x0 = screen[i].first;  val y0 = screen[i].second
-            val x1 = screen[j].first;  val y1 = screen[j].second
-            if ((y0 + y1) / 2f < maxY - bh * 0.35f) continue
-            path.rewind()
-            path.moveTo(x0, y0)
-            path.lineTo(x1, y1)
-            path.lineTo(x1 + offX, y1 + offY)
-            path.lineTo(x0 + offX, y0 + offY)
-            path.close()
-            canvas.drawPath(path, southWallPaint)
-        }
-
-        // ââ East wall â right edges of the footprint âââââââââââââââââââââââââ
-        for (i in screen.indices) {
-            val j  = (i + 1) % screen.size
-            val x0 = screen[i].first;  val y0 = screen[i].second
-            val x1 = screen[j].first;  val y1 = screen[j].second
-            if ((x0 + x1) / 2f < maxX - bw * 0.35f) continue
-            path.rewind()
-            path.moveTo(x0, y0)
-            path.lineTo(x1, y1)
-            path.lineTo(x1 + offX, y1 + offY)
-            path.lineTo(x0 + offX, y0 + offY)
-            path.close()
-            canvas.drawPath(path, eastWallPaint)
-        }
-
-        // ââ Roof (top face = original footprint) âââââââââââââââââââââââââââââ
-        path.rewind()
-        screen.forEachIndexed { idx, (px, py) ->
-            if (idx == 0) path.moveTo(px, py) else path.lineTo(px, py)
-        }
-        path.close()
-        canvas.drawPath(path, roofPaint)
-        canvas.drawPath(path, roofOutlinePaint)
+        val fillWidth = 15f
+        roadCasingPaint.strokeWidth = fillWidth + 7f
+        roadFillPaint.strokeWidth = fillWidth
+        canvas.drawPath(path, roadCasingPaint)
+        canvas.drawPath(path, roadFillPaint)
     }
 
-    private fun polygonArea(polygon: List<GeoPoint>): Double {
-        if (polygon.size < 3) return 0.0
-        return kotlin.math.abs(polygon.indices.sumOf { i ->
-            val next = polygon[(i + 1) % polygon.size]
-            polygon[i].longitude * next.latitude - next.longitude * polygon[i].latitude
-        })
+    private fun drawArea(
+        canvas: Canvas,
+        projection: Projection,
+        outline: List<GeoPoint>,
+        fill: Paint,
+        stroke: Paint?
+    ) {
+        if (outline.size < 3) return
+        val pts = ArrayList<PointF>(outline.size)
+        for (gp in outline) pts.add(toScreen(projection, gp))
+        drawPolygon(canvas, pts, fill, stroke)
+    }
+
+    private fun drawPolygon(canvas: Canvas, pts: List<PointF>, fill: Paint, stroke: Paint?) {
+        if (pts.size < 3) return
+        path.reset()
+        path.moveTo(pts[0].x, pts[0].y)
+        for (i in 1 until pts.size) path.lineTo(pts[i].x, pts[i].y)
+        path.close()
+        canvas.drawPath(path, fill)
+        stroke?.let { canvas.drawPath(path, it) }
     }
 }
