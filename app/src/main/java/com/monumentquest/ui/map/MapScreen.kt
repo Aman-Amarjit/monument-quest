@@ -66,7 +66,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
 
-// ── Tile source — CartoDB Voyager (colorful, matches 3D reference) ────────────
+// ââ Tile source â CartoDB Voyager (colorful, matches 3D reference) ââââââââââââ
 // We define a fresh object each time to bypass OSMDroid's name-based tile cache.
 private fun makeCartoVoyagerSource() = object : OnlineTileSourceBase(
     "CartoVoyagerMQ", 0, 20, 256, ".png",
@@ -85,7 +85,7 @@ private fun makeCartoVoyagerSource() = object : OnlineTileSourceBase(
     }
 }
 
-// ── OSRM Routing ──────────────────────────────────────────────────────────────
+// ââ OSRM Routing ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 private suspend fun fetchRoute(
     fromLat: Double, fromLon: Double,
     toLat: Double,   toLon: Double
@@ -106,7 +106,7 @@ private suspend fun fetchRoute(
     } catch (e: Exception) { emptyList() }
 }
 
-// ── Marker helpers ────────────────────────────────────────────────────────────
+// ââ Marker helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 private fun createMonumentMarker(context: Context, isSelected: Boolean, distanceText: String): Drawable {
     val pinSize = if (isSelected) 56 else 44
@@ -176,7 +176,7 @@ data class RecentStopItem(
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ââ Screen ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -226,7 +226,7 @@ fun MapScreen(
         )
     }
 
-    // ── Effects ───────────────────────────────────────────────────────────────
+    // ââ Effects âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
     LaunchedEffect(walkPathPoints, mapViewRef.value) {
         val map = mapViewRef.value ?: return@LaunchedEffect
@@ -351,10 +351,10 @@ fun MapScreen(
         }
     }
 
-    // ── Root container ────────────────────────────────────────────────────────
+    // ââ Root container ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A12))) {
 
-        // ── Map ───────────────────────────────────────────────────────────────
+        // ââ Map âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
         AndroidView(
             factory = { ctx ->
                 // Keep OSMDroid's tile cache between launches. Clearing these
@@ -372,15 +372,15 @@ fun MapScreen(
                     // a north-up street map. OSMDroid has no pitch camera, so a
                     // modest bearing gives the same visual direction without
                     // breaking marker placement or gestures.
-                    controller.setZoom(14.5)
+                    controller.setZoom(15.0)
                     controller.setCenter(GeoPoint(20.5937, 78.9629))
-                    mapOrientation = 22f
+                    mapOrientation = 18f
                     mapViewInstance = this
                     mapViewRef.value = this
                 }
             },
             update = { mv ->
-                // Force CartoVoyager on every recompose — ensures it's never overridden
+                // Force CartoVoyager on every recompose â ensures it's never overridden
                 val name = mv.tileProvider.tileSource?.name() ?: ""
                 if (!name.startsWith("CartoVoyager")) {
                     mv.setTileSource(makeCartoVoyagerSource())
@@ -390,7 +390,7 @@ fun MapScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // ── TOP: Search bar ───────────────────────────────────────────────────
+        // ââ TOP: Search bar âââââââââââââââââââââââââââââââââââââââââââââââââââ
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -443,7 +443,7 @@ fun MapScreen(
                 ) {
                     if (searchQuery.isEmpty()) {
                         Text(
-                            "Search monuments or places…",
+                            "Search monuments or placesâ¦",
                             color    = Color(0xFFAAB8CC),
                             fontSize = 13.5.sp
                         )
@@ -541,7 +541,7 @@ fun MapScreen(
             }
         }
 
-        // ── RIGHT: Zoom + locate FABs ─────────────────────────────────────────
+        // ââ RIGHT: Zoom + locate FABs âââââââââââââââââââââââââââââââââââââââââ
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -590,7 +590,7 @@ fun MapScreen(
             }
         }
 
-        // ── Monument info card ────────────────────────────────────────────────
+        // ââ Monument info card ââââââââââââââââââââââââââââââââââââââââââââââââ
         AnimatedVisibility(
             visible  = selectedMonument != null,
             enter    = slideInVertically(tween(300)) { it } + fadeIn(tween(200)),
@@ -610,7 +610,7 @@ fun MapScreen(
             }
         }
 
-        // ── Bottom sheet ──────────────────────────────────────────────────────
+        // ââ Bottom sheet ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -717,7 +717,7 @@ fun MapScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            if (isSheetExpanded) "Show less ▲" else "Recent stops ▼",
+                            if (isSheetExpanded) "Show less â²" else "Recent stops â¼",
                             color    = Color(0xFF475569),
                             fontSize = 11.sp
                         )
@@ -725,7 +725,7 @@ fun MapScreen(
                 }
             }
 
-            // Camera FAB — anchored top-right of the sheet
+            // Camera FAB â anchored top-right of the sheet
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -748,7 +748,7 @@ fun MapScreen(
     }
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ââ Sub-components ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 @Composable
 private fun MonumentCard(
