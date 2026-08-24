@@ -26,6 +26,7 @@ import com.monumentquest.data.model.TacticalGeometry
  */
 class Isometric3DOverlay : Overlay() {
 
+    var enabled: Boolean = true
     var geometry: TacticalGeometry = TacticalGeometry(emptyList(), emptyList())
 
     // ── Paint objects — allocated once, never inside draw() ──────────────────
@@ -79,7 +80,7 @@ class Isometric3DOverlay : Overlay() {
     // ── Draw entry point ──────────────────────────────────────────────────────
 
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
-        if (shadow) return
+        if (shadow || !enabled) return
         val proj = mapView.projection
         val zoom = mapView.zoomLevelDouble
 
