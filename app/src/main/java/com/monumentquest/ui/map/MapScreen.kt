@@ -193,6 +193,7 @@ fun MapScreen(
     val bearing        by viewModel.currentBearing.collectAsState()
     val coverageStats  by viewModel.coverageStats.collectAsState()
     val walkPathPoints by viewModel.walkPathPoints.collectAsState()
+    val tacticalGeometry by viewModel.tacticalGeometry.collectAsState()
     val searchResults  by viewModel.searchResults.collectAsState()
     val isSearching    by viewModel.isSearching.collectAsState()
 
@@ -204,11 +205,13 @@ fun MapScreen(
     val walkPolyline      = remember { mutableStateOf<Polyline?>(null) }
     val routePolyline     = remember { mutableStateOf<Polyline?>(null) }
     val mapViewRef        = remember { mutableStateOf<MapView?>(null) }
+    val isometricOverlay  = remember { Isometric3DOverlay() }
 
     var isFollowingUser  by remember { mutableStateOf(true) }
     var searchQuery      by remember { mutableStateOf("") }
     var isSheetExpanded  by remember { mutableStateOf(false) }
     var hasZoomedToUser  by remember { mutableStateOf(false) }
+    var isAerialView     by remember { mutableStateOf(true) }
 
     val sheetBottomPadding: Dp by animateDpAsState(
         targetValue   = if (isSheetExpanded) 290.dp else 148.dp,
@@ -260,7 +263,9 @@ fun MapScreen(
             }
             userMarker?.position = geo
             if (!hasZoomedToUser) {
-                map.controller.setZoom(17.0)
+                // A wider starting frame feels like the reference's city-scale
+                // aerial view, while still leaving enough detail for monuments.
+                map.controller.setZoom(15.5)
                 map.controller.setCenter(geo)
                 hasZoomedToUser = true
             } else if (isFollowingUser) {
@@ -303,6 +308,18 @@ fun MapScreen(
             }
         }
         selectedMarkerIds.value = newSelectedIds
+        map.invalidate()
+    }
+
+    // Paint the fetched OSM blueprint above the raster tiles. This is the
+    // layer that turns the ordinary map into the grey-roof / gold-road city
+    // model shown in the reference image.
+    LaunchedEffect(tacticalGeometry, mapViewRef.value) {
+        val map = mapViewRef.value ?: return@LaunchedEffect
+        isometricOverlay.geometry = tacticalGeometry
+        if (!map.overlays.contains(isometricOverlay)) {
+            map.overlays.add(minOf(1, map.overlays.size), isometricOverlay)
+        }
         map.invalidate()
     }
 
@@ -350,9 +367,13 @@ fun MapScreen(
                     val src = makeCartoVoyagerSource()
                     setTileSource(src)
                     setMultiTouchControls(true)
-                    controller.setZoom(5.0)
+                    // The reference is a diagonal, low aerial view rather than
+                    // a north-up street map. OSMDroid has no pitch camera, so a
+                    // modest bearing gives the same visual direction without
+                    // breaking marker placement or gestures.
+                    controller.setZoom(14.5)
                     controller.setCenter(GeoPoint(20.5937, 78.9629))
-                    mapOrientation = 0f
+                    mapOrientation = 22f
                     mapViewInstance = this
                     mapViewRef.value = this
                 }
@@ -526,6 +547,21 @@ fun MapScreen(
                 .padding(end = 12.dp, bottom = 60.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            MapControlFab(
+                onClick = {
+                    isAerialView = !isAerialView
+                    mapViewInstance?.mapOrientation = if (isAerialView) 22f else 0f
+                    mapViewInstance?.invalidate()
+                },
+                bgColor = if (isAerialView) Color(0xFF172033) else Color(0xF5FFFFFF)
+            ) {
+                Text(
+                    if (isAerialView) "3D" else "2D",
+                    color = if (isAerialView) Color(0xFFFFC857) else Color(0xFF334155),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
             MapControlFab(
                 onClick = { mapViewInstance?.controller?.zoomIn() },
                 bgColor = Color(0xF5FFFFFF)
