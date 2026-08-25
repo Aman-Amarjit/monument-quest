@@ -209,7 +209,7 @@ fun MapScreen(
     val bearing          by viewModel.currentBearing.collectAsState()
     val coverageStats    by viewModel.coverageStats.collectAsState()
     val walkPathPoints   by viewModel.walkPathPoints.collectAsState()
-    val tacticalGeometry by viewModel.tacticalGeometry.collectAsState()
+
     val searchResults    by viewModel.searchResults.collectAsState()
     val isSearching      by viewModel.isSearching.collectAsState()
 
@@ -222,13 +222,13 @@ fun MapScreen(
     val walkPolyline      = remember { mutableStateOf<Polyline?>(null) }
     val routePolyline     = remember { mutableStateOf<Polyline?>(null) }
     val mapViewRef        = remember { mutableStateOf<MapView?>(null) }
-    val isometricOverlay  = remember { Isometric3DOverlay() }
+
 
     var isFollowingUser  by remember { mutableStateOf(true) }
     var searchQuery      by remember { mutableStateOf("") }
     var isSheetExpanded  by remember { mutableStateOf(false) }
     var hasZoomedToUser  by remember { mutableStateOf(false) }
-    var isAerialView     by remember { mutableStateOf(false) }
+
 
     val collapsedSheetH = 260.dp
     val cardBottomPad: Dp by animateDpAsState(
@@ -380,17 +380,6 @@ fun MapScreen(
         map.invalidate()
     }
 
-    LaunchedEffect(tacticalGeometry, mapViewRef.value, isAerialView) {
-        val map = mapViewRef.value ?: return@LaunchedEffect
-        isometricOverlay.geometry = tacticalGeometry
-        isometricOverlay.isOverlayEnabled = true
-        isometricOverlay.is3dExtrusionEnabled = isAerialView
-        if (!map.overlays.contains(isometricOverlay)) {
-            map.overlays.add(isometricOverlay)
-        }
-        map.invalidate()
-    }
-
     LaunchedEffect(selectedMonument, userLocation, mapViewRef.value) {
         val map = mapViewRef.value ?: return@LaunchedEffect
         routePolyline.value?.let { map.overlays.remove(it) }
@@ -435,8 +424,6 @@ fun MapScreen(
                     setUseDataConnection(true)
                     controller.setZoom(15.0)
                     controller.setCenter(GeoPoint(20.5937, 78.9629))
-                    mapOrientation = 0f
-                    pitchDegrees   = 0f
                     mapViewInstance = this
                     mapViewRef.value = this
                 }
