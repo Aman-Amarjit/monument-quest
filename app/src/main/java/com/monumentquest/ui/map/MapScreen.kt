@@ -129,23 +129,63 @@ private fun createMonumentMarker(context: Context, isSelected: Boolean, distance
 }
 
 private fun createUserDot(context: Context): Drawable {
-    val size   = 40
+    // A character marker makes the player’s position instantly readable on the map.
+    // Keep the canvas generously padded so the marker remains crisp while moving.
+    val size = 76
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
-    val paint  = Paint(Paint.ANTI_ALIAS_FLAG)
-    val cx     = size / 2f
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isDither = true }
+    val cx = size / 2f
 
-    paint.color = AndroidColor.parseColor("#301A73E8")
-    canvas.drawCircle(cx, cx, cx, paint)
-    paint.color = AndroidColor.parseColor("#801A73E8")
-    canvas.drawCircle(cx, cx, cx - 4f, paint)
+    // Warm location halo, intentionally not a blue GPS dot.
+    paint.color = AndroidColor.parseColor("#2610B981")
+    canvas.drawCircle(cx, 37f, 31f, paint)
+    paint.color = AndroidColor.parseColor("#6010B981")
+    canvas.drawCircle(cx, 37f, 25f, paint)
+
+    // Ground shadow.
+    paint.color = AndroidColor.parseColor("#550B1220")
+    canvas.drawOval(RectF(20f, 61f, 56f, 70f), paint)
+
+    // Legs and boots.
+    paint.color = AndroidColor.parseColor("#243044")
+    canvas.drawRoundRect(RectF(30f, 49f, 37f, 64f), 3f, 3f, paint)
+    canvas.drawRoundRect(RectF(39f, 49f, 46f, 64f), 3f, 3f, paint)
+    paint.color = AndroidColor.parseColor("#111827")
+    canvas.drawRoundRect(RectF(28f, 60f, 38f, 66f), 3f, 3f, paint)
+    canvas.drawRoundRect(RectF(38f, 60f, 49f, 66f), 3f, 3f, paint)
+
+    // Explorer jacket and arms.
+    paint.color = AndroidColor.parseColor("#E79A24")
+    canvas.drawRoundRect(RectF(25f, 30f, 51f, 54f), 9f, 9f, paint)
+    paint.color = AndroidColor.parseColor("#FFC857")
+    canvas.drawRoundRect(RectF(28f, 31f, 48f, 52f), 7f, 7f, paint)
+    paint.color = AndroidColor.parseColor("#D17A16")
+    canvas.drawRoundRect(RectF(22f, 34f, 29f, 49f), 3f, 3f, paint)
+    canvas.drawRoundRect(RectF(47f, 34f, 54f, 49f), 3f, 3f, paint)
+
+    // Backpack peeking over the shoulders.
+    paint.color = AndroidColor.parseColor("#176B5A")
+    canvas.drawRoundRect(RectF(23f, 29f, 29f, 45f), 3f, 3f, paint)
+
+    // Head, hair, and face.
+    paint.color = AndroidColor.parseColor("#F4B183")
+    canvas.drawCircle(cx, 22f, 10f, paint)
+    paint.color = AndroidColor.parseColor("#3A2418")
+    canvas.drawArc(RectF(28f, 11f, 48f, 30f), 180f, 180f, true, paint)
+    paint.color = AndroidColor.parseColor("#F4B183")
+    canvas.drawCircle(31f, 23f, 2.5f, paint)
+    canvas.drawCircle(45f, 23f, 2.5f, paint)
+
+    // Small compass badge on the jacket.
     paint.color = AndroidColor.WHITE
-    canvas.drawCircle(cx, cx, cx - 8f, paint)
-    paint.color = AndroidColor.parseColor("#1A73E8")
-    canvas.drawCircle(cx, cx, cx - 11f, paint)
-    paint.color = AndroidColor.WHITE
-    canvas.drawCircle(cx, cx, 5f, paint)
-    return BitmapDrawable(context.resources, bitmap)
+    canvas.drawCircle(cx, 41f, 4f, paint)
+    paint.color = AndroidColor.parseColor("#0F766E")
+    canvas.drawCircle(cx, 41f, 2f, paint)
+
+    return BitmapDrawable(context.resources, bitmap).apply {
+        setBounds(0, 0, size, size)
+    }
 }
 
 data class RecentStopItem(
