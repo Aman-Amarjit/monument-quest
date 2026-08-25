@@ -3,38 +3,35 @@ package com.monumentquest.ui.theme
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
-// ── Base surfaces ─────────────────────────────────────────────────────────────
-val Bg           = Color(0xFF0A0A0F)   // page background
-val Surface1     = Color(0xFF111118)   // card background
-val Surface2     = Color(0xFF1A1A24)   // elevated card / modal
-val Surface3     = Color(0xFF222232)   // highest elevation
-val Border       = Color(0xFF1E1E2E)   // card border
-val BorderSubtle = Color(0xFF14141E)   // very subtle divider
+// MonumentQuest visual system: midnight ink, warm brass, and field green.
+val Bg           = Color(0xFF0B1117)
+val Surface1     = Color(0xFF111A22)
+val Surface2     = Color(0xFF17232D)
+val Surface3     = Color(0xFF20313C)
+val Border       = Color(0xFF29404A)
+val BorderSubtle = Color(0xFF1B2A33)
 
-// ── Accent ────────────────────────────────────────────────────────────────────
-val Gold     = Color(0xFFF0A500)   // primary accent — use sparingly
-val GoldDim  = Color(0xFF8A5E00)   // muted gold for secondary uses
-val GoldTint = Color(0xFF1A1200)   // gold background tint
+val Gold         = Color(0xFFE5A83B)
+val GoldDim      = Color(0xFF9A6C22)
+val GoldTint     = Color(0xFF2B2110)
 
-// ── Semantic ──────────────────────────────────────────────────────────────────
-val GreenAccent = Color(0xFF22C55E)
-val RedAccent   = Color(0xFFEF4444)
-val BlueAccent  = Color(0xFF3B82F6)
+val GreenAccent  = Color(0xFF47C49A)
+val RedAccent    = Color(0xFFE56B6F)
+val BlueAccent   = Color(0xFF68A8C6)
 
-// ── Text ──────────────────────────────────────────────────────────────────────
-val TextPrimary   = Color(0xFFF1F5F9)
-val TextSecondary = Color(0xFF64748B)
-val TextTertiary  = Color(0xFF334155)
+val TextPrimary   = Color(0xFFF5F1E8)
+val TextSecondary = Color(0xFFA7B6BA)
+val TextTertiary  = Color(0xFF6E858C)
 
-// ── Legacy aliases (keep for backward compat with ViewModels / data classes) ──
+// Legacy aliases retained so existing screens keep compiling while adopting the new system.
 val ObsidianBlack   = Bg
 val NightSurface    = Surface1
 val ElevatedSurface = Surface2
 val CardSurface     = Surface1
 val GlassSurface    = Surface2
-val ForestDeep      = Color(0xFF0A0A0F)
-val ForestMid       = Color(0xFF1A1A24)
-val ForestLight     = Color(0xFF222232)
+val ForestDeep      = Bg
+val ForestMid       = Surface2
+val ForestLight     = Surface3
 val ForestMint      = GreenAccent
 val GoldBright      = Gold
 val GoldMid         = GoldDim
@@ -46,14 +43,15 @@ val MutedGray       = TextSecondary
 val SubtleGray      = Surface3
 val ErrorRed        = RedAccent
 val SuccessGreen    = GreenAccent
-val EmberMid        = Color(0xFFEF4444)
-val EmberDeep       = Color(0xFF4D1218)
-val EmberLight      = Color(0xFFFF6F59)
-val EmberGlow       = Color(0xFFFF8C6B)
+val EmberMid        = RedAccent
+val EmberDeep       = Color(0xFF3A1D25)
+val EmberLight      = Color(0xFFF08B7E)
+val EmberGlow       = Color(0xFFFFB19D)
 val MedalGold       = Gold
-val MedalSilver     = Color(0xFF94A3B8)
-val MedalBronze     = Color(0xFFB45309)
-val WarningAmber    = Color(0xFFF59E0B)
-val GoldLinearGradient    = Brush.horizontalGradient(listOf(Gold, Color(0xFFFFD97A)))
-val EmeraldLinearGradient = Brush.horizontalGradient(listOf(GreenAccent, Color(0xFF16A34A)))
-val GlassBorderGradient   = Brush.linearGradient(listOf(Gold.copy(alpha = 0.4f), GreenAccent.copy(alpha = 0.2f)))
+val MedalSilver     = Color(0xFFA7B6BA)
+val MedalBronze     = Color(0xFFB87945)
+val WarningAmber    = Color(0xFFF2B84B)
+
+val GoldLinearGradient    = Brush.horizontalGradient(listOf(Color(0xFFF0C66D), Gold))
+val EmeraldLinearGradient = Brush.horizontalGradient(listOf(Color(0xFF6DE0B5), GreenAccent))
+val GlassBorderGradient   = Brush.linearGradient(listOf(Gold.copy(alpha = 0.45f), GreenAccent.copy(alpha = 0.25f)))
