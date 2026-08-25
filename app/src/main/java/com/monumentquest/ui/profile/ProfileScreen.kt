@@ -291,7 +291,7 @@ fun ProfileScreen(
                             fontSize = 13.sp
                         )
                         Text(
-                            "$" + "unlockedCount / ${"$"} {collectionItems.size}",
+                            "${unlockedCount} / ${collectionItems.size}",
                             fontWeight = FontWeight.SemiBold,
                             color = Gold,
                             fontSize = 12.sp
