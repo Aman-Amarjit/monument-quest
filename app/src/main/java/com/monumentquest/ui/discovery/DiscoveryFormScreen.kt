@@ -8,12 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Landscape
-import androidx.compose.material.icons.filled.MilitaryTech
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,38 +51,41 @@ fun DiscoveryFormScreen(
                 modifier         = Modifier.fillMaxSize(),
                 contentScale     = ContentScale.Crop
             )
-            // Bottom fade
+            // Bottom fade gradient
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
+                    .height(90.dp)
                     .align(Alignment.BottomCenter)
                     .background(
-                        Brush.verticalGradient(listOf(Color.Transparent, Bg))
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Bg)
+                        )
                     )
             )
-            // Discovery tag
-            Box(
+
+            // Live Camera Badge
+            Row(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
                     .padding(16.dp)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(Gold)
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .align(Alignment.TopStart)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xCC0F172A))
+                    .border(1.dp, Color(0xFF22C55E), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    "Discovery Log",
-                    style      = MaterialTheme.typography.labelSmall,
-                    color      = Bg,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF22C55E), modifier = Modifier.size(14.dp))
+                Text("Live Onsite Photo Verified", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
 
-        // ── Form ──────────────────────────────────────────────────────────────
+        // ── Form Content ──────────────────────────────────────────────────────
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
@@ -97,18 +95,36 @@ fun DiscoveryFormScreen(
                 fontSize   = 20.sp
             )
 
-            Text(
-                "Points are calculated based on how many explorers have uploaded this monument before you — the fewer, the more XP you earn.",
-                style      = MaterialTheme.typography.bodySmall,
-                color      = TextSecondary,
-                lineHeight = 18.sp
-            )
+            // Community Review Info Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape    = RoundedCornerShape(14.dp),
+                colors   = CardDefaults.cardColors(containerColor = Surface1),
+                border   = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0A500).copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.HourglassTop, null, tint = Color(0xFFF0A500), modifier = Modifier.size(24.dp))
+                    Column {
+                        Text("Special Landmark Review System", fontWeight = FontWeight.Bold, color = Color(0xFFF0A500), fontSize = 12.5.sp)
+                        Text(
+                            "Special or beautiful discoveries submitted outside standard zones are reviewed by explorers. +250 XP will be awarded upon community approval!",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value       = name,
                 onValueChange = { name = it },
-                label       = { Text("Monument Name") },
-                placeholder = { Text("e.g. Lingaraj Temple…", color = TextSecondary) },
+                label       = { Text("Monument / Landmark Name") },
+                placeholder = { Text("e.g. Ancient Temple Archway…", color = TextSecondary) },
                 leadingIcon = {
                     Icon(Icons.Default.Landscape, null, tint = Gold, modifier = Modifier.size(20.dp))
                 },
@@ -137,7 +153,7 @@ fun DiscoveryFormScreen(
                         ) {
                             CircularProgressIndicator(color = Gold, strokeWidth = 2.5.dp)
                             Text(
-                                "Calculating rarity XP multiplier…",
+                                "Logging discovery & calculating XP bonus…",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
@@ -158,14 +174,14 @@ fun DiscoveryFormScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Row(
-                                verticalAlignment    = Alignment.CenterVertically,
+                                verticalAlignment     = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Icon(Icons.Default.MilitaryTech, null, tint = Gold, modifier = Modifier.size(26.dp))
                                 Column {
-                                    Text(result.rarityBadge, fontWeight = FontWeight.SemiBold, color = Gold, fontSize = 14.sp)
+                                    Text("Special Discovery Submitted!", fontWeight = FontWeight.Bold, color = Gold, fontSize = 14.sp)
                                     Text(
-                                        "${result.previousUploadersCount} explorers uploaded this before you",
+                                        "Submitted for Community Review • +250 XP Pending",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = TextSecondary
                                     )
@@ -180,12 +196,12 @@ fun DiscoveryFormScreen(
                                 verticalAlignment     = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text("MULTIPLIER", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
-                                    Text("${result.multiplier}x Bonus", fontWeight = FontWeight.Bold, color = GreenAccent, fontSize = 15.sp)
+                                    Text("STATUS", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
+                                    Text("Under Review ⏳", fontWeight = FontWeight.Bold, color = Color(0xFFF0A500), fontSize = 14.sp)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("XP EARNED", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
-                                    Text("+${result.pointsEarned} XP", fontWeight = FontWeight.Bold, color = Gold, fontSize = 18.sp)
+                                    Text("POTENTIAL REWARD", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
+                                    Text("+250 XP", fontWeight = FontWeight.Bold, color = Gold, fontSize = 18.sp)
                                 }
                             }
 
@@ -254,6 +270,6 @@ private fun SubmitButton(enabled: Boolean, onClick: () -> Unit) {
     ) {
         Icon(Icons.Default.CloudUpload, null, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(8.dp))
-        Text("Submit & Calculate XP", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Text("Submit Special Discovery for Review", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
     }
 }

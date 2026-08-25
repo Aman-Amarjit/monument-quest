@@ -1,6 +1,8 @@
 package com.monumentquest.data.repository
 
+import com.monumentquest.data.model.BuildingFootprint
 import com.monumentquest.data.model.MapMonumentItem
+import com.monumentquest.data.model.RoadSegment
 import com.monumentquest.data.model.TacticalGeometry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -74,7 +76,10 @@ class OverpassRepository @Inject constructor() {
                         }
                     }
                 }
-                return@withContext TacticalGeometry(roads, buildings)
+                return@withContext TacticalGeometry(
+                        buildings = buildings.map { BuildingFootprint(it, BuildingFootprint.DEFAULT_LEVELS) },
+                        roads     = roads.map     { RoadSegment(it, isMajor = true) }
+                    )
             }
         } catch (e: Exception) {
             // Error

@@ -149,7 +149,9 @@ class MainActivity : ComponentActivity() {
                     NavHost(
                         navController    = navController,
                         startDestination = "splash",
-                        modifier         = Modifier.padding(innerPadding)
+                        modifier         = Modifier
+                            .fillMaxSize()
+                            .padding(top = innerPadding.calculateTopPadding())
                     ) {
                         composable("splash") {
                             SplashScreen(

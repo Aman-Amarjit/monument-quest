@@ -7,25 +7,24 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -57,18 +56,9 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
         )
     }
 
-    // Permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { granted -> hasCameraPermission = granted }
-    )
-
-    // Gallery Picker fallback launcher
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = { uri ->
-            uri?.let { onImageCaptured(it) }
-        }
     )
 
     LaunchedEffect(Unit) {
@@ -83,7 +73,7 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
             .background(ObsidianBlack)
     ) {
         if (hasCameraPermission) {
-            // Camera Preview View
+            // Live Camera Preview
             AndroidView(
                 factory = { ctx ->
                     val previewView = PreviewView(ctx)
@@ -111,50 +101,65 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Bottom Shutter Controls Bar
+            // Top Live Mode Badge
             Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 16.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xCC0F172A))
+                    .border(1.dp, Color(0xFF22C55E), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF22C55E))
+                )
+                Text(
+                    "LIVE ONSITE VERIFICATION ONLY",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
+                )
+            }
+
+            // Bottom Shutter Controls Bar (Live Capture Only)
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(bottom = 36.dp, start = 24.dp, end = 24.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(bottom = 44.dp),
+                contentAlignment = Alignment.Center
             ) {
-                // Gallery Picker Button
-                IconButton(
-                    onClick = { galleryLauncher.launch("image/*") },
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(ElevatedSurface.copy(alpha = 0.85f))
-                        .border(1.dp, GoldBright, CircleShape)
-                ) {
-                    Icon(Icons.Default.Collections, contentDescription = "Pick Photo", tint = GoldBright, modifier = Modifier.size(22.dp))
-                }
-
                 // Shutter Capture Button
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
-                        .border(3.dp, CreamWhite, CircleShape)
+                        .size(84.dp)
+                        .border(4.dp, Color(0xFF22C55E), CircleShape)
                         .padding(6.dp)
-                        .background(CreamWhite.copy(alpha = 0.2f), CircleShape),
+                        .background(Color(0x3022C55E), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(
                         onClick = { takePhoto(context, imageCapture, cameraExecutor, onImageCaptured) },
-                        modifier = Modifier.size(62.dp)
+                        modifier = Modifier.size(64.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(54.dp)
-                                .background(CreamWhite, CircleShape),
+                                .size(56.dp)
+                                .background(Color.White, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Capture Photo",
-                                tint = ObsidianBlack,
+                                contentDescription = "Capture Photo Live",
+                                tint = Color(0xFF0F172A),
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -170,25 +175,27 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Icon(Icons.Default.Lock, null, tint = GoldBright, modifier = Modifier.size(48.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Camera Permission Required",
+                    text = "Live Camera Access Required",
                     style = MaterialTheme.typography.titleMedium,
                     color = CreamWhite,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "To ensure fair play, photos must be captured live inside the Green Zone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF94A3B8),
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(20.dp))
                 Button(
                     onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
                     colors = ButtonDefaults.buttonColors(containerColor = GoldBright, contentColor = ObsidianBlack)
                 ) {
-                    Text("Grant Camera Access")
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { galleryLauncher.launch("image/*") },
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = CreamWhite)
-                ) {
-                    Text("Or Select Photo from Gallery")
+                    Text("Grant Live Camera Access")
                 }
             }
         }
