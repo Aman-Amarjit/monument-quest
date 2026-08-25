@@ -3,114 +3,101 @@ package com.monumentquest.ui.theme
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dark Colour Scheme
-// ─────────────────────────────────────────────────────────────────────────────
 private val DarkColorScheme = darkColorScheme(
-    primary                = Gold,
-    onPrimary              = Bg,
-    primaryContainer       = GoldTint,
-    onPrimaryContainer     = Gold,
-
-    secondary              = GreenAccent,
-    onSecondary            = Bg,
-    secondaryContainer     = Surface2,
-    onSecondaryContainer   = GreenAccent,
-
-    tertiary               = RedAccent,
-    onTertiary             = TextPrimary,
-    tertiaryContainer      = EmberDeep,
-    onTertiaryContainer    = EmberGlow,
-
-    background             = Bg,
-    onBackground           = TextPrimary,
-
-    surface                = Surface1,
-    onSurface              = TextPrimary,
-    surfaceVariant         = Surface2,
-    onSurfaceVariant       = TextSecondary,
-
-    outline                = Border,
-    outlineVariant         = BorderSubtle,
-
-    error                  = RedAccent,
-    onError                = TextPrimary,
-    errorContainer         = Color(0xFF4D1218),
-    onErrorContainer       = Color(0xFFFFB3B3),
-
-    inverseSurface         = TextPrimary,
-    inverseOnSurface       = Bg,
-    inversePrimary         = GoldDim,
-    scrim                  = Color(0x99000000),
-    surfaceTint            = Color.Transparent,
+    primary = Gold,
+    onPrimary = Bg,
+    primaryContainer = GoldTint,
+    onPrimaryContainer = Color(0xFFF6D58C),
+    secondary = GreenAccent,
+    onSecondary = Bg,
+    secondaryContainer = Color(0xFF123229),
+    onSecondaryContainer = Color(0xFF9DE8CA),
+    tertiary = BlueAccent,
+    onTertiary = Bg,
+    tertiaryContainer = Color(0xFF18313D),
+    onTertiaryContainer = Color(0xFFB7DDEC),
+    background = Bg,
+    onBackground = TextPrimary,
+    surface = Surface1,
+    onSurface = TextPrimary,
+    surfaceVariant = Surface2,
+    onSurfaceVariant = TextSecondary,
+    outline = Border,
+    outlineVariant = BorderSubtle,
+    error = RedAccent,
+    onError = Color.White,
+    errorContainer = EmberDeep,
+    onErrorContainer = Color(0xFFFFC1B6),
+    inverseSurface = TextPrimary,
+    inverseOnSurface = Bg,
+    inversePrimary = GoldDim,
+    scrim = Color(0xB8000000),
+    surfaceTint = Color.Transparent
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Light Colour Scheme
-// ─────────────────────────────────────────────────────────────────────────────
 private val LightColorScheme = lightColorScheme(
-    primary                = Gold,
-    onPrimary              = Bg,
-    primaryContainer       = Color(0xFFFFE8A0),
-    onPrimaryContainer     = GoldDim,
-
-    secondary              = GreenAccent,
-    onSecondary            = TextPrimary,
-    secondaryContainer     = Color(0xFFB7F5D0),
-    onSecondaryContainer   = Color(0xFF14532D),
-
-    tertiary               = RedAccent,
-    onTertiary             = TextPrimary,
-    tertiaryContainer      = Color(0xFFFFD1C1),
-    onTertiaryContainer    = EmberDeep,
-
-    background             = Color(0xFFF5F0E8),
-    onBackground           = Bg,
-
-    surface                = TextPrimary,
-    onSurface              = Bg,
-    surfaceVariant         = Color(0xFFEDE8DC),
-    onSurfaceVariant       = Color(0xFF4A4A4A),
-
-    outline                = Color(0xFFAAAAAA),
-    error                  = RedAccent,
-    onError                = TextPrimary,
+    primary = Color(0xFF8B5C13),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFE2A5),
+    onPrimaryContainer = Color(0xFF2D1A00),
+    secondary = Color(0xFF187A5A),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFB8F2D7),
+    onSecondaryContainer = Color(0xFF002116),
+    tertiary = Color(0xFF356A83),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFC7EAF8),
+    onTertiaryContainer = Color(0xFF001F2A),
+    background = Color(0xFFF7F5EF),
+    onBackground = Color(0xFF181D20),
+    surface = Color(0xFFFFFCF7),
+    onSurface = Color(0xFF181D20),
+    surfaceVariant = Color(0xFFE9EFEB),
+    onSurfaceVariant = Color(0xFF46565A),
+    outline = Color(0xFF76878A),
+    outlineVariant = Color(0xFFC4D0CE),
+    error = Color(0xFFBA1A1A),
+    onError = Color.White
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shapes
-// ─────────────────────────────────────────────────────────────────────────────
 val MonumentShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small      = RoundedCornerShape(8.dp),
-    medium     = RoundedCornerShape(16.dp),
-    large      = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp),
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(30.dp)
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Theme
-// ─────────────────────────────────────────────────────────────────────────────
+private val MonumentTypography = Typography().run {
+    copy(
+        displayLarge = displayLarge.copy(fontWeight = FontWeight.Bold),
+        headlineLarge = headlineLarge.copy(fontWeight = FontWeight.Bold),
+        headlineMedium = headlineMedium.copy(fontWeight = FontWeight.SemiBold),
+        titleLarge = titleLarge.copy(fontWeight = FontWeight.SemiBold),
+        labelLarge = labelLarge.copy(fontWeight = FontWeight.SemiBold)
+    )
+}
+
 @Composable
 fun MonumentQuestTheme(
     darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -118,24 +105,19 @@ fun MonumentQuestTheme(
             val window = activity.window
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
-
             WindowCompat.setDecorFitsSystemWindows(window, false)
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
             WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
-
     MaterialTheme(
         colorScheme = colorScheme,
-        typography  = Typography,
-        shapes      = MonumentShapes,
-        content     = content
+        typography = MonumentTypography,
+        shapes = MonumentShapes,
+        content = content
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Utility
-// ─────────────────────────────────────────────────────────────────────────────
 private fun Context.findActivity(): Activity? {
     var context = this
     while (context is ContextWrapper) {
