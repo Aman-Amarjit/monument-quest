@@ -622,24 +622,6 @@ fun MapScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             MapControlFab(
-                onClick = {
-                    isAerialView = !isAerialView
-                    isometricOverlay.isOverlayEnabled = true
-                    isometricOverlay.is3dExtrusionEnabled = isAerialView
-                    mapViewInstance?.mapOrientation = if (isAerialView) 18f else 0f
-                    mapViewInstance?.pitchDegrees   = if (isAerialView) 12f else 0f
-                    mapViewInstance?.invalidate()
-                },
-                bgColor = if (isAerialView) Color(0xFF172033) else Color(0xF5FFFFFF)
-            ) {
-                Text(
-                    if (isAerialView) "3D" else "2D",
-                    color = if (isAerialView) Color(0xFFFFC857) else Color(0xFF334155),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-            MapControlFab(
                 onClick = { mapViewInstance?.controller?.zoomIn() },
                 bgColor = Color(0xF5FFFFFF)
             ) {
