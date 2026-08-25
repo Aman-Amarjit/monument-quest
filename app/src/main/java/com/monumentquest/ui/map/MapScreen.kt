@@ -370,7 +370,10 @@ fun MapScreen(
                     // arterials, so the map is still styled like the reference
                     // without depending on one raster tile CDN.
                     setTileSource(TileSourceFactory.MAPNIK)
+                    setBackgroundColor(AndroidColor.parseColor("#DDE7E8"))
                     setMultiTouchControls(true)
+                    setBuiltInZoomControls(false)
+                    setUseDataConnection(true)
                     // The reference is a diagonal, low aerial view rather than
                     // a north-up street map. OSMDroid has no pitch camera, so a
                     // modest bearing gives the same visual direction without
@@ -380,7 +383,7 @@ fun MapScreen(
                     // OSMDroid rotation clips the rectangular tile surface and
                     // exposes a black triangle at the corners. Keep the camera
                     // north-up; the overlay provides the 3D depth safely.
-                    mapOrientation = 0f
+                    mapOrientation = 18f
                     mapViewInstance = this
                     mapViewRef.value = this
                 }
@@ -447,7 +450,7 @@ fun MapScreen(
                 ) {
                     if (searchQuery.isEmpty()) {
                         Text(
-                            "Search monuments or placesâ¦",
+                            "Search monuments or places...",
                             color    = Color(0xFFAAB8CC),
                             fontSize = 13.5.sp
                         )
@@ -556,7 +559,7 @@ fun MapScreen(
                 onClick = {
                     isAerialView = !isAerialView
                     isometricOverlay.enabled = isAerialView
-                    mapViewInstance?.mapOrientation = if (isAerialView) 22f else 0f
+                    mapViewInstance?.mapOrientation = if (isAerialView) 18f else 0f
                     mapViewInstance?.invalidate()
                 },
                 bgColor = if (isAerialView) Color(0xFF172033) else Color(0xF5FFFFFF)
@@ -721,7 +724,7 @@ fun MapScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            if (isSheetExpanded) "Show less â²" else "Recent stops â¼",
+                            if (isSheetExpanded) "Show less" else "Recent stops",
                             color    = Color(0xFF475569),
                             fontSize = 11.sp
                         )
