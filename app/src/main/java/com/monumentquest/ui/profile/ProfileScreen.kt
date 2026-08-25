@@ -72,6 +72,9 @@ fun ProfileScreen(
         CollectionItem("c6", "Konark Sun Temple", "Odisha", 1000, false, "")
     )
 
+    val unlockedCount = collectionItems.count { it.isUnlocked }
+    val collectionProgress = if (collectionItems.isEmpty()) 0f else unlockedCount.toFloat() / collectionItems.size.toFloat()
+
     val badges = listOf(
         BadgeData("First Discovery", Icons.Default.Explore,                   Gold),
         BadgeData("Nature Lover",    Icons.Default.Landscape,                 GreenAccent),
@@ -85,12 +88,13 @@ fun ProfileScreen(
             .fillMaxSize()
             .background(Bg)
             .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
     ) {
         // ── Header ──────────────────────────────────────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 48.dp, bottom = 24.dp),
+                .padding(top = 28.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
@@ -287,14 +291,14 @@ fun ProfileScreen(
                             fontSize = 13.sp
                         )
                         Text(
-                            "3 / 6",
+                            "$" + "unlockedCount / ${"$"} {collectionItems.size}",
                             fontWeight = FontWeight.SemiBold,
                             color = Gold,
                             fontSize = 12.sp
                         )
                     }
                     LinearProgressIndicator(
-                        progress = { 0.5f },
+                        progress = { collectionProgress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(4.dp)
