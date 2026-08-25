@@ -253,169 +253,53 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// ── Floating pill nav bar ─────────────────────────────────────────────────────
+// ── Professional bottom navigation dock ───────────────────────────────────────
 @Composable
 private fun FloatingNavBar(
     items: List<Screen>,
     currentDestination: androidx.navigation.NavDestination?,
     onNavigate: (Screen) -> Unit
 ) {
-    // Glass-morphism pill floats above content
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center
+    Surface(
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Surface1.copy(alpha = 0.98f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border),
+        shadowElevation = 18.dp
     ) {
-        // Outer glow layer (alpha-only — blur requires API 31+, avoid crash)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .clip(RoundedCornerShape(32.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            Gold.copy(alpha = 0.07f),
-                            Color(0xFF3B82F6).copy(alpha = 0.05f),
-                            Gold.copy(alpha = 0.07f)
-                        )
-                    )
-                )
-        )
-
-        // Pill body
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .clip(RoundedCornerShape(32.dp))
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color(0xFF1C1C28),
-                            Color(0xFF141420)
-                        )
-                    )
-                )
-                // Subtle golden top border
-                .then(
-                    Modifier.graphicsLayer { /* clip handled by clip() above */ }
-                ),
-            verticalAlignment     = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 6.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             items.forEach { screen ->
-                val isSelected = currentDestination?.hierarchy
-                    ?.any { it.route == screen.route } == true
-                NavPillItem(
-                    screen     = screen,
-                    isSelected = isSelected,
-                    onClick    = { onNavigate(screen) },
-                    modifier   = Modifier.weight(1f)
-                )
+                val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                NavPillItem(screen, selected, { onNavigate(screen) }, Modifier.weight(1f))
             }
         }
-
-        // Gold top-edge accent line
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            Color.Transparent,
-                            Gold.copy(alpha = 0.45f),
-                            Gold.copy(alpha = 0.65f),
-                            Gold.copy(alpha = 0.45f),
-                            Color.Transparent
-                        )
-                    )
-                )
-                .align(Alignment.TopCenter)
-        )
     }
 }
 
 @Composable
 private fun NavPillItem(
-    screen:     Screen,
+    screen: Screen,
     isSelected: Boolean,
-    onClick:    () -> Unit,
-    modifier:   Modifier = Modifier
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val scale by animateFloatAsState(
-        targetValue   = if (isSelected) 1.12f else 1f,
-        animationSpec = spring(dampingRatio = 0.55f, stiffness = 400f),
-        label         = "navScale"
-    )
-    val labelAlpha by animateFloatAsState(
-        targetValue   = if (isSelected) 1f else 0f,
-        animationSpec = tween(200),
-        label         = "labelAlpha"
-    )
-    val iconTint = if (isSelected) Gold else MutedGray
-
+    val tint = if (isSelected) Gold else TextTertiary
     Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .clickable(
-                indication          = null,
-                interactionSource   = remember { MutableInteractionSource() }
-            ) { onClick() },
+        modifier = modifier.fillMaxHeight().clip(RoundedCornerShape(18.dp)).background(if (isSelected) GoldTint else Color.Transparent).clickable(
+            indication = null,
+            interactionSource = remember { MutableInteractionSource() },
+            onClick = onClick
+        ),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier            = Modifier.scale(scale)
-        ) {
-            // Active indicator dot above icon
-            Box(
-                modifier = Modifier
-                    .size(width = 18.dp, height = 3.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (isSelected)
-                            Brush.horizontalGradient(listOf(Gold.copy(.0f), Gold, Gold.copy(.0f)))
-                        else
-                            Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
-                    )
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Icon with gold glow when selected
-            Box(contentAlignment = Alignment.Center) {
-                if (isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(Gold.copy(alpha = 0.12f))
-                    )
-                }
-                Icon(
-                    imageVector        = if (isSelected) screen.icon else screen.outlinedIcon,
-                    contentDescription = screen.label,
-                    tint               = iconTint,
-                    modifier           = Modifier.size(21.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(3.dp))
-
-            // Label fades in when selected
-            Text(
-                text       = screen.label,
-                fontSize   = 9.sp,
-                fontWeight = FontWeight.SemiBold,
-                color      = Gold.copy(alpha = labelAlpha),
-                maxLines   = 1
-            )
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(imageVector = if (isSelected) screen.icon else screen.outlinedIcon, contentDescription = screen.label, tint = tint, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.height(4.dp))
+            Text(screen.label, color = tint, fontSize = 10.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
         }
     }
 }
