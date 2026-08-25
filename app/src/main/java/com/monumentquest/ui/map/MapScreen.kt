@@ -67,7 +67,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
 
-// ââ Tile source â CartoDB Voyager (colorful, matches 3D reference) ââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ Tile source Ã¢ÂÂ CartoDB Voyager (colorful, matches 3D reference) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // We define a fresh object each time to bypass OSMDroid's name-based tile cache.
 private fun makeCartoVoyagerSource() = object : OnlineTileSourceBase(
     "CartoVoyagerMQ", 0, 20, 256, ".png",
@@ -86,7 +86,7 @@ private fun makeCartoVoyagerSource() = object : OnlineTileSourceBase(
     }
 }
 
-// ââ OSRM Routing ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ OSRM Routing Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 private suspend fun fetchRoute(
     fromLat: Double, fromLon: Double,
     toLat: Double,   toLon: Double
@@ -107,7 +107,7 @@ private suspend fun fetchRoute(
     } catch (e: Exception) { emptyList() }
 }
 
-// ââ Marker helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ Marker helpers Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 private fun createMonumentMarker(context: Context, isSelected: Boolean, distanceText: String): Drawable {
     val pinSize = if (isSelected) 56 else 44
@@ -177,7 +177,7 @@ data class RecentStopItem(
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
 
-// ââ Screen ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ Screen Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -227,7 +227,7 @@ fun MapScreen(
         )
     }
 
-    // ââ Effects âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // Ã¢ÂÂÃ¢ÂÂ Effects Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
     LaunchedEffect(walkPathPoints, mapViewRef.value) {
         val map = mapViewRef.value ?: return@LaunchedEffect
@@ -352,10 +352,10 @@ fun MapScreen(
         }
     }
 
-    // ââ Root container ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // Ã¢ÂÂÃ¢ÂÂ Root container Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A12))) {
 
-        // ââ Map âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+        // Ã¢ÂÂÃ¢ÂÂ Map Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
         AndroidView(
             factory = { ctx ->
                 // Keep OSMDroid's tile cache between launches. Clearing these
@@ -398,7 +398,7 @@ fun MapScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // ââ TOP: Search bar âââââââââââââââââââââââââââââââââââââââââââââââââââ
+        // Ã¢ÂÂÃ¢ÂÂ TOP: Search bar Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -415,7 +415,7 @@ fun MapScreen(
                             RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
                         else RoundedCornerShape(18.dp)
                     )
-                    .background(Color(0xF2FFFFFF))
+                    .background(Surface2.copy(alpha = 0.96f))
                     .padding(horizontal = 4.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -425,7 +425,7 @@ fun MapScreen(
                         .size(34.dp)
                         .clip(CircleShape)
                         .background(
-                            if (isSearching) Color(0xFFF0A500).copy(alpha = 0.15f)
+                            if (isSearching) Gold.copy(alpha = 0.15f)
                             else Color.Transparent
                         ),
                     contentAlignment = Alignment.Center
@@ -434,12 +434,12 @@ fun MapScreen(
                         CircularProgressIndicator(
                             modifier    = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
-                            color       = Color(0xFFF0A500)
+                            color       = Gold
                         )
                     } else {
                         Icon(
                             Icons.Default.Search, null,
-                            tint     = Color(0xFF8899BB),
+                            tint     = TextSecondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -453,7 +453,7 @@ fun MapScreen(
                     if (searchQuery.isEmpty()) {
                         Text(
                             "Search monuments or places...",
-                            color    = Color(0xFFAAB8CC),
+                            color    = TextSecondary,
                             fontSize = 13.5.sp
                         )
                     }
@@ -467,7 +467,7 @@ fun MapScreen(
                             }
                         },
                         singleLine = true,
-                        textStyle  = TextStyle(fontSize = 13.5.sp, color = Color(0xFF1E293B)),
+                        textStyle  = TextStyle(fontSize = 13.5.sp, color = TextPrimary),
                         modifier   = Modifier.fillMaxWidth()
                     )
                 }
@@ -476,7 +476,7 @@ fun MapScreen(
                     IconButton(onClick = { searchQuery = ""; viewModel.clearSearch() },
                         modifier = Modifier.size(34.dp)) {
                         Icon(Icons.Default.Close, null,
-                            tint = Color(0xFF8899BB), modifier = Modifier.size(15.dp))
+                            tint = TextSecondary, modifier = Modifier.size(15.dp))
                     }
                 }
 
@@ -486,7 +486,7 @@ fun MapScreen(
                         .padding(end = 6.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            Brush.horizontalGradient(listOf(Color(0xFFF0A500), Color(0xFFFFCA28)))
+                            Brush.horizontalGradient(listOf(Gold, Color(0xFFFFC857)))
                         )
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment     = Alignment.CenterVertically,
@@ -504,12 +504,12 @@ fun MapScreen(
                 Surface(
                     modifier        = Modifier.fillMaxWidth(),
                     shape           = RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp),
-                    color           = Color.White,
+                    color           = Surface1,
                     shadowElevation = 12.dp
                 ) {
                     Column {
                         searchResults.take(6).forEachIndexed { idx, result ->
-                            if (idx > 0) HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.5.dp)
+                            if (idx > 0) HorizontalDivider(color = Border, thickness = 0.5.dp)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -527,7 +527,7 @@ fun MapScreen(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFFEF3C7)),
+                                        .background(GoldTint),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(Icons.Default.Place, null,
@@ -537,10 +537,10 @@ fun MapScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(result.name, fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF1E293B), maxLines = 1)
+                                        color = TextPrimary, maxLines = 1)
                                     if (result.distanceMeters > 0) {
                                         Text(formatDistance(result.distanceMeters),
-                                            fontSize = 11.sp, color = Color(0xFF94A3B8))
+                                            fontSize = 11.sp, color = TextSecondary)
                                     }
                                 }
                             }
@@ -550,7 +550,7 @@ fun MapScreen(
             }
         }
 
-        // ââ RIGHT: Zoom + locate FABs âââââââââââââââââââââââââââââââââââââââââ
+        // Ã¢ÂÂÃ¢ÂÂ RIGHT: Zoom + locate FABs Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -564,42 +564,42 @@ fun MapScreen(
                     mapViewInstance?.mapOrientation = if (isAerialView) 18f else 0f
                     mapViewInstance?.invalidate()
                 },
-                bgColor = if (isAerialView) Color(0xFF172033) else Color(0xF5FFFFFF)
+                bgColor = if (isAerialView) Surface3 else Surface2
             ) {
                 Text(
                     if (isAerialView) "3D" else "2D",
-                    color = if (isAerialView) Color(0xFFFFC857) else Color(0xFF334155),
+                    color = if (isAerialView) Gold else TextSecondary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
             MapControlFab(
                 onClick = { mapViewInstance?.controller?.zoomIn() },
-                bgColor = Color(0xF5FFFFFF)
+                bgColor = Surface2
             ) {
                 Icon(Icons.Default.Add, null,
-                    tint = Color(0xFF334155), modifier = Modifier.size(20.dp))
+                    tint = TextPrimary, modifier = Modifier.size(20.dp))
             }
             MapControlFab(
                 onClick = { mapViewInstance?.controller?.zoomOut() },
-                bgColor = Color(0xF5FFFFFF)
+                bgColor = Surface2
             ) {
                 Icon(Icons.Default.Remove, null,
-                    tint = Color(0xFF334155), modifier = Modifier.size(20.dp))
+                    tint = TextPrimary, modifier = Modifier.size(20.dp))
             }
             MapControlFab(
                 onClick = {
                     isFollowingUser = true
                     userLocation?.let { mapViewInstance?.controller?.animateTo(it) }
                 },
-                bgColor = Color(0xFF1A73E8)
+                bgColor = BlueAccent
             ) {
                 Icon(Icons.Default.MyLocation, null,
                     tint = Color.White, modifier = Modifier.size(20.dp))
             }
         }
 
-        // ââ Monument info card ââââââââââââââââââââââââââââââââââââââââââââââââ
+        // Ã¢ÂÂÃ¢ÂÂ Monument info card Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
         AnimatedVisibility(
             visible  = selectedMonument != null,
             enter    = slideInVertically(tween(300)) { it } + fadeIn(tween(200)),
@@ -619,7 +619,7 @@ fun MapScreen(
             }
         }
 
-        // ââ Bottom sheet ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+        // Ã¢ÂÂÃ¢ÂÂ Bottom sheet Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -734,7 +734,7 @@ fun MapScreen(
                 }
             }
 
-            // Camera FAB â anchored top-right of the sheet
+            // Camera FAB Ã¢ÂÂ anchored top-right of the sheet
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -757,7 +757,7 @@ fun MapScreen(
     }
 }
 
-// ââ Sub-components ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ Sub-components Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 @Composable
 private fun MonumentCard(
