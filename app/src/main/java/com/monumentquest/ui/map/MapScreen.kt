@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -408,6 +409,7 @@ fun MapScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .shadow(10.dp, RoundedCornerShape(18.dp))
                     .clip(
                         if (searchResults.isNotEmpty())
                             RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
@@ -552,8 +554,8 @@ fun MapScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 12.dp, bottom = 60.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(end = 14.dp, bottom = 72.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             MapControlFab(
                 onClick = {
@@ -883,8 +885,9 @@ private fun MapControlFab(
 ) {
     Box(
         modifier = Modifier
-            .size(42.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .size(46.dp)
+            .shadow(8.dp, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(bgColor)
             .clickable(
                 indication        = null,
