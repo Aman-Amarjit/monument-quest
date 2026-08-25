@@ -43,7 +43,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -318,7 +317,7 @@ fun MapScreen(
     LaunchedEffect(tacticalGeometry, mapViewRef.value, isAerialView) {
         val map = mapViewRef.value ?: return@LaunchedEffect
         isometricOverlay.geometry = tacticalGeometry
-        isometricOverlay.isOverlayEnabled = isAerialView
+        isometricOverlay.enabled = isAerialView
         if (!map.overlays.contains(isometricOverlay)) {
             map.overlays.add(minOf(1, map.overlays.size), isometricOverlay)
         }
@@ -366,8 +365,11 @@ fun MapScreen(
                 cfg.userAgentValue = "${ctx.packageName}/1.0 (MonumentQuest)"
 
                 MapView(ctx).apply {
-                    val src = makeCartoVoyagerSource()
-                    setTileSource(src)
+                    // MAPNIK is a stable, detailed fallback base. The custom
+                    // overlay above it supplies the raised roofs and gold
+                    // arterials, so the map is still styled like the reference
+                    // without depending on one raster tile CDN.
+                    setTileSource(TileSourceFactory.MAPNIK)
                     setMultiTouchControls(true)
                     // The reference is a diagonal, low aerial view rather than
                     // a north-up street map. OSMDroid has no pitch camera, so a
@@ -375,27 +377,21 @@ fun MapScreen(
                     // breaking marker placement or gestures.
                     controller.setZoom(15.0)
                     controller.setCenter(GeoPoint(20.5937, 78.9629))
-                    mapOrientation = 18f
+                    // OSMDroid rotation clips the rectangular tile surface and
+                    // exposes a black triangle at the corners. Keep the camera
+                    // north-up; the overlay provides the 3D depth safely.
+                    mapOrientation = 0f
                     mapViewInstance = this
                     mapViewRef.value = this
                 }
             },
             update = { mv ->
-                // Force CartoVoyager on every recompose â ensures it's never overridden
-                val name = mv.tileProvider.tileSource?.name() ?: ""
-                if (!name.startsWith("CartoVoyager")) {
-                    mv.setTileSource(makeCartoVoyagerSource())
+                if (mv.tileProvider.tileSource == null) {
+                    mv.setTileSource(TileSourceFactory.MAPNIK)
                     mv.invalidate()
                 }
             },
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    if (isAerialView) {
-                        rotationX = 48f
-                        cameraDistance = 16f * density
-                    }
-                }
+            modifier = Modifier.fillMaxSize()
         )
 
         // ââ TOP: Search bar âââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -559,7 +555,7 @@ fun MapScreen(
             MapControlFab(
                 onClick = {
                     isAerialView = !isAerialView
-                    isometricOverlay.isOverlayEnabled = isAerialView
+                    isometricOverlay.enabled = isAerialView
                     mapViewInstance?.mapOrientation = if (isAerialView) 22f else 0f
                     mapViewInstance?.invalidate()
                 },
