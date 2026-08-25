@@ -1,9 +1,6 @@
 package com.monumentquest.data.repository
 
-import com.monumentquest.data.model.AreaFeature
-import com.monumentquest.data.model.BuildingFootprint
 import com.monumentquest.data.model.MapMonumentItem
-import com.monumentquest.data.model.RoadSegment
 import com.monumentquest.data.model.TacticalGeometry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,20 +16,14 @@ import javax.inject.Singleton
 @Singleton
 class OverpassRepository @Inject constructor() {
 
-    suspend fun fetchTacticalGeometry(lat: Double, lon: Double, radiusMeters: Int = 1200): TacticalGeometry = withContext(Dispatchers.IO) {
+    suspend fun fetchTacticalGeometry(lat: Double, lon: Double, radiusMeters: Int = 900): TacticalGeometry = withContext(Dispatchers.IO) {
         val query = """
-            [out:json][timeout:20];
+            [out:json][timeout:15];
             (
               way["highway"](around:$radiusMeters,$lat,$lon);
               way["building"](around:$radiusMeters,$lat,$lon);
-              way["leisure"~"^(park|garden)$"](around:$radiusMeters,$lat,$lon);
-              way["landuse"="grass"](around:$radiusMeters,$lat,$lon);
-              way["natural"="water"](around:$radiusMeters,$lat,$lon);
-              way["waterway"="riverbank"](around:$radiusMeters,$lat,$lon);
             );
-            out body;
-            >;
-            out skel qt;
+            out geom qt;
         """.trimIndent()
 
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
@@ -42,154 +33,53 @@ class OverpassRepository @Inject constructor() {
             val url = URL(overpassUrl)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
-            conn.connectTimeout = 8000
-            conn.readTimeout = 8000
+            conn.connectTimeout = 10000
+            conn.readTimeout = 10000
 
             if (conn.responseCode == 200) {
                 val responseText = conn.inputStream.bufferedReader().use { it.readText() }
                 val json = JSONObject(responseText)
-                val elements = json.optJSONArray("elements") ?: return@withContext generateProceduralCity(lat, lon)
+                val elements = json.optJSONArray("elements") ?: return@withContext TacticalGeometry(emptyList(), emptyList())
 
-                val nodesMap = mutableMapOf<Long, GeoPoint>()
                 val ways = mutableListOf<JSONObject>()
 
                 for (i in 0 until elements.length()) {
                     val elem = elements.getJSONObject(i)
-                    when (elem.optString("type")) {
-                        "node" -> {
-                            val id = elem.optLong("id")
-                            val nLat = elem.optDouble("lat")
-                            val nLon = elem.optDouble("lon")
-                            nodesMap[id] = GeoPoint(nLat, nLon)
-                        }
-                        "way" -> ways.add(elem)
-                    }
+                        if (elem.optString("type") == "way") ways.add(elem)
                 }
 
-                val roads = mutableListOf<RoadSegment>()
-                val buildings = mutableListOf<BuildingFootprint>()
-                val parks = mutableListOf<AreaFeature>()
-                val water = mutableListOf<AreaFeature>()
+                val roads = mutableListOf<List<GeoPoint>>()
+                val buildings = mutableListOf<List<GeoPoint>>()
 
                 for (way in ways) {
-                    val nodeIds = way.optJSONArray("nodes") ?: continue
                     val points = mutableListOf<GeoPoint>()
-                    for (j in 0 until nodeIds.length()) {
-                        nodesMap[nodeIds.getLong(j)]?.let { points.add(it) }
+                        val geometry = way.optJSONArray("geometry")
+                        if (geometry != null) {
+                            for (j in 0 until geometry.length()) {
+                                val point = geometry.optJSONObject(j) ?: continue
+                                val pointLat = point.optDouble("lat", Double.NaN)
+                                val pointLon = point.optDouble("lon", Double.NaN)
+                                if (!pointLat.isNaN() && !pointLon.isNaN()) {
+                                    points.add(GeoPoint(pointLat, pointLon))
+                                }
+                            }
                     }
 
                     if (points.isNotEmpty()) {
-                        val tags = way.optJSONObject("tags") ?: JSONObject()
-                        when {
-                            tags.has("building") -> {
-                                val levels = tags.optString("building:levels", "").toIntOrNull() ?: 4
-                                buildings.add(BuildingFootprint(points, levels))
-                            }
-                            tags.has("highway") -> {
-                                val hType = tags.optString("highway", "")
-                                val isMajor = hType in setOf("motorway", "trunk", "primary", "secondary", "tertiary")
-                                roads.add(RoadSegment(points, isMajor))
-                            }
-                            tags.optString("leisure") in setOf("park", "garden") || tags.optString("landuse") == "grass" -> {
-                                parks.add(AreaFeature(points))
-                            }
-                            tags.optString("natural") == "water" || tags.optString("waterway") == "riverbank" -> {
-                                water.add(AreaFeature(points))
-                            }
+                        val tags = way.optJSONObject("tags")
+                        if (tags?.has("building") == true) {
+                            buildings.add(points)
+                        } else if (tags?.has("highway") == true) {
+                            roads.add(points)
                         }
                     }
                 }
-
-                if (buildings.isNotEmpty()) {
-                    return@withContext TacticalGeometry(buildings = buildings, roads = roads, parks = parks, water = water)
-                }
+                return@withContext TacticalGeometry(roads, buildings)
             }
         } catch (e: Exception) {
-            // Fallback to dense 3D procedural layout matching reference image
+            // Error
         }
-        return@withContext generateProceduralCity(lat, lon)
-    }
-
-    private fun generateProceduralCity(lat: Double, lon: Double): TacticalGeometry {
-        val buildings = mutableListOf<BuildingFootprint>()
-        val roads = mutableListOf<RoadSegment>()
-        val parks = mutableListOf<AreaFeature>()
-        val water = mutableListOf<AreaFeature>()
-
-        // 1. Water Canals
-        val canal1 = listOf(
-            GeoPoint(lat - 0.008, lon - 0.005),
-            GeoPoint(lat - 0.008, lon + 0.008),
-            GeoPoint(lat - 0.0072, lon + 0.008),
-            GeoPoint(lat - 0.0072, lon - 0.005)
-        )
-        val canal2 = listOf(
-            GeoPoint(lat - 0.008, lon + 0.004),
-            GeoPoint(lat + 0.008, lon + 0.004),
-            GeoPoint(lat + 0.008, lon + 0.0048),
-            GeoPoint(lat - 0.008, lon + 0.0048)
-        )
-        water.add(AreaFeature(canal1))
-        water.add(AreaFeature(canal2))
-
-        // 2. Green Parks & Lawns
-        val park1 = listOf(
-            GeoPoint(lat + 0.002, lon - 0.006),
-            GeoPoint(lat + 0.006, lon - 0.006),
-            GeoPoint(lat + 0.006, lon - 0.002),
-            GeoPoint(lat + 0.002, lon - 0.002)
-        )
-        val park2 = listOf(
-            GeoPoint(lat - 0.006, lon - 0.006),
-            GeoPoint(lat - 0.002, lon - 0.006),
-            GeoPoint(lat - 0.002, lon - 0.001),
-            GeoPoint(lat - 0.006, lon - 0.001)
-        )
-        parks.add(AreaFeature(park1))
-        parks.add(AreaFeature(park2))
-
-        // 3. Golden Highways & Overpasses
-        val highway1 = listOf(
-            GeoPoint(lat - 0.007, lon - 0.007),
-            GeoPoint(lat - 0.002, lon - 0.002),
-            GeoPoint(lat + 0.001, lon + 0.001),
-            GeoPoint(lat + 0.004, lon + 0.007)
-        )
-        val highway2 = listOf(
-            GeoPoint(lat + 0.005, lon - 0.007),
-            GeoPoint(lat + 0.001, lon - 0.001),
-            GeoPoint(lat - 0.003, lon + 0.005)
-        )
-        roads.add(RoadSegment(highway1, isMajor = true))
-        roads.add(RoadSegment(highway2, isMajor = true))
-
-        // 4. Dense 3D Extruded Building Grid matrix (60+ blocks around user location)
-        val blockSizes = listOf(0.0007 to 0.0006, 0.0009 to 0.0005, 0.0005 to 0.0008, 0.0010 to 0.0007)
-        val levelsList = listOf(4, 7, 3, 9, 5, 12, 6, 8, 4, 10, 5, 3, 11, 7, 4)
-
-        var count = 0
-        for (row in -4..4) {
-            for (col in -4..4) {
-                if (row == 0 || col == 0) continue
-                if (row == -3 && col < 0) continue
-
-                val bLat = lat + row * 0.0015
-                val bLon = lon + col * 0.0015
-                val (w, h) = blockSizes[count % blockSizes.size]
-                val lvl = levelsList[count % levelsList.size]
-                count++
-
-                val footprint = listOf(
-                    GeoPoint(bLat, bLon),
-                    GeoPoint(bLat + h, bLon),
-                    GeoPoint(bLat + h, bLon + w),
-                    GeoPoint(bLat, bLon + w)
-                )
-                buildings.add(BuildingFootprint(footprint, lvl))
-            }
-        }
-
-        return TacticalGeometry(buildings = buildings, roads = roads, parks = parks, water = water)
+        TacticalGeometry(emptyList(), emptyList())
     }
 
     suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 10000): List<MapMonumentItem> = withContext(Dispatchers.IO) {
