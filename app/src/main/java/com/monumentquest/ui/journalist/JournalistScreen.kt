@@ -20,6 +20,10 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +45,13 @@ fun JournalistScreen(
     var selectedMonument by remember { mutableStateOf("") }
     var reflectionText   by remember { mutableStateOf("") }
     var expanded         by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val profilePrefs = remember { context.getSharedPreferences("journalist_profile", 0) }
+    var profileEditing by rememberSaveable { mutableStateOf(false) }
+    var byline by remember { mutableStateOf(profilePrefs.getString("byline", "Heritage Correspondent") ?: "Heritage Correspondent") }
+    var hometown by remember { mutableStateOf(profilePrefs.getString("hometown", "Bhubaneswar, Odisha") ?: "Bhubaneswar, Odisha") }
+    var specialty by remember { mutableStateOf(profilePrefs.getString("specialty", "Living heritage") ?: "Living heritage") }
+    var bio by remember { mutableStateOf(profilePrefs.getString("bio", "Documenting the stories behind India's living heritage.") ?: "Documenting the stories behind India's living heritage.") }
 
     val monuments = listOf("Big Ben", "Eiffel Tower", "Colosseum", "Taj Mahal", "Statue of Liberty")
     val state by viewModel.state.collectAsState()
@@ -99,6 +110,30 @@ fun JournalistScreen(
         }
 
         // ── Content ──────────────────────────────────────────────────────────
+        JournalistProfileCard(
+            byline = byline,
+            hometown = hometown,
+            specialty = specialty,
+            bio = bio,
+            isEditing = profileEditing,
+            onEditToggle = { profileEditing = !profileEditing },
+            onSave = {
+                profilePrefs.edit()
+                    .putString("byline", byline.trim().ifEmpty { "Heritage Correspondent" })
+                    .putString("hometown", hometown.trim().ifEmpty { "Bhubaneswar, Odisha" })
+                    .putString("specialty", specialty.trim().ifEmpty { "Living heritage" })
+                    .putString("bio", bio.trim().ifEmpty { "Documenting the stories behind India's living heritage." })
+                    .apply()
+                profileEditing = false
+            },
+            onBylineChange = { byline = it },
+            onHometownChange = { hometown = it },
+            onSpecialtyChange = { specialty = it },
+            onBioChange = { bio = it },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
         AnimatedContent(
             targetState = state,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -367,6 +402,54 @@ fun JournalistScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun JournalistProfileCard(
+    byline: String,
+    hometown: String,
+    specialty: String,
+    bio: String,
+    isEditing: Boolean,
+    onEditToggle: () -> Unit,
+    onSave: () -> Unit,
+    onBylineChange: (String) -> Unit,
+    onHometownChange: (String) -> Unit,
+    onSpecialtyChange: (String) -> Unit,
+    onBioChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface1),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GoldBright.copy(alpha = 0.25f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Journalist profile", color = CreamWhite, fontWeight = FontWeight.Bold)
+                    Text("Your public byline for heritage stories", color = MutedGray, fontSize = 12.sp)
+                }
+                TextButton(onClick = if (isEditing) onSave else onEditToggle) {
+                    Icon(if (isEditing) Icons.Default.Save else Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(if (isEditing) "Save" else "Edit")
+                }
+            }
+            if (isEditing) {
+                OutlinedTextField(value = byline, onValueChange = onBylineChange, label = { Text("Byline") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = hometown, onValueChange = onHometownChange, label = { Text("Based in") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = specialty, onValueChange = onSpecialtyChange, label = { Text("Specialty") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = bio, onValueChange = onBioChange, label = { Text("Short bio") }, minLines = 3, maxLines = 4, modifier = Modifier.fillMaxWidth())
+            } else {
+                Text(byline, color = GoldBright, fontWeight = FontWeight.SemiBold)
+                Text("$hometown  ·  $specialty", color = CreamWhite, fontSize = 13.sp)
+                Text(bio, color = MutedGray, fontSize = 12.sp, lineHeight = 17.sp)
             }
         }
     }
