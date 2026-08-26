@@ -8,6 +8,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.monumentquest.core.auth.TokenManager
 import com.monumentquest.data.model.DiscovererStory
 import com.monumentquest.data.model.SocialPost
 import com.monumentquest.data.remote.CreatePostRequest
@@ -35,18 +36,23 @@ data class PostComment(
 )
 
 fun formatTimeAgo(timestampMs: Long): String {
+    if (timestampMs <= 0) return "Just now"
     val diff = System.currentTimeMillis() - timestampMs
+    if (diff < 0) return "Just now"
     val seconds = diff / 1000
     val minutes = seconds / 60
     val hours = minutes / 60
     val days = hours / 24
+    val months = days / 30
+    val years = days / 365
 
     return when {
         seconds < 45 -> "Just now"
         minutes < 60 -> "${minutes}m ago"
         hours < 24 -> "${hours}h ago"
         days < 30 -> "${days}d ago"
-        else -> "${days / 30}mo ago"
+        months < 12 -> "${months}mo ago"
+        else -> "${years}yr ago"
     }
 }
 
@@ -55,10 +61,12 @@ class SocialFeedViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val monumentApi: MonumentApi
+    private val monumentApi: MonumentApi,
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
     private val prefs = context.getSharedPreferences("monument_feed_cache", Context.MODE_PRIVATE)
+    private val profilePrefs = context.getSharedPreferences("monument_profile_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
 
     private val _stories = MutableStateFlow<List<DiscovererStory>>(emptyList())
@@ -83,6 +91,13 @@ class SocialFeedViewModel @Inject constructor(
     val postComments: StateFlow<Map<String, List<PostComment>>> = _postComments
 
     private val userPostsList = mutableListOf<SocialPost>()
+
+    private fun getMyAvatarUrl(): String? {
+        val userEmail = tokenManager.getUserEmail()?.lowercase()?.trim() ?: ""
+        return if (userEmail.isNotEmpty()) {
+            profilePrefs.getString("profile_avatar_uri_$userEmail", null)
+        } else null
+    }
 
     init {
         restoreCache()
@@ -148,9 +163,10 @@ class SocialFeedViewModel @Inject constructor(
         if (commentText.isBlank()) return
         val currentMap = _postComments.value.toMutableMap()
         val existingComments = currentMap[postId]?.toMutableList() ?: mutableListOf()
+        val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer (You)"
         val newComment = PostComment(
             id = "comment_" + System.currentTimeMillis(),
-            userName = auth.currentUser?.displayName ?: "Explorer (You)",
+            userName = myName,
             text = commentText,
             timeAgo = "Just now"
         )
@@ -169,6 +185,9 @@ class SocialFeedViewModel @Inject constructor(
             try {
                 val feedRes = withContext(Dispatchers.IO) { monumentApi.getFeed() }
                 val rawItems = feedRes.data ?: feedRes.feed ?: emptyList()
+                val myAvatar = getMyAvatarUrl()
+                val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer"
+
                 val serverPosts = rawItems.map { f ->
                     val name = f.userName ?: f.user_name ?: "Heritage Explorer"
                     val mon = f.monumentName ?: f.monument_name ?: "Lingaraj Temple"
@@ -176,10 +195,14 @@ class SocialFeedViewModel @Inject constructor(
                     val likes = f.likesCount ?: f.likes ?: 0
                     val ts = if (f.timestamp > 0) f.timestamp else System.currentTimeMillis()
 
+                    val isMe = name.equals(myName, ignoreCase = true)
+                    val avatarToUse = if (isMe && !myAvatar.isNullOrBlank()) myAvatar else f.imageUrl
+
                     SocialPost(
                         id = f.id,
                         userId = "user_feed_" + f.id,
                         userName = name,
+                        userAvatarUrl = avatarToUse,
                         userRank = "Heritage Explorer",
                         monumentName = mon,
                         locationName = f.locationName ?: "Bhubaneswar, Odisha",
@@ -223,7 +246,6 @@ class SocialFeedViewModel @Inject constructor(
     }
 
     fun toggleLike(postId: String) {
-        // Instant optimistic UI update
         _posts.value = _posts.value.map { post ->
             if (post.id == postId) {
                 val newIsLiked = !post.isLiked
@@ -233,7 +255,6 @@ class SocialFeedViewModel @Inject constructor(
         }
         saveCache(_posts.value)
 
-        // Persist to backend database
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 monumentApi.toggleLike(postId)
@@ -244,6 +265,8 @@ class SocialFeedViewModel @Inject constructor(
     fun createPost(caption: String, monumentName: String, photoUri: Uri? = null) {
         viewModelScope.launch {
             val user = auth.currentUser
+            val myName = tokenManager.getUserName() ?: user?.displayName ?: "Explorer (You)"
+            val myAvatar = getMyAvatarUrl()
 
             var savedPhotoUrl: String? = null
             if (photoUri != null) {
@@ -267,7 +290,8 @@ class SocialFeedViewModel @Inject constructor(
             val newPost = SocialPost(
                 id = "sp_" + nowMs,
                 userId = user?.uid ?: "user_me",
-                userName = user?.displayName ?: "Explorer (You)",
+                userName = myName,
+                userAvatarUrl = myAvatar,
                 userRank = "Bhubaneswar Explorer",
                 monumentName = monumentName.ifBlank { "Bhubaneswar Monument" },
                 locationName = "Bhubaneswar, Odisha",
@@ -286,7 +310,6 @@ class SocialFeedViewModel @Inject constructor(
             _posts.value = filterList(updatedList, _currentFilter.value)
             saveCache(_posts.value)
 
-            // Publish post to Supabase PostgreSQL database via backend API
             withContext(Dispatchers.IO) {
                 try {
                     monumentApi.createPost(CreatePostRequest(

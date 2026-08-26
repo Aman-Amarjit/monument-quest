@@ -10,6 +10,7 @@ data class SocialPost(
     val id: String = "",
     val userId: String = "",
     val userName: String = "",
+    val userAvatarUrl: String? = null,
     val userRank: String = "Explorer",
     val monumentName: String = "",
     val locationName: String = "",
@@ -20,5 +21,5 @@ data class SocialPost(
     val isLiked: Boolean = false,
     val commentsCount: Int = 0,
     val timestamp: Long = System.currentTimeMillis(),
-    val timestampFormatted: String = "15m ago"
+    val timestampFormatted: String = "Just now"
 )

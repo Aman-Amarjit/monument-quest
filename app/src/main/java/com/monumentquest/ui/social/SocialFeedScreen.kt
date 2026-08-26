@@ -375,7 +375,7 @@ private fun PostCard(
                         .weight(1f)
                         .clickable { onUserClick() }
                 ) {
-                    UserAvatar(name = post.userName, size = 42.dp, borderColor = Gold)
+                    UserAvatar(name = post.userName, avatarUrl = post.userAvatarUrl, size = 42.dp, borderColor = Gold)
                     Column(modifier = Modifier.weight(1f)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -390,7 +390,7 @@ private fun PostCard(
                             Icon(Icons.Default.Verified, null, tint = Gold, modifier = Modifier.size(13.dp))
                         }
                         Text(
-                            "${post.userRank} · ${post.timestampFormatted}",
+                            "${post.userRank} · ${formatTimeAgo(post.timestamp)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextSecondary,
                             fontSize = 11.sp
