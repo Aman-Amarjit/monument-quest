@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.monumentquest.data.model.DiscovererStory
 import com.monumentquest.data.model.SocialPost
 import com.monumentquest.data.remote.CreatePostRequest
@@ -32,6 +34,22 @@ data class PostComment(
     val timeAgo: String = "Just now"
 )
 
+fun formatTimeAgo(timestampMs: Long): String {
+    val diff = System.currentTimeMillis() - timestampMs
+    val seconds = diff / 1000
+    val minutes = seconds / 60
+    val hours = minutes / 60
+    val days = hours / 24
+
+    return when {
+        seconds < 45 -> "Just now"
+        minutes < 60 -> "${minutes}m ago"
+        hours < 24 -> "${hours}h ago"
+        days < 30 -> "${days}d ago"
+        else -> "${days / 30}mo ago"
+    }
+}
+
 @HiltViewModel
 class SocialFeedViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -39,6 +57,9 @@ class SocialFeedViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val monumentApi: MonumentApi
 ) : ViewModel() {
+
+    private val prefs = context.getSharedPreferences("monument_feed_cache", Context.MODE_PRIVATE)
+    private val gson = Gson()
 
     private val _stories = MutableStateFlow<List<DiscovererStory>>(emptyList())
     val stories: StateFlow<List<DiscovererStory>> = _stories
@@ -64,7 +85,40 @@ class SocialFeedViewModel @Inject constructor(
     private val userPostsList = mutableListOf<SocialPost>()
 
     init {
+        restoreCache()
         fetchPosts()
+    }
+
+    private fun restoreCache() {
+        try {
+            val savedIds = prefs.getStringSet("saved_post_ids", emptySet()) ?: emptySet()
+            _savedPostIds.value = savedIds
+
+            val commentsJson = prefs.getString("post_comments_json", null)
+            if (!commentsJson.isNullOrBlank()) {
+                val type = object : TypeToken<Map<String, List<PostComment>>>() {}.type
+                val map: Map<String, List<PostComment>> = gson.fromJson(commentsJson, type)
+                _postComments.value = map
+            }
+
+            val cachedPostsJson = prefs.getString("cached_posts_json", null)
+            if (!cachedPostsJson.isNullOrBlank()) {
+                val type = object : TypeToken<List<SocialPost>>() {}.type
+                val list: List<SocialPost> = gson.fromJson(cachedPostsJson, type)
+                _posts.value = filterList(list, _currentFilter.value)
+            }
+        } catch (e: Exception) {}
+    }
+
+    private fun saveCache(posts: List<SocialPost>) {
+        try {
+            prefs.edit().apply {
+                putStringSet("saved_post_ids", _savedPostIds.value)
+                putString("post_comments_json", gson.toJson(_postComments.value))
+                putString("cached_posts_json", gson.toJson(posts.take(50)))
+                apply()
+            }
+        } catch (e: Exception) {}
     }
 
     fun setSearchQuery(query: String) {
@@ -87,6 +141,7 @@ class SocialFeedViewModel @Inject constructor(
         val current = _savedPostIds.value.toMutableSet()
         if (current.contains(postId)) current.remove(postId) else current.add(postId)
         _savedPostIds.value = current
+        saveCache(_posts.value)
     }
 
     fun addComment(postId: String, commentText: String) {
@@ -106,6 +161,7 @@ class SocialFeedViewModel @Inject constructor(
         _posts.value = _posts.value.map { post ->
             if (post.id == postId) post.copy(commentsCount = post.commentsCount + 1) else post
         }
+        saveCache(_posts.value)
     }
 
     fun fetchPosts() {
@@ -118,6 +174,7 @@ class SocialFeedViewModel @Inject constructor(
                     val mon = f.monumentName ?: f.monument_name ?: "Lingaraj Temple"
                     val img = f.imageUrl ?: f.image_url ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
                     val likes = f.likesCount ?: f.likes ?: 0
+                    val ts = if (f.timestamp > 0) f.timestamp else System.currentTimeMillis()
 
                     SocialPost(
                         id = f.id,
@@ -132,12 +189,13 @@ class SocialFeedViewModel @Inject constructor(
                         likesCount = likes,
                         isLiked = f.isLiked,
                         commentsCount = f.commentsCount,
-                        timestamp = f.timestamp,
-                        timestampFormatted = "Just now"
+                        timestamp = ts,
+                        timestampFormatted = formatTimeAgo(ts)
                     )
                 }
                 val allPosts = (userPostsList + serverPosts).distinctBy { it.id }
                 _posts.value = filterList(allPosts, _currentFilter.value)
+                saveCache(_posts.value)
             } catch (e: Exception) {
                 _posts.value = filterList(userPostsList, _currentFilter.value)
             }
@@ -165,12 +223,21 @@ class SocialFeedViewModel @Inject constructor(
     }
 
     fun toggleLike(postId: String) {
+        // Instant optimistic UI update
         _posts.value = _posts.value.map { post ->
             if (post.id == postId) {
                 val newIsLiked = !post.isLiked
-                val newCount = if (newIsLiked) post.likesCount + 1 else post.likesCount - 1
+                val newCount = if (newIsLiked) post.likesCount + 1 else Math.max(0, post.likesCount - 1)
                 post.copy(isLiked = newIsLiked, likesCount = newCount)
             } else post
+        }
+        saveCache(_posts.value)
+
+        // Persist to backend database
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                monumentApi.toggleLike(postId)
+            } catch (e: Exception) {}
         }
     }
 
@@ -195,13 +262,14 @@ class SocialFeedViewModel @Inject constructor(
             }
 
             val photoUrlToUse = savedPhotoUrl ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
+            val nowMs = System.currentTimeMillis()
 
             val newPost = SocialPost(
-                id = "sp_" + System.currentTimeMillis(),
+                id = "sp_" + nowMs,
                 userId = user?.uid ?: "user_me",
                 userName = user?.displayName ?: "Explorer (You)",
                 userRank = "Bhubaneswar Explorer",
-                monumentName = monumentName.ifBlank { "Lingaraj Temple" },
+                monumentName = monumentName.ifBlank { "Bhubaneswar Monument" },
                 locationName = "Bhubaneswar, Odisha",
                 imageUrl = photoUrlToUse,
                 caption = caption,
@@ -209,12 +277,14 @@ class SocialFeedViewModel @Inject constructor(
                 likesCount = 1,
                 isLiked = true,
                 commentsCount = 0,
-                timestamp = System.currentTimeMillis(),
+                timestamp = nowMs,
                 timestampFormatted = "Just now"
             )
 
             userPostsList.add(0, newPost)
-            _posts.value = filterList(userPostsList, _currentFilter.value)
+            val updatedList = (listOf(newPost) + _posts.value).distinctBy { it.id }
+            _posts.value = filterList(updatedList, _currentFilter.value)
+            saveCache(_posts.value)
 
             // Publish post to Supabase PostgreSQL database via backend API
             withContext(Dispatchers.IO) {

@@ -110,6 +110,9 @@ interface MonumentApi {
     @POST("feed/posts")
     suspend fun createPost(@Body request: CreatePostRequest): CreatePostResponse
 
+    @POST("feed/posts/{id}/like")
+    suspend fun toggleLike(@Path("id") id: String): Map<String, Any>
+
     @GET("guilds")
     suspend fun getGuilds(): GuildsResponse
 }
