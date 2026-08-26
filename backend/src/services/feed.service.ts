@@ -59,15 +59,12 @@ export class FeedService {
           data: {
             id: 'm1',
             name: 'Lingaraj Temple',
-            description: 'Ancient Hindu temple dedicated to Shiva located in Bhubaneswar, Odisha.',
-            city: 'Bhubaneswar',
-            state: 'Odisha',
             locationName: 'Bhubaneswar, Odisha',
             latitude: 20.2381,
             longitude: 85.8338,
             category: 'Temple',
-            era: 'Somavamsi dynasty',
-            pointsReward: 500
+            pointsValue: 500,
+            isVerified: true
           }
         });
         monumentId = monument.id;
