@@ -20,22 +20,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.monumentquest.core.di.NetworkModule
-import com.monumentquest.data.remote.SendOtpRequest
-import com.monumentquest.data.remote.VerifyOtpRequest
 import com.monumentquest.ui.theme.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun AuthScreen(
@@ -43,21 +34,15 @@ fun AuthScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
 
-    var isSignUpMode by remember { mutableStateOf(true) }
-    var signUpStep by remember { mutableIntStateOf(1) } // Step 1: Email/Pass, Step 2: OTP, Step 3: Personal Details
+    var isSignUpMode by remember { mutableStateOf(false) } // Default to Sign In
+    var currentStep  by remember { mutableIntStateOf(1) } // 1: Email, 2: OTP, 3: Name (SignUp)
 
-    var email             by remember { mutableStateOf("") }
-    var password          by remember { mutableStateOf("") }
-    var otpCode           by remember { mutableStateOf("") }
-    var name              by remember { mutableStateOf("") }
-    var username          by remember { mutableStateOf("") }
-    var role              by remember { mutableStateOf("Heritage Explorer") }
-    var isPasswordVisible by remember { mutableStateOf(false) }
-    var errorMessage      by remember { mutableStateOf<String?>(null) }
-    var isSendingOtp      by remember { mutableStateOf(false) }
-    var otpVerified       by remember { mutableStateOf(false) }
+    var email        by remember { mutableStateOf("") }
+    var otpCode      by remember { mutableStateOf("") }
+    var name         by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSendingOtp by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         if (uiState is AuthUiState.Authenticated) {
@@ -110,10 +95,10 @@ fun AuthScreen(
             )
 
             Text(
-                text = if (!isSignUpMode) "Welcome Back" else when(signUpStep) {
-                    1 -> "Step 1: Sign Up with Email"
-                    2 -> "Step 2: Verify Email OTP"
-                    else -> "Step 3: Explorer Details"
+                text = when (currentStep) {
+                    1 -> if (isSignUpMode) "Create Account" else "Welcome Back"
+                    2 -> "Enter Email Code"
+                    else -> "Personal Details"
                 },
                 style = MaterialTheme.typography.headlineMedium,
                 color = TextPrimary,
@@ -135,55 +120,65 @@ fun AuthScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     // Mode Toggle (Login vs Sign Up)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Surface2)
-                            .padding(4.dp)
-                    ) {
-                        Box(
+                    if (currentStep == 1) {
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (!isSignUpMode) Surface1 else Color.Transparent)
-                                .clickable {
-                                    isSignUpMode = false
-                                    signUpStep = 1
-                                }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Surface2)
+                                .padding(4.dp)
                         ) {
-                            Text(
-                                text = "Sign In",
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (!isSignUpMode) TextPrimary else TextSecondary,
-                                fontSize = 13.sp
-                            )
-                        }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (!isSignUpMode) Surface1 else Color.Transparent)
+                                    .clickable {
+                                        isSignUpMode = false
+                                        errorMessage = null
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Sign In",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (!isSignUpMode) TextPrimary else TextSecondary,
+                                    fontSize = 13.sp
+                                )
+                            }
 
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSignUpMode) Surface1 else Color.Transparent)
-                                .clickable {
-                                    isSignUpMode = true
-                                }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Sign Up",
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isSignUpMode) TextPrimary else TextSecondary,
-                                fontSize = 13.sp
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSignUpMode) Surface1 else Color.Transparent)
+                                    .clickable {
+                                        isSignUpMode = true
+                                        errorMessage = null
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Sign Up",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isSignUpMode) TextPrimary else TextSecondary,
+                                    fontSize = 13.sp
+                                )
+                            }
                         }
                     }
 
-                    // ── STEP 1: EMAIL & PASSWORD ────────────────────────────
-                    if (!isSignUpMode || signUpStep == 1) {
+                    // ── STEP 1: EMAIL INPUT ────────────────────────────
+                    if (currentStep == 1) {
+                        Text(
+                            text = "No password needed! We'll email you a 6-digit security code.",
+                            fontSize = 11.5.sp,
+                            color = TextSecondary,
+                            textAlign = TextAlign.Center
+                        )
+
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
@@ -200,36 +195,10 @@ fun AuthScreen(
                                 unfocusedTextColor   = TextPrimary
                             )
                         )
-
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text("Secure Password") },
-                            leadingIcon = { Icon(Icons.Default.Lock, null, tint = TextSecondary) },
-                            trailingIcon = {
-                                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                                    Icon(
-                                        imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = null,
-                                        tint = TextSecondary
-                                    )
-                                }
-                            },
-                            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor   = Gold,
-                                unfocusedBorderColor = Border,
-                                focusedTextColor     = TextPrimary,
-                                unfocusedTextColor   = TextPrimary
-                            )
-                        )
                     }
 
-                    if (isSignUpMode && signUpStep == 2) {
+                    // ── STEP 2: VERIFY EMAIL OTP ─────────────────────────────
+                    if (currentStep == 2) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -263,10 +232,10 @@ fun AuthScreen(
                         )
                     }
 
-                    // ── STEP 3: PERSONAL EXPLORER DETAILS ──────────────────
-                    if (isSignUpMode && signUpStep == 3) {
+                    // ── STEP 3: FULL NAME FOR NEW USER ──────────────────
+                    if (currentStep == 3) {
                         Text(
-                            "Enter Your Personal Explorer Info:",
+                            "Enter Your Name to Complete Signup:",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Gold
@@ -287,29 +256,14 @@ fun AuthScreen(
                                 unfocusedTextColor   = TextPrimary
                             )
                         )
-
-                        OutlinedTextField(
-                            value = username,
-                            onValueChange = { username = it },
-                            label = { Text("Explorer Handle (e.g. @aman_explorer)") },
-                            leadingIcon = { Icon(Icons.Default.AlternateEmail, null, tint = TextSecondary) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor   = Gold,
-                                unfocusedBorderColor = Border,
-                                focusedTextColor     = TextPrimary,
-                                unfocusedTextColor   = TextPrimary
-                            )
-                        )
                     }
 
                     if (errorMessage != null) {
                         Text(
                             text = errorMessage!!,
                             color = RedAccent,
-                            fontSize = 11.5.sp
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
 
@@ -317,50 +271,56 @@ fun AuthScreen(
                     Button(
                         onClick = {
                             errorMessage = null
-                            if (!isSignUpMode) {
-                                viewModel.login(email, password)
-                            } else if (signUpStep == 1) {
-                                if (email.contains("@") && password.length >= 8) {
-                                    isSendingOtp = true
-                                    viewModel.sendOtp(
-                                        email = email,
-                                        onSuccess = {
-                                            isSendingOtp = false
-                                            signUpStep = 2
-                                        },
-                                        onError = { msg ->
-                                            isSendingOtp = false
-                                            errorMessage = msg
-                                        }
-                                    )
-                                } else if (password.length < 8) {
-                                    errorMessage = "Password must be at least 8 characters."
-                                } else {
-                                    errorMessage = "Please enter a valid email address."
+                            when (currentStep) {
+                                1 -> {
+                                    if (email.contains("@") && email.contains(".")) {
+                                        isSendingOtp = true
+                                        viewModel.sendOtp(
+                                            email = email,
+                                            onSuccess = {
+                                                isSendingOtp = false
+                                                currentStep = 2
+                                            },
+                                            onError = { msg ->
+                                                isSendingOtp = false
+                                                errorMessage = msg
+                                            }
+                                        )
+                                    } else {
+                                        errorMessage = "Please enter a valid email address."
+                                    }
                                 }
-                            } else if (signUpStep == 2) {
-                                if (otpCode.length == 6) {
-                                    isSendingOtp = true
-                                    viewModel.verifyOtp(
-                                        email = email,
-                                        code = otpCode,
-                                        onSuccess = {
-                                            isSendingOtp = false
-                                            signUpStep = 3
-                                        },
-                                        onError = { msg ->
-                                            isSendingOtp = false
-                                            errorMessage = msg
+                                2 -> {
+                                    if (otpCode.length == 6) {
+                                        if (isSignUpMode) {
+                                            currentStep = 3
+                                        } else {
+                                            viewModel.loginWithOtp(
+                                                email = email,
+                                                code = otpCode,
+                                                onNeedsSignup = {
+                                                    isSignUpMode = true
+                                                    currentStep = 3
+                                                    errorMessage = "No existing account found. Enter your name to register!"
+                                                },
+                                                onError = { msg -> errorMessage = msg }
+                                            )
                                         }
-                                    )
-                                } else {
-                                    errorMessage = "Enter the 6-digit code from your email."
+                                    } else {
+                                        errorMessage = "Please enter the 6-digit code sent to your email."
+                                    }
                                 }
-                            } else {
-                                if (name.length >= 2) {
-                                    viewModel.register(name, email, password)
-                                } else {
-                                    errorMessage = "Please enter your full name."
+                                3 -> {
+                                    if (name.trim().length >= 2) {
+                                        viewModel.registerWithOtp(
+                                            email = email,
+                                            code = otpCode,
+                                            name = name,
+                                            onError = { msg -> errorMessage = msg }
+                                        )
+                                    } else {
+                                        errorMessage = "Please enter your name."
+                                    }
                                 }
                             }
                         },
@@ -378,9 +338,9 @@ fun AuthScreen(
                             CircularProgressIndicator(color = Bg, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
                             Text(
-                                text = if (!isSignUpMode) "Sign In" else when(signUpStep) {
+                                text = when (currentStep) {
                                     1 -> "Send Verification OTP >"
-                                    2 -> "Verify Email Code >"
+                                    2 -> if (isSignUpMode) "Continue to Details >" else "Verify OTP & Sign In 🎉"
                                     else -> "Complete Registration & Start Quest 🎉"
                                 },
                                 fontWeight = FontWeight.Bold,
@@ -389,9 +349,12 @@ fun AuthScreen(
                         }
                     }
 
-                    if (isSignUpMode && signUpStep > 1) {
+                    if (currentStep > 1) {
                         TextButton(
-                            onClick = { signUpStep -= 1 },
+                            onClick = {
+                                currentStep -= 1
+                                errorMessage = null
+                            },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("< Back", color = TextSecondary, fontSize = 12.sp)

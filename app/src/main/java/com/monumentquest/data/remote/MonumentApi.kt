@@ -10,19 +10,17 @@ import retrofit2.http.*
 // Auth request/response models
 data class SendOtpRequest(val email: String)
 data class SendOtpResponse(val success: Boolean, val message: String)
-data class VerifyOtpRequest(val email: String, val code: String)
-data class VerifyOtpResponse(val success: Boolean, val message: String)
-data class LoginRequest(val email: String, val password: String)
-data class RegisterRequest(val email: String, val password: String, val name: String, val guildName: String? = null)
+data class LoginWithOtpRequest(val email: String, val code: String)
+data class RegisterWithOtpRequest(val email: String, val code: String, val name: String)
 data class AuthUser(
     val id: String, val name: String, val email: String,
     val userRank: String = "Bhubaneswar Explorer", val points: Int = 0,
     val role: String = "EXPLORER", val guildName: String? = null, val isGuest: Boolean = false
 )
 data class AuthData(val token: String, val user: AuthUser)
-data class AuthResponse(val success: Boolean, val data: AuthData)
+data class AuthResponse(val success: Boolean, val data: AuthData, val needsSignup: Boolean = false, val alreadyExists: Boolean = false)
 
-// Sign up (legacy compat)
+// Legacy compat
 data class SignUpRequest(val name: String, val username: String, val email: String, val password: String, val role: String = "Heritage Explorer")
 data class SignUpResponse(val success: Boolean, val userId: String, val user: UserProfile, val message: String)
 
@@ -45,18 +43,15 @@ data class SyncProgressRequest(
 data class SyncProgressResponse(val success: Boolean, val data: Map<String, Any>?)
 
 interface MonumentApi {
-    // Auth
+    // Auth (OTP-only — no passwords)
     @POST("auth/send-otp")
     suspend fun sendOtp(@Body request: SendOtpRequest): SendOtpResponse
 
-    @POST("auth/verify-otp")
-    suspend fun verifyOtp(@Body request: VerifyOtpRequest): VerifyOtpResponse
+    @POST("auth/login-with-otp")
+    suspend fun loginWithOtp(@Body request: LoginWithOtpRequest): AuthResponse
 
-    @POST("auth/register")
-    suspend fun register(@Body request: RegisterRequest): AuthResponse
-
-    @POST("auth/login")
-    suspend fun login(@Body request: LoginRequest): AuthResponse
+    @POST("auth/register-with-otp")
+    suspend fun registerWithOtp(@Body request: RegisterWithOtpRequest): AuthResponse
 
     @POST("auth/guest")
     suspend fun loginAsGuest(): AuthResponse

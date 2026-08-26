@@ -4,6 +4,7 @@ import { EmailService } from '../services/email.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 export class AuthController {
+  // POST /auth/send-otp — send OTP to email
   static async sendOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email } = req.body ?? {};
@@ -14,41 +15,54 @@ export class AuthController {
     } catch (error) { next(error); }
   }
 
-  static async verifyOtp(req: Request, res: Response, next: NextFunction) {
+  // POST /auth/login-with-otp — verify OTP then log in (existing users)
+  static async loginWithOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, code } = req.body ?? {};
       if (typeof email !== 'string' || typeof code !== 'string')
-        return res.status(400).json({ success: false, error: 'Email and code required' });
+        return res.status(400).json({ success: false, error: 'Email and OTP code required' });
+
       const valid = EmailService.verifyOtp(email.trim().toLowerCase(), code.trim());
-      if (!valid) return res.status(400).json({ success: false, error: 'Invalid or expired OTP' });
-      return res.json({ success: true, message: 'Email verified' });
-    } catch (error) { next(error); }
+      if (!valid)
+        return res.status(400).json({ success: false, error: 'Invalid or expired OTP code' });
+
+      const data = await AuthService.loginWithOtp(email);
+      return res.json({ success: true, data });
+    } catch (error: any) {
+      if (error?.status === 404)
+        return res.status(404).json({ success: false, error: error.message, needsSignup: true });
+      next(error);
+    }
   }
 
-  static async register(req: Request, res: Response, next: NextFunction) {
+  // POST /auth/register-with-otp — verify OTP then create account (new users)
+  static async registerWithOtp(req: Request, res: Response, next: NextFunction) {
     try {
-      const { email, password, name, guildName } = req.body ?? {};
-      if (typeof email !== 'string' || typeof password !== 'string' || typeof name !== 'string')
-        return res.status(400).json({ success: false, error: 'Email, password and name required' });
-      return res.status(201).json({ success: true, data: await AuthService.register(email, password, name, typeof guildName === 'string' ? guildName : undefined) });
-    } catch (error) { next(error); }
+      const { email, code, name } = req.body ?? {};
+      if (typeof email !== 'string' || typeof code !== 'string' || typeof name !== 'string')
+        return res.status(400).json({ success: false, error: 'Email, OTP code, and name required' });
+
+      const valid = EmailService.verifyOtp(email.trim().toLowerCase(), code.trim());
+      if (!valid)
+        return res.status(400).json({ success: false, error: 'Invalid or expired OTP code' });
+
+      const data = await AuthService.registerWithOtp(email, name);
+      return res.status(201).json({ success: true, data });
+    } catch (error: any) {
+      if (error?.status === 409)
+        return res.status(409).json({ success: false, error: error.message, alreadyExists: true });
+      next(error);
+    }
   }
 
-  static async login(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { email, password } = req.body ?? {};
-      if (typeof email !== 'string' || typeof password !== 'string')
-        return res.status(400).json({ success: false, error: 'Email and password required' });
-      return res.json({ success: true, data: await AuthService.login(email, password) });
-    } catch (error) { next(error); }
-  }
-
+  // POST /auth/guest
   static async guest(_req: Request, res: Response, next: NextFunction) {
     try {
       return res.status(201).json({ success: true, data: await AuthService.createGuest() });
     } catch (error) { next(error); }
   }
 
+  // GET /auth/me
   static async me(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       return res.json({ success: true, data: await AuthService.getProfile(req.user!.id) });
