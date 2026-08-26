@@ -96,8 +96,7 @@ class SocialFeedViewModel @Inject constructor(
         val rawEmail = tokenManager.getUserEmail()?.lowercase()?.trim()
             ?: auth.currentUser?.email?.lowercase()?.trim()
             ?: ""
-        if (rawEmail.isEmpty()) return null
-        val userKey = rawEmail.replace("@", "_").replace(".", "_")
+        val userKey = if (rawEmail.isNotEmpty()) rawEmail.replace("@", "_").replace(".", "_") else "guest"
         return profilePrefs.getString("profile_avatar_uri_$userKey", null)
     }
 
@@ -110,6 +109,9 @@ class SocialFeedViewModel @Inject constructor(
         try {
             val savedIds = prefs.getStringSet("saved_post_ids", emptySet()) ?: emptySet()
             _savedPostIds.value = savedIds
+
+            val followed = prefs.getStringSet("followed_user_ids", emptySet()) ?: emptySet()
+            _followedUsers.value = followed
 
             val commentsJson = prefs.getString("post_comments_json", null)
             if (!commentsJson.isNullOrBlank()) {
@@ -135,6 +137,7 @@ class SocialFeedViewModel @Inject constructor(
         try {
             prefs.edit().apply {
                 putStringSet("saved_post_ids", _savedPostIds.value)
+                putStringSet("followed_user_ids", _followedUsers.value)
                 putString("post_comments_json", gson.toJson(_postComments.value))
                 putString("cached_posts_json", gson.toJson(posts.take(50)))
                 apply()
@@ -156,6 +159,7 @@ class SocialFeedViewModel @Inject constructor(
         val current = _followedUsers.value.toMutableSet()
         if (current.contains(userId)) current.remove(userId) else current.add(userId)
         _followedUsers.value = current
+        saveCache(_posts.value)
     }
 
     fun toggleSavePost(postId: String) {
@@ -194,7 +198,6 @@ class SocialFeedViewModel @Inject constructor(
                 val myAvatar = getMyAvatarUrl()
                 val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer"
 
-                // Create map of locally modified likes & comments to preserve state
                 val currentLocalMap = _posts.value.associate { it.id to Pair(it.isLiked, it.likesCount) }
 
                 val serverPosts = rawItems.map { f ->
