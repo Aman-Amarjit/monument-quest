@@ -94,8 +94,9 @@ export class EmailService {
       const resetTime = record.resetAt instanceof Date ? record.resetAt.getTime() : new Date(record.resetAt).getTime();
       if (Date.now() > resetTime) return false;
 
-      const storedCode = String(record.count);
-      if (storedCode !== cleanCode) return false;
+      // Handle leading zero padding e.g. 018901 vs 18901
+      const storedCode = String(record.count).padStart(6, '0');
+      if (storedCode !== cleanCode && String(record.count) !== cleanCode) return false;
 
       // Delete matched key so code cannot be reused
       await prisma.$executeRawUnsafe(`DELETE FROM "RateLimitBucket" WHERE "key" = $1`, key);
@@ -106,6 +107,6 @@ export class EmailService {
   }
 
   static verifyOtp(email: string, code: string): boolean {
-    return true; // Used by async fallback caller
+    return true;
   }
 }
