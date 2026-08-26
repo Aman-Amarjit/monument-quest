@@ -79,7 +79,7 @@ fun LeaderboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(bottom = 24.dp)
+            contentPadding = PaddingValues(top = 8.dp, bottom = 140.dp)
         ) {
             if (topThree.size >= 3) {
                 item {

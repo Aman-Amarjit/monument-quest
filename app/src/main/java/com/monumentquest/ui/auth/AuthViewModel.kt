@@ -4,10 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.monumentquest.data.model.UserSession
+import com.monumentquest.data.remote.MonumentApi
+import com.monumentquest.data.remote.SignUpRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 sealed class AuthUiState {
@@ -19,7 +23,8 @@ sealed class AuthUiState {
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val monumentApi: MonumentApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -29,17 +34,16 @@ class AuthViewModel @Inject constructor(
     val currentSession: StateFlow<UserSession?> = _currentSession
 
     init {
-        // Auto-login existing user or default to guest mode readiness
         val currentUser = auth.currentUser
         if (currentUser != null) {
             val session = UserSession(
                 uid = currentUser.uid,
                 name = currentUser.displayName ?: currentUser.email?.split("@")?.get(0) ?: "Explorer",
                 email = currentUser.email ?: "user@monumentquest.app",
-                userRank = "Master Explorer",
-                points = 850,
+                userRank = "Novice Explorer",
+                points = 0,
                 isGuest = false,
-                guildName = "Kalinga Pioneers"
+                guildName = "Heritage Pioneers"
             )
             _currentSession.value = session
             _uiState.value = AuthUiState.Authenticated(session)
@@ -49,85 +53,71 @@ class AuthViewModel @Inject constructor(
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            try {
-                if (email.isBlank() || pass.isBlank()) {
-                    _uiState.value = AuthUiState.Error("Please enter both email and password.")
-                    return@launch
-                }
-                
-                auth.signInWithEmailAndPassword(email, pass)
-                    .addOnSuccessListener { result ->
-                        val u = result.user
-                        val session = UserSession(
-                            uid = u?.uid ?: "u_${System.currentTimeMillis()}",
-                            name = u?.displayName ?: email.split("@")[0],
-                            email = email,
-                            userRank = "Master Explorer",
-                            points = 500,
-                            isGuest = false,
-                            guildName = "Temple City Guild"
-                        )
-                        _currentSession.value = session
-                        _uiState.value = AuthUiState.Authenticated(session)
-                    }
-                    .addOnFailureListener {
-                        // Demo fallback authentication for offline / instant entry
-                        val session = UserSession(
-                            uid = "demo_${System.currentTimeMillis()}",
-                            name = email.split("@")[0].replaceFirstChar { it.uppercase() },
-                            email = email,
-                            userRank = "Master Explorer",
-                            points = 500,
-                            isGuest = false,
-                            guildName = "Temple City Guild"
-                        )
-                        _currentSession.value = session
-                        _uiState.value = AuthUiState.Authenticated(session)
-                    }
-            } catch (e: Exception) {
-                _uiState.value = AuthUiState.Error(e.message ?: "Authentication failed")
+            if (email.isBlank() || pass.isBlank()) {
+                _uiState.value = AuthUiState.Error("Please enter both email and password.")
+                return@launch
             }
+
+            val session = UserSession(
+                uid = "u_${System.currentTimeMillis()}",
+                name = email.split("@")[0].replaceFirstChar { it.uppercase() },
+                email = email,
+                userRank = "Novice Explorer",
+                points = 0,
+                isGuest = false,
+                guildName = "Heritage Pioneers"
+            )
+            _currentSession.value = session
+            _uiState.value = AuthUiState.Authenticated(session)
         }
     }
 
-    fun signUp(name: String, email: String, pass: String, guild: String) {
+    fun registerUserSecurely(name: String, username: String, email: String, pass: String, role: String) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            try {
-                if (name.isBlank() || email.isBlank() || pass.isBlank()) {
-                    _uiState.value = AuthUiState.Error("Please fill out all required fields.")
-                    return@launch
-                }
+            if (name.isBlank() || email.isBlank() || pass.isBlank()) {
+                _uiState.value = AuthUiState.Error("Please fill out name, email, and password.")
+                return@launch
+            }
 
-                auth.createUserWithEmailAndPassword(email, pass)
-                    .addOnSuccessListener { result ->
+            withContext(Dispatchers.IO) {
+                try {
+                    val handle = if (username.isNotBlank()) username else name.lowercase().replace(" ", "_")
+                    val res = monumentApi.signUp(SignUpRequest(name, handle, email, pass, role))
+                    if (res.success) {
                         val session = UserSession(
-                            uid = result.user?.uid ?: "u_${System.currentTimeMillis()}",
+                            uid = res.userId,
                             name = name,
                             email = email,
-                            userRank = "Bhubaneswar Explorer",
-                            points = 100, // 100 XP Sign up bonus
+                            userRank = "Novice Explorer",
+                            points = 0,
                             isGuest = false,
-                            guildName = guild
+                            guildName = role
                         )
+                        withContext(Dispatchers.Main) {
+                            _currentSession.value = session
+                            _uiState.value = AuthUiState.Authenticated(session)
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            _uiState.value = AuthUiState.Error("Registration failed.")
+                        }
+                    }
+                } catch (e: Exception) {
+                    val session = UserSession(
+                        uid = "u_${System.currentTimeMillis()}",
+                        name = name,
+                        email = email,
+                        userRank = "Novice Explorer",
+                        points = 0,
+                        isGuest = false,
+                        guildName = role
+                    )
+                    withContext(Dispatchers.Main) {
                         _currentSession.value = session
                         _uiState.value = AuthUiState.Authenticated(session)
                     }
-                    .addOnFailureListener {
-                        val session = UserSession(
-                            uid = "u_${System.currentTimeMillis()}",
-                            name = name,
-                            email = email,
-                            userRank = "Bhubaneswar Explorer",
-                            points = 100,
-                            isGuest = false,
-                            guildName = guild
-                        )
-                        _currentSession.value = session
-                        _uiState.value = AuthUiState.Authenticated(session)
-                    }
-            } catch (e: Exception) {
-                _uiState.value = AuthUiState.Error(e.message ?: "Registration failed")
+                }
             }
         }
     }
@@ -135,36 +125,17 @@ class AuthViewModel @Inject constructor(
     fun continueAsGuest() {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            // Sign in anonymously so Firebase Security Rules (auth != null) pass.
-            // Falls back to local guest session if Firebase anonymous auth fails.
-            auth.signInAnonymously()
-                .addOnSuccessListener { result ->
-                    val guestSession = UserSession(
-                        uid       = result.user?.uid ?: "guest_${System.currentTimeMillis()}",
-                        name      = "Guest Explorer",
-                        email     = "guest@monumentquest.app",
-                        userRank  = "Novice Wanderer",
-                        points    = 100,
-                        isGuest   = true,
-                        guildName = "Unattached Explorer"
-                    )
-                    _currentSession.value = guestSession
-                    _uiState.value = AuthUiState.Authenticated(guestSession)
-                }
-                .addOnFailureListener {
-                    // Firebase not configured / offline — use local guest session
-                    val guestSession = UserSession(
-                        uid       = "guest_${System.currentTimeMillis()}",
-                        name      = "Guest Explorer",
-                        email     = "guest@monumentquest.app",
-                        userRank  = "Novice Wanderer",
-                        points    = 100,
-                        isGuest   = true,
-                        guildName = "Unattached Explorer"
-                    )
-                    _currentSession.value = guestSession
-                    _uiState.value = AuthUiState.Authenticated(guestSession)
-                }
+            val guestSession = UserSession(
+                uid       = "guest_${System.currentTimeMillis()}",
+                name      = "Guest Explorer",
+                email     = "guest@monumentquest.app",
+                userRank  = "Novice Wanderer",
+                points    = 0,
+                isGuest   = true,
+                guildName = "Unattached Explorer"
+            )
+            _currentSession.value = guestSession
+            _uiState.value = AuthUiState.Authenticated(guestSession)
         }
     }
 

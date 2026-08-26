@@ -2,19 +2,17 @@ package com.monumentquest.ui.social
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.monumentquest.data.model.User
+import com.monumentquest.data.remote.MonumentApi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class LeaderboardViewModel @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val monumentApi: MonumentApi
 ) : ViewModel() {
 
     private val _users = MutableStateFlow<List<User>>(emptyList())
@@ -27,14 +25,17 @@ class LeaderboardViewModel @Inject constructor(
     private fun fetchLeaderboard() {
         viewModelScope.launch {
             try {
-                val snapshot = firestore.collection("users")
-                    .orderBy("points", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
-                
-                val userList = snapshot.toObjects(User::class.java)
-                if (userList.isNotEmpty()) {
-                    _users.value = userList
+                val res = monumentApi.getLeaderboard()
+                if (res.leaderboard.isNotEmpty()) {
+                    val converted = res.leaderboard.mapIndexed { idx, entry ->
+                        User(
+                            id = "user_${idx + 1}",
+                            name = entry.name,
+                            points = entry.xp,
+                            badges = listOf(entry.badge)
+                        )
+                    }
+                    _users.value = converted
                 } else {
                     _users.value = getSampleUsers()
                 }
@@ -46,14 +47,11 @@ class LeaderboardViewModel @Inject constructor(
 
     private fun getSampleUsers(): List<User> {
         return listOf(
-            User(id = "1", name = "Elena Rostova", points = 3420, badges = listOf("First Discoverer", "Master Explorer")),
-            User(id = "2", name = "Arthur Pendelton", points = 2890, badges = listOf("History Buff", "Scholar")),
-            User(id = "3", name = "Amina Bello", points = 2450, badges = listOf("Nature Lover", "Mountaineer")),
-            User(id = "4", name = "Kenji Sato", points = 1980, badges = listOf("Ancient Relic")),
-            User(id = "5", name = "Carlos Silva", points = 1620, badges = listOf("Global Wanderer")),
-            User(id = "6", name = "Adventurer (You)", points = 850, badges = listOf("First Discovery", "Nature Lover")),
-            User(id = "7", name = "Sophia Chen", points = 720, badges = listOf("Novice")),
-            User(id = "8", name = "Mateo Rossi", points = 540, badges = listOf("Pathfinder"))
+            User(id = "1", name = "Aarav Sharma", points = 4850, badges = listOf("Grand Master")),
+            User(id = "2", name = "Priya Patel", points = 3920, badges = listOf("Master Explorer")),
+            User(id = "3", name = "Explorer Prime (You)", points = 1250, badges = listOf("Heritage Scout")),
+            User(id = "4", name = "Vikram Singh", points = 1100, badges = listOf("Scout")),
+            User(id = "5", name = "Ananya Roy", points = 950, badges = listOf("Novice"))
         )
     }
 }

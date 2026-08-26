@@ -12,7 +12,8 @@
         android:name=".MonumentQuestApp"
         android:allowBackup="true"
         android:label="@string/app_name"
-        android:supportsRtl="true">
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

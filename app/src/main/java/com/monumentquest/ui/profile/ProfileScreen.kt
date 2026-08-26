@@ -1,7 +1,14 @@
 package com.monumentquest.ui.profile
 
+import android.graphics.Bitmap
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -10,42 +17,32 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Landscape
-import androidx.compose.material.icons.filled.LocalLibrary
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Terrain
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.monumentquest.core.di.NetworkModule
+import com.monumentquest.data.model.UserProfile
 import com.monumentquest.ui.auth.AuthViewModel
 import com.monumentquest.ui.theme.*
-
-data class CollectionItem(
-    val id: String,
-    val name: String,
-    val region: String,
-    val points: Int,
-    val isUnlocked: Boolean,
-    val imageUrl: String
-)
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ProfileScreen(
@@ -54,480 +51,472 @@ fun ProfileScreen(
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val currentSession by authViewModel.currentSession.collectAsState()
+    var liveProfile by remember { mutableStateOf(UserProfile()) }
 
-    val userName        = currentSession?.name ?: "Explorer"
-    val userEmail       = currentSession?.email ?: "guest@monumentquest.app"
-    val isGuest         = currentSession?.isGuest ?: true
-    val points          = currentSession?.points ?: 100
-    val nextLevelPoints = 1000
-    val progress        = points.toFloat() / nextLevelPoints
-    val rank            = currentSession?.userRank ?: "Novice Wanderer"
+    var customUsername by remember { mutableStateOf("Explorer Prime") }
+    var customBio by remember { mutableStateOf("Odisha Heritage Explorer & Monument Discoverer") }
+    var customAvatarUri by remember { mutableStateOf<Uri?>(null) }
+    var showEditDialog by remember { mutableStateOf(false) }
 
-    val collectionItems = listOf(
-        CollectionItem("c1", "Lingaraj Temple",   "Odisha", 500,  true,  "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800&auto=format&fit=crop"),
-        CollectionItem("c2", "Mukteshvara Temple","Odisha", 450,  true,  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=800&auto=format&fit=crop"),
-        CollectionItem("c3", "Dhauli Shanti Stupa","Odisha",600, true,  "https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?q=80&w=800&auto=format&fit=crop"),
-        CollectionItem("c4", "Rajarani Temple",   "Odisha", 400,  false, ""),
-        CollectionItem("c5", "Khandagiri Caves",  "Odisha", 550,  false, ""),
-        CollectionItem("c6", "Konark Sun Temple", "Odisha", 1000, false, "")
-    )
+    val context = LocalContext.current
 
-    val unlockedCount = collectionItems.count { it.isUnlocked }
-    val collectionProgress = if (collectionItems.isEmpty()) 0f else unlockedCount.toFloat() / collectionItems.size.toFloat()
+    // Launcher for picking profile picture
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            customAvatarUri = uri
+        }
+    }
 
-    val badges = listOf(
-        BadgeData("First Discovery", Icons.Default.Explore,                   Gold),
-        BadgeData("Nature Lover",    Icons.Default.Landscape,                 GreenAccent),
-        BadgeData("History Buff",    Icons.Default.LocalLibrary,              RedAccent),
-        BadgeData("Mountaineer",     Icons.Default.Terrain,                   BlueAccent),
-        BadgeData("Scholar",         Icons.AutoMirrored.Filled.MenuBook,      TextSecondary)
-    )
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try {
+                val okHttp = NetworkModule.provideOkHttpClient()
+                val retro = NetworkModule.provideRetrofit(okHttp)
+                val api = NetworkModule.provideMonumentApi(retro)
+                val p = api.getUserProfile()
+                withContext(Dispatchers.Main) {
+                    liveProfile = p
+                    if (p.name.isNotBlank()) customUsername = p.name
+                }
+            } catch (e: Exception) {
+                // Keep defaults
+            }
+        }
+    }
+
+    val xp = liveProfile.xp
+    val level = liveProfile.level
+    val streakDays = liveProfile.streakDays
+    val visitedCount = liveProfile.visitedCount
+    val totalDistanceKm = liveProfile.totalDistanceKm
+
+    val nextLevelXp = 500
+    val levelProgress = (xp.toFloat() / nextLevelXp.toFloat()).coerceIn(0f, 1f)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Bg)
             .verticalScroll(rememberScrollState())
-            .navigationBarsPadding()
+            .padding(bottom = 120.dp)
     ) {
-        // ── Header ──────────────────────────────────────────────────────────
-        Column(
+        // ── HERO PROFILE HEADER ──────────────────────────────────────────────
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 28.dp, bottom = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(Surface2)
-                    .border(1.5.dp, Border, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (isGuest) Icons.Default.Shield else Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.size(36.dp),
-                    tint = Gold
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF1E293B), Bg)
+                    )
                 )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = userName,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 20.sp
-                )
-                if (isGuest) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Surface2)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            "Guest",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = rank,
-                color = Gold,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Normal
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = userEmail,
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary,
-                fontSize = 11.sp
-            )
-        }
-
-        // ── Stats Row ────────────────────────────────────────────────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 24.dp)
         ) {
-            StatChip(label = "Monuments", value = "3", modifier = Modifier.weight(1f))
-            StatChip(label = "XP", value = "$points", modifier = Modifier.weight(1f))
-            StatChip(label = "Rank", value = "#42", modifier = Modifier.weight(1f))
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // ── Custodian Status ──────────────────────────────────────────────────
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Card(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Surface1),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                // Avatar with Camera Edit Icon
+                Box(contentAlignment = Alignment.BottomEnd) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(92.dp)
                             .clip(CircleShape)
-                            .background(GoldTint),
+                            .background(Color(0xFF0F172A))
+                            .border(2.dp, Gold, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (customAvatarUri != null) {
+                            AsyncImage(
+                                model = customAvatarUri,
+                                contentDescription = "Profile Photo",
+                                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Person,
+                                null,
+                                modifier = Modifier.size(48.dp),
+                                tint = Gold
+                            )
+                        }
+                    }
+
+                    // Change Photo Button
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(Gold)
+                            .clickable { imagePickerLauncher.launch("image/*") }
+                            .padding(6.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            Icons.Default.Star,
+                            Icons.Default.PhotoCamera,
                             null,
-                            tint = Gold,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Grand Custodian Status",
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary,
-                            fontSize = 13.sp
-                        )
-                        Text(
-                            "Lingaraj Temple · +50 Heritage Coins/day",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            fontSize = 11.sp
+                            tint = Color(0xFF0F172A),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
-            }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Surface1),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Border)
-            ) {
+                Spacer(Modifier.height(14.dp))
+
+                // Username & Handle
                 Row(
-                    modifier = Modifier.padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Box(
+                    Text(
+                        customUsername,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextPrimary
+                    )
+                    Icon(
+                        Icons.Default.Edit,
+                        null,
+                        tint = TextSecondary,
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Surface2),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.School, null, tint = GreenAccent, modifier = Modifier.size(20.dp))
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Mentor Pair Program",
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary,
-                            fontSize = 13.sp
-                        )
-                        Text(
-                            "Paired with Dr. Subhashree (Lvl 42) · +1.5x Guided XP",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            fontSize = 11.sp
-                        )
-                    }
+                            .size(16.dp)
+                            .clickable { showEditDialog = true }
+                    )
                 }
-            }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    "@${customUsername.lowercase().replace(" ", "_")}",
+                    fontSize = 12.sp,
+                    color = TextSecondary
+                )
 
-        // ── Regional Progress ─────────────────────────────────────────────────
-        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-            Text(
-                "REGIONAL PROGRESS",
-                color = TextSecondary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Normal,
-                letterSpacing = 1.2.sp
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Surface1),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Border)
-            ) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            "Odisha Temples & Shrines",
-                            fontWeight = FontWeight.Medium,
-                            color = TextPrimary,
-                            fontSize = 13.sp
-                        )
-                        Text(
-                            "${unlockedCount} / ${collectionItems.size}",
-                            fontWeight = FontWeight.SemiBold,
-                            color = Gold,
-                            fontSize = 12.sp
-                        )
-                    }
-                    LinearProgressIndicator(
-                        progress = { collectionProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp)),
+                Spacer(Modifier.height(6.dp))
+
+                Text(
+                    customBio,
+                    fontSize = 12.sp,
+                    color = TextTertiary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // Level Tag
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF2E1C00))
+                        .border(1.dp, Gold.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        "LEVEL $level NOVICE EXPLORER",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Gold,
-                        trackColor = Surface3
+                        letterSpacing = 1.sp
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // ── Collection ────────────────────────────────────────────────────────
+        // ── LEVEL & PROGRESSION CARD ───────────────────────────────────────
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Surface1),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "XP Progress to Level ${level + 1}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            "$xp / $nextLevelXp XP",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Gold
+                        )
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    LinearProgressIndicator(
+                        progress = { levelProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = Gold,
+                        trackColor = Surface2
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF0F172A))
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.LocalFireDepartment, null, tint = Color(0xFFF97316), modifier = Modifier.size(18.dp))
+                        Text(
+                            if (streakDays > 0) "🔥 $streakDays Day Explorer Streak Active!" else "🔥 0 Day Streak (Visit a monument today to start!)",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFFED7AA)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // ── STATS METRICS GRID (4 CARDS) ──────────────────────────────────
             Text(
-                "COLLECTION",
-                color = TextSecondary,
+                "EXPLORER STATS",
                 fontSize = 11.sp,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.Bold,
+                color = TextSecondary,
                 letterSpacing = 1.2.sp
             )
-            Spacer(modifier = Modifier.height(10.dp))
+
+            Spacer(Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                MetricCard("Monuments", "$visitedCount", Icons.Default.AccountBalance, Modifier.weight(1f))
+                MetricCard("Streak", "$streakDays Days", Icons.Default.LocalFireDepartment, Modifier.weight(1f))
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                MetricCard("Distance", "${String.format("%.1f", totalDistanceKm)} km", Icons.Default.DirectionsWalk, Modifier.weight(1f))
+                MetricCard("XP Points", "$xp", Icons.Default.Star, Modifier.weight(1f))
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // ── ACHIEVEMENTS & BADGES ────────────────────────────────────────
+            Text(
+                "ACHIEVEMENT BADGES",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextSecondary,
+                letterSpacing = 1.2.sp
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            val badgesList = remember(visitedCount) {
+                listOf(
+                    BadgeItem("First Discovery", "Capture 1st monument", Icons.Default.Explore, Gold, visitedCount >= 1),
+                    BadgeItem("Temple Scout", "Discover 3 temples", Icons.Default.AccountBalance, GreenAccent, visitedCount >= 3),
+                    BadgeItem("Historian", "Read 5 audio stories", Icons.Default.MenuBook, BlueAccent, false),
+                    BadgeItem("3D Pathfinder", "Walk 5.0 km", Icons.Default.DirectionsWalk, Color(0xFFA855F7), totalDistanceKm >= 5.0),
+                    BadgeItem("Hotel Quest Pass", "Claim hotel perk", Icons.Default.Hotel, Color(0xFFEC4899), false),
+                    BadgeItem("Master Custodian", "Earn 1,000 XP", Icons.Default.EmojiEvents, Gold, xp >= 1000)
+                )
+            }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                collectionItems.chunked(2).forEach { rowItems ->
+                badgesList.chunked(2).forEach { row ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        rowItems.forEach { item ->
+                        row.forEach { badge ->
                             Box(modifier = Modifier.weight(1f)) {
-                                CollectionCard(item)
+                                BadgeCardDetailed(badge)
                             }
                         }
-                        if (rowItems.size == 1) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp))
 
-        // ── Badges ────────────────────────────────────────────────────────────
-        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            // ── ACTIONS & ACCOUNT ───────────────────────────────────────────
             Text(
-                "BADGES",
-                color = TextSecondary,
+                "ACCOUNT & PREFERENCES",
                 fontSize = 11.sp,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.Bold,
+                color = TextSecondary,
                 letterSpacing = 1.2.sp
             )
-            Spacer(modifier = Modifier.height(10.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(badges) { badge ->
-                    BadgeCard(badge)
+
+            Spacer(Modifier.height(10.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = onNavigateToJournalist,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Bg),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.MenuBook, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Journalist & Audio Narrator Mode", fontWeight = FontWeight.Bold)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        authViewModel.logout()
+                        onLogout()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Border),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Surface1, contentColor = RedAccent)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Sign Out", fontWeight = FontWeight.Bold)
                 }
             }
         }
+    }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // ── Actions ───────────────────────────────────────────────────────────
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Button(
-                onClick = onNavigateToJournalist,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Gold,
-                    contentColor   = Bg
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.MenuBook, null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Journalist Mode", fontWeight = FontWeight.SemiBold)
+    // Edit Username/Bio Dialog Modal
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Edit Profile Info", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = customUsername,
+                        onValueChange = { customUsername = it },
+                        label = { Text("Username") },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = customBio,
+                        onValueChange = { customBio = it },
+                        label = { Text("Bio") }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showEditDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Bg)
+                ) {
+                    Text("Save Changes", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
             }
-
-            OutlinedButton(
-                onClick = {
-                    authViewModel.logout()
-                    onLogout()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Border),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Surface1,
-                    contentColor   = RedAccent
-                )
-            ) {
-                Icon(Icons.Default.Logout, null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isGuest) "Switch Account" else "Sign Out", fontWeight = FontWeight.Medium)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
+        )
     }
 }
 
 @Composable
-private fun StatChip(label: String, value: String, modifier: Modifier = Modifier) {
+private fun MetricCard(label: String, value: String, icon: ImageVector, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface1),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(value, fontWeight = FontWeight.SemiBold, color = TextPrimary, fontSize = 16.sp)
-            Text(label, color = TextSecondary, fontSize = 11.sp)
-        }
-    }
-}
-
-@Composable
-private fun CollectionCard(item: CollectionItem) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(140.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Surface1),
         border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (item.isUnlocked) {
-                AsyncImage(
-                    model = item.imageUrl,
-                    contentDescription = item.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Bg.copy(alpha = 0.85f))
-                            )
-                        )
-                )
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(10.dp)
-                ) {
-                    Text(item.name, fontWeight = FontWeight.SemiBold, color = TextPrimary, fontSize = 12.sp, maxLines = 1)
-                    Text("+${item.points} XP", fontWeight = FontWeight.Medium, color = Gold, fontSize = 10.sp)
-                }
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Lock,
-                            null,
-                            tint = TextTertiary.copy(alpha = 0.4f),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            item.name,
-                            fontWeight = FontWeight.Medium,
-                            color = TextTertiary,
-                            fontSize = 11.sp,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
-                    }
-                }
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Surface2),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = Gold, modifier = Modifier.size(18.dp))
+            }
+
+            Column {
+                Text(value, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                Text(label, fontSize = 11.sp, color = TextSecondary)
             }
         }
     }
 }
 
+private data class BadgeItem(
+    val title: String,
+    val desc: String,
+    val icon: ImageVector,
+    val accentColor: Color,
+    val isUnlocked: Boolean
+)
+
 @Composable
-private fun BadgeCard(badge: BadgeData) {
+private fun BadgeCardDetailed(badge: BadgeItem) {
     Card(
-        modifier = Modifier
-            .width(72.dp)
-            .height(88.dp),
+        modifier = Modifier.fillMaxWidth().height(72.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface1),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+        colors = CardDefaults.cardColors(containerColor = if (badge.isUnlocked) Surface1 else Color(0xFF0F172A)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (badge.isUnlocked) badge.accentColor.copy(alpha = 0.5f) else BorderSubtle)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Row(
+            modifier = Modifier.fillMaxSize().padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(badge.icon, null, tint = badge.color, modifier = Modifier.size(22.dp))
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                badge.name,
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                fontSize = 9.sp
-            )
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(if (badge.isUnlocked) badge.accentColor.copy(alpha = 0.2f) else Surface2),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    badge.icon, null,
+                    tint = if (badge.isUnlocked) badge.accentColor else TextTertiary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    badge.title,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (badge.isUnlocked) TextPrimary else TextTertiary,
+                    maxLines = 1
+                )
+                Text(
+                    if (badge.isUnlocked) "UNLOCKED 🎉" else badge.desc,
+                    fontSize = 10.sp,
+                    color = if (badge.isUnlocked) badge.accentColor else TextTertiary,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
-
-private data class BadgeData(
-    val name: String,
-    val icon: ImageVector,
-    val color: Color
-)

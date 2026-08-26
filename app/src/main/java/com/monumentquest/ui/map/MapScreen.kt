@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -128,6 +130,40 @@ private fun createMonumentMarker(context: Context, isSelected: Boolean, distance
     return BitmapDrawable(context.resources, bitmap)
 }
 
+
+private fun createHotelMarker(context: Context, hotelName: String, discountText: String): Drawable {
+    val totalW = 160
+    val totalH = 70
+    val bitmap = Bitmap.createBitmap(totalW, totalH, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint  = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    // Gold Pill Container
+    paint.color = AndroidColor.parseColor("#F00F172A")
+    val rect = RectF(4f, 4f, totalW - 4f, totalH - 4f)
+    canvas.drawRoundRect(rect, 18f, 18f, paint)
+
+    paint.color = AndroidColor.parseColor("#FFF0A500")
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 3f
+    canvas.drawRoundRect(rect, 18f, 18f, paint)
+
+    // Inner Text
+    paint.style = Paint.Style.FILL
+    paint.color = AndroidColor.WHITE
+    paint.textSize = 18f
+    paint.textAlign = Paint.Align.CENTER
+    paint.isFakeBoldText = true
+    canvas.drawText("🏨 " + discountText, totalW / 2f, 32f, paint)
+
+    paint.textSize = 15f
+    paint.color = AndroidColor.parseColor("#FF94A3B8")
+    val shortName = if (hotelName.length > 14) hotelName.take(12) + ".." else hotelName
+    canvas.drawText(shortName, totalW / 2f, 54f, paint)
+
+    return BitmapDrawable(context.resources, bitmap)
+}
+
 private fun createUserDot(context: Context): Drawable {
     // A character marker makes the player’s position instantly readable on the map.
     // Keep the canvas generously padded so the marker remains crisp while moving.
@@ -212,12 +248,14 @@ fun MapScreen(
 
     val searchResults    by viewModel.searchResults.collectAsState()
     val isSearching      by viewModel.isSearching.collectAsState()
+    val userProfile        by viewModel.userProfile.collectAsState()
 
     var selectedMonument  by remember { mutableStateOf<MapMonumentItem?>(null) }
     var mapViewInstance   by remember { mutableStateOf<PerspectiveMapView?>(null) }
     var userMarker        by remember { mutableStateOf<Marker?>(null) }
     val monumentMarkers   = remember { mutableMapOf<String, Marker>() }
     val geofencePolygons  = remember { mutableMapOf<String, Polygon>() }
+    val hotelMarkers       = remember { mutableMapOf<String, Marker>() }
     val selectedMarkerIds = remember { mutableStateOf<Set<String>>(emptySet()) }
     val walkPolyline      = remember { mutableStateOf<Polyline?>(null) }
     val routePolyline     = remember { mutableStateOf<Polyline?>(null) }
@@ -376,6 +414,9 @@ fun MapScreen(
                 }
             }
         }
+        
+        // Partner Hotels rendered dynamically from live API / Overpass repository
+
         selectedMarkerIds.value = newSelectedIds
         map.invalidate()
     }
@@ -532,7 +573,7 @@ fun MapScreen(
                 ) {
                     Icon(Icons.Default.Star, null, tint = Color.White, modifier = Modifier.size(15.dp))
                     Text(
-                        "1,250 XP",
+                        "${userProfile.xp} XP",
                         color      = Color.White,
                         fontSize   = 12.5.sp,
                         fontWeight = FontWeight.ExtraBold
@@ -709,9 +750,9 @@ fun MapScreen(
                         modifier              = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        DarkStat("Points", "1,250 XP", Icons.Default.WorkspacePremium, Modifier.weight(1f))
+                        DarkStat("Points", "${userProfile.xp} XP", Icons.Default.WorkspacePremium, Modifier.weight(1f))
                         DarkStat("Sites Captured", "${coverageStats.structuresVisitedCount}", Icons.Default.Place, Modifier.weight(1f))
-                        DarkStat("Streak", "3 Days", Icons.Default.LocalFireDepartment, Modifier.weight(1f))
+                        DarkStat("Streak", "${userProfile.streakDays} Days", Icons.Default.LocalFireDepartment, Modifier.weight(1f))
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -863,6 +904,7 @@ private fun MonumentCard(
     onExplore: () -> Unit,
     onLogVisit: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     Surface(
         shape           = RoundedCornerShape(20.dp),
         color           = Color(0xFF0F172A),
@@ -934,6 +976,26 @@ private fun MonumentCard(
                 }
             }
             Spacer(Modifier.height(14.dp))
+            // Nearby Hotel Pass Action Button (SIH26202 Tourism Hub)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF1E293B))
+                    .clickable {
+                        Toast.makeText(context, "🏨 Nearby Hotels near " + monument.name + ": 3 Hotels with 20% OFF Pass!", Toast.LENGTH_LONG).show()
+                    }
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Default.Hotel, null, tint = Color(0xFFF0A500), modifier = Modifier.size(15.dp))
+                    Text("Hotels Near " + monument.name, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+                Text("View Passes >", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8))
+            }
+            Spacer(Modifier.height(10.dp))
             Row(
                 modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)

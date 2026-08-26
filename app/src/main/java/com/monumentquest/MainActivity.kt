@@ -1,68 +1,46 @@
 package com.monumentquest
 
-import android.Manifest
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DynamicFeed
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Leaderboard
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.DynamicFeed
-import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.outlined.Leaderboard
-import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
 import androidx.navigation.navArgument
-import com.monumentquest.core.location.LocationTrackingService
 import com.monumentquest.ui.auth.AuthScreen
 import com.monumentquest.ui.discovery.CameraScreen
 import com.monumentquest.ui.discovery.DiscoveryFormScreen
+import com.monumentquest.ui.social.GuildsScreen
+import com.monumentquest.ui.hotel.HotelPerksScreen
 import com.monumentquest.ui.journalist.JournalistScreen
+import com.monumentquest.ui.social.LeaderboardScreen
 import com.monumentquest.ui.map.MapScreen
 import com.monumentquest.ui.map.MonumentDetailScreen
+import com.monumentquest.ui.map.MonumentWallScreen
 import com.monumentquest.ui.narrator.NarratorScreen
 import com.monumentquest.ui.profile.ProfileScreen
-import com.monumentquest.ui.social.GuildsScreen
-import com.monumentquest.ui.social.LeaderboardScreen
 import com.monumentquest.ui.social.SocialFeedScreen
 import com.monumentquest.ui.splash.SplashScreen
 import com.monumentquest.ui.theme.*
@@ -72,51 +50,35 @@ import java.nio.charset.StandardCharsets
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* handle results */ }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         setContent {
             MonumentQuestTheme {
-                val navController        = rememberNavController()
-                val navBackStackEntry    by navController.currentBackStackEntryAsState()
-                val currentDestination   = navBackStackEntry?.destination
+                val navController      = rememberNavController()
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentDestination = navBackStackEntry?.destination
 
-                LaunchedEffect(Unit) {
-                    requestPermissionLauncher.launch(
-                        arrayOf(
-                            Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION,
-                            Manifest.permission.CAMERA
-                        )
-                    )
-                    LocationTrackingService.start(this@MainActivity)
-                }
-
-                val hideNavRoutes = setOf(
-                    "splash", "auth", "camera",
-                    "narrator/{monumentName}", "journalist",
-                    "discovery_form/{imageUri}",
-                    "monument_wall/{monumentId}",
-                    "monument_detail/{monumentId}"
+                val mainRoutes = setOf(
+                    Screen.Map.route,
+                    Screen.Hotels.route,
+                    Screen.Feed.route,
+                    Screen.Leaderboard.route,
+                    Screen.Guilds.route,
+                    Screen.Profile.route
                 )
-                val hideNav = hideNavRoutes.any { pattern ->
-                    currentDestination?.route?.let { route ->
-                        route == pattern || route.startsWith(pattern.substringBefore("{"))
-                    } == true
-                }
+
+                val showBottomNav = currentDestination?.route in mainRoutes
 
                 Scaffold(
-                    containerColor = ObsidianBlack,
+                    modifier = Modifier.fillMaxSize(),
+                    containerColor = Bg,
                     bottomBar = {
                         AnimatedVisibility(
-                            visible = !hideNav,
+                            visible = showBottomNav,
                             enter   = slideInVertically(
-                                animationSpec  = tween(380),
+                                animationSpec = tween(320),
                                 initialOffsetY = { it }
                             ) + fadeIn(tween(280)),
                             exit    = slideOutVertically(
@@ -127,6 +89,7 @@ class MainActivity : ComponentActivity() {
                             FloatingNavBar(
                                 items = listOf(
                                     Screen.Map,
+                                    Screen.Hotels,
                                     Screen.Feed,
                                     Screen.Leaderboard,
                                     Screen.Guilds,
@@ -177,6 +140,9 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToNarrator  = { name -> navController.navigate("narrator/$name") },
                                 onNavigateToJournalist = { navController.navigate("journalist") }
                             )
+                        }
+                        composable(Screen.Hotels.route) {
+                            HotelPerksScreen()
                         }
                         composable(Screen.Feed.route) {
                             SocialFeedScreen(
@@ -238,7 +204,6 @@ class MainActivity : ComponentActivity() {
                             DiscoveryFormScreen(
                                 imageUri  = decoded,
                                 onSuccess = {
-                                    // popBackStack to "map" by route — go back to map tab
                                     navController.navigate(Screen.Map.route) {
                                         popUpTo(Screen.Map.route) { inclusive = false }
                                         launchSingleTop = true
@@ -253,7 +218,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// ── Professional bottom navigation dock ───────────────────────────────────────
 @Composable
 private fun FloatingNavBar(
     items: List<Screen>,
@@ -261,14 +225,14 @@ private fun FloatingNavBar(
     onNavigate: (Screen) -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
         shape = RoundedCornerShape(24.dp),
         color = Surface1.copy(alpha = 0.98f),
         border = androidx.compose.foundation.BorderStroke(1.dp, Border),
         shadowElevation = 18.dp
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 6.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
@@ -297,23 +261,23 @@ private fun NavPillItem(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(imageVector = if (isSelected) screen.icon else screen.outlinedIcon, contentDescription = screen.label, tint = tint, modifier = Modifier.size(22.dp))
-            Spacer(Modifier.height(4.dp))
-            Text(screen.label, color = tint, fontSize = 10.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+            Icon(imageVector = if (isSelected) screen.icon else screen.outlinedIcon, contentDescription = screen.label, tint = tint, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.height(3.dp))
+            Text(screen.label, color = tint, fontSize = 9.5.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
         }
     }
 }
 
-// ── Nav destinations ──────────────────────────────────────────────────────────
 sealed class Screen(
     val route:       String,
     val label:       String,
     val icon:        androidx.compose.ui.graphics.vector.ImageVector,
     val outlinedIcon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
-    object Map         : Screen("map",         "Explore",    Icons.Filled.Map,         Icons.Outlined.Map)
-    object Feed        : Screen("feed",        "Chronicles", Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed)
+    object Map         : Screen("map",         "Explore",    Icons.Filled.Map,          Icons.Outlined.Map)
+    object Hotels      : Screen("hotels",      "Hotels",     Icons.Filled.Hotel,        Icons.Outlined.Hotel)
+    object Feed        : Screen("feed",        "Feed",       Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed)
     object Leaderboard : Screen("leaderboard", "Rankings",   Icons.Filled.Leaderboard, Icons.Outlined.Leaderboard)
-    object Guilds      : Screen("guilds",      "Guilds",     Icons.Filled.Group,       Icons.Outlined.Group)
-    object Profile     : Screen("profile",     "Journal",    Icons.Filled.Person,      Icons.Outlined.Person)
+    object Guilds      : Screen("guilds",      "Guilds",     Icons.Filled.Group,        Icons.Outlined.Group)
+    object Profile     : Screen("profile",     "Journal",    Icons.Filled.Person,       Icons.Outlined.Person)
 }

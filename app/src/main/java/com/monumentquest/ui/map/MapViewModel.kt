@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -37,9 +38,12 @@ data class CoverageStats(
 class MapViewModel @Inject constructor(
     private val locationManager: LocationManager,
     private val overpassRepository: OverpassRepository,
+    private val monumentApi: com.monumentquest.data.remote.MonumentApi,
     @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
+        private val _userProfile = MutableStateFlow(com.monumentquest.data.model.UserProfile())
+    val userProfile: StateFlow<com.monumentquest.data.model.UserProfile> = _userProfile.asStateFlow()
     private val _userLocation = MutableStateFlow<GeoPoint?>(null)
     val userLocation: StateFlow<GeoPoint?> = _userLocation
 
@@ -112,6 +116,9 @@ class MapViewModel @Inject constructor(
 
     init {
         loadExploredZones()
+
+        fetchUserProfile()
+
         startLiveGpsTracking()
     }
 
@@ -223,7 +230,21 @@ class MapViewModel @Inject constructor(
         }
     }
 
-    private fun loadExploredZones() {
+    
+    fun fetchUserProfile() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val profile = monumentApi.getUserProfile()
+                _userProfile.value = profile
+            } catch (e: Exception) {
+                // Keep default
+            }
+        }
+    }
+
+    private fun loadExploredZones()
+
+ {
         val data = prefs.getString("explored_zones", "") ?: ""
         if (data.isNotBlank()) {
             val zones = data.split("|").mapNotNull {
@@ -257,12 +278,32 @@ class MapViewModel @Inject constructor(
     }
 
     private fun fetchRealOverpassMonuments(lat: Double, lon: Double) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val backendRes = monumentApi.getNearbyMonuments(lat, lon)
+                val items = backendRes["monuments"] ?: emptyList()
+                if (items.isNotEmpty()) {
+                    val mapItems = items.map { m ->
+                        MapMonumentItem(
+                            id = m.id,
+                            name = m.name,
+                            locationName = _detectedCityName.value,
+                            geoPoint = GeoPoint(m.latitude, m.longitude),
+                            points = m.points,
+                            category = m.category,
+                            distanceMeters = m.distanceMeters
+                        )
+                    }
+                    _monuments.value = mapItems
+                    return@launch
+                }
+            } catch (e: Exception) {
+                // Fallback to Overpass
+            }
+
             val realMonuments = overpassRepository.fetchRealMonumentsNearby(lat, lon)
             if (realMonuments.isNotEmpty()) {
                 _monuments.value = realMonuments
-            } else {
-                generateDynamicFallback(lat, lon)
             }
         }
     }
@@ -276,14 +317,7 @@ class MapViewModel @Inject constructor(
         }
     }
 
-    private fun generateDynamicFallback(lat: Double, lon: Double) {
-        val city = _detectedCityName.value
-        _monuments.value = listOf(
-            MapMonumentItem("m1", "Historic Landmark", city, GeoPoint(lat + 0.0018, lon + 0.0014), 500, "Heritage Shrine", 180),
-            MapMonumentItem("m2", "Cultural Sanctuary", city, GeoPoint(lat - 0.0012, lon + 0.0022), 450, "Historic Temple", 150),
-            MapMonumentItem("m3", "Ancient Relic Pillar", city, GeoPoint(lat + 0.0028, lon - 0.0016), 600, "Archaeological Monument", 310)
-        )
-    }
+
 
     private fun recalculateDistances(userLoc: Location) {
         val updated = _monuments.value.map { mon ->

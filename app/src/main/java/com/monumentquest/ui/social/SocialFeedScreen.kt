@@ -157,7 +157,7 @@ fun SocialFeedScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 28.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 140.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {

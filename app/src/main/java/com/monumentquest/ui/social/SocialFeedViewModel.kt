@@ -1,51 +1,46 @@
 package com.monumentquest.ui.social
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.monumentquest.data.model.DiscovererStory
 import com.monumentquest.data.model.SocialPost
+import com.monumentquest.data.remote.MonumentApi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-enum class FeedFilter(val label: String) {
-    GLOBAL("🌐 Global"),
-    GUILD("🛡️ Guild"),
-    NEARBY("📍 Nearby")
+enum class FeedFilter {
+    GLOBAL, GUILD, NEARBY
 }
 
 data class PostComment(
-    val id: String = "",
-    val userName: String = "",
-    val text: String = "",
+    val id: String,
+    val userName: String,
+    val text: String,
     val timeAgo: String = "Just now"
 )
 
 @HiltViewModel
 class SocialFeedViewModel @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val monumentApi: MonumentApi
 ) : ViewModel() {
-
-    private val _posts = MutableStateFlow<List<SocialPost>>(emptyList())
-    val posts: StateFlow<List<SocialPost>> = _posts
 
     private val _stories = MutableStateFlow<List<DiscovererStory>>(
         listOf(
-            DiscovererStory("s1", "Aarav Patnaik"),
-            DiscovererStory("s2", "Priya Mohanty"),
-            DiscovererStory("s3", "Subhashree Das"),
-            DiscovererStory("s4", "Rohan Mishra")
+            DiscovererStory("s1", "Aarav S.", "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=400"),
+            DiscovererStory("s2", "Priya P.", "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400")
         )
     )
     val stories: StateFlow<List<DiscovererStory>> = _stories
+
+    private val _posts = MutableStateFlow<List<SocialPost>>(emptyList())
+    val posts: StateFlow<List<SocialPost>> = _posts
 
     private val _currentFilter = MutableStateFlow(FeedFilter.GLOBAL)
     val currentFilter: StateFlow<FeedFilter> = _currentFilter
@@ -64,9 +59,6 @@ class SocialFeedViewModel @Inject constructor(
             "p1" to listOf(
                 PostComment("c1", "Priya Mohanty", "The morning light on the Deula spire is breathtaking! ✨"),
                 PostComment("c2", "Subhashree Das", "Visited during Shivaratri, such divine energy!")
-            ),
-            "p2" to listOf(
-                PostComment("c3", "Aarav Patnaik", "Left a time capsule right near Marichi Kunda as well!")
             )
         )
     )
@@ -78,6 +70,7 @@ class SocialFeedViewModel @Inject constructor(
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+        fetchPosts()
     }
 
     fun setFilter(filter: FeedFilter) {
@@ -111,7 +104,6 @@ class SocialFeedViewModel @Inject constructor(
         currentMap[postId] = existingComments
         _postComments.value = currentMap
 
-        // Update comments count on post
         _posts.value = _posts.value.map { post ->
             if (post.id == postId) post.copy(commentsCount = post.commentsCount + 1) else post
         }
@@ -120,14 +112,27 @@ class SocialFeedViewModel @Inject constructor(
     fun fetchPosts() {
         viewModelScope.launch {
             try {
-                val snapshot = firestore.collection("social_posts")
-                    .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
-
-                val list = snapshot.toObjects(SocialPost::class.java)
-                if (list.isNotEmpty()) {
-                    _posts.value = filterList(list, _currentFilter.value)
+                val feedRes = monumentApi.getFeed()
+                if (feedRes.feed.isNotEmpty()) {
+                    val postsList = feedRes.feed.map { f ->
+                        SocialPost(
+                            id = f.id,
+                            userId = "user_feed",
+                            userName = f.user_name,
+                            userRank = "Heritage Explorer",
+                            monumentName = f.monument_name,
+                            locationName = "Bhubaneswar, Odisha",
+                            imageUrl = f.image_url,
+                            caption = f.caption,
+                            postType = "CHECKIN",
+                            likesCount = f.likes,
+                            isLiked = false,
+                            commentsCount = 1,
+                            timestamp = System.currentTimeMillis(),
+                            timestampFormatted = "Just now"
+                        )
+                    }
+                    _posts.value = filterList(postsList, _currentFilter.value)
                 } else {
                     _posts.value = filterList(getSampleSocialPosts(), _currentFilter.value)
                 }
@@ -196,14 +201,14 @@ class SocialFeedViewModel @Inject constructor(
             SocialPost(
                 id = "p1",
                 userId = "u1",
-                userName = "Aarav Patnaik",
-                userRank = "Temple City Historian",
+                userName = "Aarav Sharma",
+                userRank = "Grand Master Explorer",
                 monumentName = "Lingaraj Temple",
                 locationName = "Old Town, Bhubaneswar",
                 imageUrl = "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800&auto=format&fit=crop",
-                caption = "Early morning visit to Lingaraj Temple! The 55m Deula spire lit up in warm morning light is an absolute masterpiece of 11th-century Kalinga architecture. 🛕✨ #kalinga #lingaraj",
+                caption = "Witnessed the magnificent 11th-century Kalinga architecture at Lingaraj Temple today! 🛕✨ #lingaraj",
                 postType = "CHECKIN",
-                likesCount = 84,
+                likesCount = 42,
                 isLiked = true,
                 commentsCount = 2,
                 timestamp = now - 1000 * 60 * 20,
@@ -212,34 +217,18 @@ class SocialFeedViewModel @Inject constructor(
             SocialPost(
                 id = "p2",
                 userId = "u2",
-                userName = "Priya Mohanty",
+                userName = "Priya Patel",
                 userRank = "Master Explorer",
                 monumentName = "Mukteshvara Temple",
                 locationName = "Kedargouri, Bhubaneswar",
                 imageUrl = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=800&auto=format&fit=crop",
-                caption = "The iconic carved Torana archway of Mukteshvara is stunning! Left an AR Time Capsule near the sacred Marichi Kunda tank. 🔮📜 #mukteshvara",
+                caption = "The ornate archway (torana) at Mukteshvara Temple is simply breathtaking. 🔮📜 #mukteshvara",
                 postType = "TIME_CAPSULE",
-                likesCount = 62,
+                likesCount = 29,
                 isLiked = false,
                 commentsCount = 1,
                 timestamp = now - 1000 * 60 * 110,
                 timestampFormatted = "1h ago"
-            ),
-            SocialPost(
-                id = "p3",
-                userId = "u3",
-                userName = "Subhashree Das",
-                userRank = "First Discoverer",
-                monumentName = "Dhauli Shanti Stupa",
-                locationName = "Dhauli Hills, Bhubaneswar",
-                imageUrl = "https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?q=80&w=800&auto=format&fit=crop",
-                caption = "Stood on Dhauli Hills where Emperor Ashoka renounced war after the Kalinga War in 261 BC. The peace pagoda overlooks the Daya River. 🕊️🌿 #dhauli",
-                postType = "DISCOVERY",
-                likesCount = 115,
-                isLiked = true,
-                commentsCount = 0,
-                timestamp = now - 1000 * 3600 * 5,
-                timestampFormatted = "5h ago"
             )
         )
     }
