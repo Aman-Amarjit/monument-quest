@@ -196,7 +196,7 @@ class SocialFeedViewModel @Inject constructor(
                     val ts = if (f.timestamp > 0) f.timestamp else System.currentTimeMillis()
 
                     val isMe = name.equals(myName, ignoreCase = true)
-                    val avatarToUse = if (isMe && !myAvatar.isNullOrBlank()) myAvatar else f.imageUrl
+                    val avatarToUse = if (isMe && !myAvatar.isNullOrBlank()) myAvatar else null
 
                     SocialPost(
                         id = f.id,
