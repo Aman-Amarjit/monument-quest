@@ -118,3 +118,11 @@ model TimeCapsule {
 
   @@index([monumentId, createdAt])
 }
+
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
