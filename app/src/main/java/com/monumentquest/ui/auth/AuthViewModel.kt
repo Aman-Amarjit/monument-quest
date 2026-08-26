@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 import javax.inject.Inject
 
 sealed class AuthUiState {
@@ -99,6 +100,16 @@ class AuthViewModel @Inject constructor(
                     _uiState.value = AuthUiState.Error(err)
                     onError(err)
                 }
+            } catch (e: HttpException) {
+                if (e.code() == 404) {
+                    // New user! OTP was verified, transition smoothly to Name Signup
+                    _uiState.value = AuthUiState.Idle
+                    onNeedsSignup()
+                } else {
+                    val err = "Invalid or expired 6-digit verification code."
+                    _uiState.value = AuthUiState.Error(err)
+                    onError(err)
+                }
             } catch (e: Exception) {
                 val err = "Invalid or expired 6-digit verification code."
                 _uiState.value = AuthUiState.Error(err)
@@ -137,6 +148,14 @@ class AuthViewModel @Inject constructor(
                     _uiState.value = AuthUiState.Error(err)
                     onError(err)
                 }
+            } catch (e: HttpException) {
+                val err = if (e.code() == 409) {
+                    "Username \"$cleanName\" is already taken. Please choose another username."
+                } else {
+                    "Registration failed. Invalid 6-digit code."
+                }
+                _uiState.value = AuthUiState.Error(err)
+                onError(err)
             } catch (e: Exception) {
                 val msg = e.message ?: ""
                 val err = if (msg.contains("taken", ignoreCase = true) || msg.contains("409")) {

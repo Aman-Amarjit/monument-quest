@@ -15,19 +15,27 @@ export class AuthController {
     } catch (error) { next(error); }
   }
 
-  // POST /auth/login-with-otp — verify database OTP then log in
+  // POST /auth/login-with-otp — verify database OTP then log in (do NOT delete OTP if 404 signup required)
   static async loginWithOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, code } = req.body ?? {};
       if (typeof email !== 'string' || typeof code !== 'string')
         return res.status(400).json({ success: false, error: 'Email and OTP code required' });
 
-      const valid = await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim());
+      const valid = await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim(), false);
       if (!valid)
         return res.status(400).json({ success: false, error: 'Invalid or expired OTP code' });
 
-      const data = await AuthService.loginWithOtp(email);
-      return res.json({ success: true, data });
+      try {
+        const data = await AuthService.loginWithOtp(email);
+        // Login succeeded — now consume the OTP code
+        await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim(), true);
+        return res.json({ success: true, data });
+      } catch (error: any) {
+        if (error?.status === 404)
+          return res.status(404).json({ success: false, error: error.message, needsSignup: true });
+        throw error;
+      }
     } catch (error: any) {
       if (error?.status === 404)
         return res.status(404).json({ success: false, error: error.message, needsSignup: true });
@@ -35,14 +43,14 @@ export class AuthController {
     }
   }
 
-  // POST /auth/register-with-otp — verify database OTP then create account
+  // POST /auth/register-with-otp — verify database OTP & consume it then create account
   static async registerWithOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, code, name } = req.body ?? {};
       if (typeof email !== 'string' || typeof code !== 'string' || typeof name !== 'string')
         return res.status(400).json({ success: false, error: 'Email, OTP code, and name required' });
 
-      const valid = await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim());
+      const valid = await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim(), true);
       if (!valid)
         return res.status(400).json({ success: false, error: 'Invalid or expired OTP code' });
 

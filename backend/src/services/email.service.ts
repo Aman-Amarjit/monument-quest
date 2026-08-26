@@ -76,7 +76,7 @@ export class EmailService {
     return code;
   }
 
-  static async verifyOtpAsync(email: string, code: string): Promise<boolean> {
+  static async verifyOtpAsync(email: string, code: string, consume = true): Promise<boolean> {
     const cleanEmail = email.trim().toLowerCase();
     const cleanCode = code.trim();
     const key = `otp:${cleanEmail}`;
@@ -93,8 +93,10 @@ export class EmailService {
 
       if (storedCode !== cleanCode && rawStoredCode !== cleanCode) return false;
 
-      // Delete matched key so code cannot be reused
-      await prisma.rateLimitBucket.delete({ where: { key } }).catch(() => {});
+      // Only delete if consume is true
+      if (consume) {
+        await prisma.rateLimitBucket.delete({ where: { key } }).catch(() => {});
+      }
       return true;
     } catch (e) {
       return false;
