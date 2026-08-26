@@ -26,20 +26,23 @@ export class FeedService {
         })).map((like) => like.postId))
       : new Set<string>();
 
-    const items = rows.map((post) => ({
-      id: post.id,
-      userName: post.user.name,
-      userAvatarUrl: post.user.avatarUrl || null,
-      monumentName: post.monument.name,
-      locationName: post.monument.locationName,
-      imageUrl: post.imageUrl || 'https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800',
-      caption: post.caption,
-      postType: post.postType,
-      likesCount: post._count.likes,
-      isLiked: liked.has(post.id),
-      commentsCount: 0,
-      timestamp: post.createdAt.getTime()
-    }));
+    const items = rows.map((post) => {
+      const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user.name)}&background=1E293B&color=D4AF37&bold=true&size=200`;
+      return {
+        id: post.id,
+        userName: post.user.name,
+        userAvatarUrl: post.user.avatarUrl && post.user.avatarUrl.trim().length > 0 ? post.user.avatarUrl : defaultAvatar,
+        monumentName: post.monument.name,
+        locationName: post.monument.locationName,
+        imageUrl: post.imageUrl || 'https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800',
+        caption: post.caption,
+        postType: post.postType,
+        likesCount: post._count.likes,
+        isLiked: liked.has(post.id),
+        commentsCount: 0,
+        timestamp: post.createdAt.getTime()
+      };
+    });
 
     return { items, nextCursor: hasMore ? rows[rows.length - 1].id : null };
   }
@@ -87,10 +90,12 @@ export class FeedService {
       }
     });
 
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user.name)}&background=1E293B&color=D4AF37&bold=true&size=200`;
+
     return {
       id: post.id,
       userName: post.user.name,
-      userAvatarUrl: post.user.avatarUrl || null,
+      userAvatarUrl: post.user.avatarUrl && post.user.avatarUrl.trim().length > 0 ? post.user.avatarUrl : defaultAvatar,
       monumentName: post.monument.name,
       locationName: post.monument.locationName,
       imageUrl: post.imageUrl,
