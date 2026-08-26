@@ -1,0 +1,8 @@
+import { NextFunction, Request, Response } from 'express';
+import { randomUUID } from 'crypto';
+import { config } from '../config/env';
+type Bucket = { count: number; resetAt: number };
+const buckets = new Map<string, Bucket>();
+export function requestId(req: Request, res: Response, next: NextFunction) { const id = req.header('x-request-id')?.slice(0, 80) || randomUUID(); res.setHeader('x-request-id', id); (req as Request & { requestId?: string }).requestId = id; next(); }
+export function rateLimit(options: { max?: number; windowMs?: number; key?: string } = {}) { const max = options.max ?? config.rateLimitMax; const windowMs = options.windowMs ?? config.rateLimitWindowMs; const prefix = options.key || 'api'; return (req: Request, res: Response, next: NextFunction) => { const now = Date.now(); const identity = req.ip || req.socket.remoteAddress || 'unknown'; const key = prefix + ':' + identity; const current = buckets.get(key); if (!current || current.resetAt <= now) { buckets.set(key, { count: 1, resetAt: now + windowMs }); return next(); } current.count += 1; if (current.count > max) { res.setHeader('retry-after', Math.ceil((current.resetAt - now) / 1000)); return res.status(429).json({ success: false, error: 'Too many requests. Please try again shortly.' }); } return next(); }; }
+setInterval(() => { const now = Date.now(); for (const [key, bucket] of buckets) if (bucket.resetAt <= now) buckets.delete(key); }, 10 * 60 * 1000).unref();
