@@ -23,8 +23,8 @@ data class AuthResponse(val success: Boolean, val data: AuthData, val needsSignu
 // Profile Update
 data class UpdateProfileRequest(val name: String? = null, val avatarUrl: String? = null)
 
-data class LeaderboardEntry(val rank: Int, val name: String, val xp: Int, val monuments_captured: Int, val badge: String)
-data class LeaderboardResponse(val leaderboard: List<LeaderboardEntry>)
+data class LeaderboardEntry(val rank: Int, val id: String? = null, val name: String, val xp: Int = 0, val monumentsCaptured: Int = 0, val badge: String = "EXPLORER")
+data class LeaderboardResponse(val success: Boolean = true, val data: List<LeaderboardEntry>? = null, val leaderboard: List<LeaderboardEntry>? = null)
 
 data class ApiFeedItem(
     val id: String,
