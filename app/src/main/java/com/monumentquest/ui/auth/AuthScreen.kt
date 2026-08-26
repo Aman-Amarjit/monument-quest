@@ -244,7 +244,7 @@ fun AuthScreen(
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it },
-                            label = { Text("Full Name (e.g. Aman Amarjit)") },
+                            label = { Text("Full Name (e.g. Heritage Explorer)") },
                             leadingIcon = { Icon(Icons.Default.Person, null, tint = TextSecondary) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),

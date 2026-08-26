@@ -194,16 +194,22 @@ class SocialFeedViewModel @Inject constructor(
                 val myAvatar = getMyAvatarUrl()
                 val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer"
 
+                // Create map of locally modified likes & comments to preserve state
+                val currentLocalMap = _posts.value.associate { it.id to Pair(it.isLiked, it.likesCount) }
+
                 val serverPosts = rawItems.map { f ->
                     val name = f.userName ?: f.user_name ?: "Heritage Explorer"
                     val mon = f.monumentName ?: f.monument_name ?: "Lingaraj Temple"
                     val img = f.imageUrl ?: f.image_url ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
-                    val likes = f.likesCount ?: f.likes ?: 0
                     val ts = if (f.timestamp > 0) f.timestamp else System.currentTimeMillis()
 
                     val isMe = name.equals(myName, ignoreCase = true)
                     val serverAvatar = f.userAvatarUrl ?: f.user_avatar_url
                     val avatarToUse = if (isMe && !myAvatar.isNullOrBlank()) myAvatar else serverAvatar
+
+                    val localState = currentLocalMap[f.id]
+                    val isLiked = localState?.first ?: f.isLiked
+                    val likesCount = localState?.second ?: (f.likesCount ?: f.likes ?: 0)
 
                     SocialPost(
                         id = f.id,
@@ -216,8 +222,8 @@ class SocialFeedViewModel @Inject constructor(
                         imageUrl = img,
                         caption = f.caption,
                         postType = f.postType ?: "CHECKIN",
-                        likesCount = likes,
-                        isLiked = f.isLiked,
+                        likesCount = likesCount,
+                        isLiked = isLiked,
                         commentsCount = f.commentsCount,
                         timestamp = ts,
                         timestampFormatted = formatTimeAgo(ts)
@@ -225,7 +231,11 @@ class SocialFeedViewModel @Inject constructor(
                 }
 
                 val userPostsWithAvatar = userPostsList.map { p ->
-                    if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
+                    val localState = currentLocalMap[p.id]
+                    val isLiked = localState?.first ?: p.isLiked
+                    val likesCount = localState?.second ?: p.likesCount
+                    val avatar = if (!myAvatar.isNullOrBlank()) myAvatar else p.userAvatarUrl
+                    p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
                 }
 
                 val allPosts = (userPostsWithAvatar + serverPosts).distinctBy { it.id }
