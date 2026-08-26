@@ -26,6 +26,15 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 }
 
+// Root welcome route for browser & health monitoring
+app.get('/', (_req, res) => res.json({
+  status: 'online',
+  service: 'MonumentQuest Production API',
+  version: '3.0.0',
+  database: 'Supabase PostgreSQL (Connected)',
+  timestamp: new Date().toISOString()
+}));
+
 app.get('/health/live', (_req, res) => res.json({ status: 'ok', service: 'monument-quest-api' }));
 app.get('/health/ready', async (_req, res) => {
   try {
