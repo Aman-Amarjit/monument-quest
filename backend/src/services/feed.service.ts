@@ -1,109 +1,88 @@
-export interface SocialFeedItem {
-  id: string;
-  userId: string;
-  userName: string;
-  userRank: string;
-  monumentName: string;
-  locationName: string;
-  imageUrl?: string;
-  caption: string;
-  postType: string;
-  likesCount: number;
-  isLiked: boolean;
-  commentsCount: number;
-  timestamp: number;
-}
+import { prisma } from '../lib/prisma';
+
+const allowedPostTypes = new Set(['DISCOVERY', 'CHECKIN', 'TIME_CAPSULE', 'REFLECTION']);
 
 export class FeedService {
-  private static postsList: SocialFeedItem[] = [
-    {
-      id: 'p1',
-      userId: 'u1',
-      userName: 'Aarav Patnaik',
-      userRank: 'Temple City Historian',
-      monumentName: 'Lingaraj Temple',
-      locationName: 'Old Town, Bhubaneswar',
-      imageUrl: 'https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800&auto=format&fit=crop',
-      caption: 'Early morning visit to Lingaraj Temple! The 55m Deula spire lit up in warm morning light is an absolute masterpiece of 11th-century Kalinga architecture. 🛕✨',
-      postType: 'CHECKIN',
-      likesCount: 84,
-      isLiked: true,
-      commentsCount: 12,
-      timestamp: Date.now() - 1000 * 60 * 20
-    },
-    {
-      id: 'p2',
-      userId: 'u2',
-      userName: 'Priya Mohanty',
-      userRank: 'Master Explorer',
-      monumentName: 'Mukteshvara Temple',
-      locationName: 'Kedargouri, Bhubaneswar',
-      imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=800&auto=format&fit=crop',
-      caption: 'The iconic carved Torana archway of Mukteshvara is stunning! Left an AR Time Capsule near the sacred Marichi Kunda tank. 🔮📜',
-      postType: 'TIME_CAPSULE',
-      likesCount: 62,
+  public static async getFeed(filter = 'GLOBAL', viewerId?: string, monumentId?: string) {
+    const posts = await prisma.post.findMany({
+      where: monumentId ? { monumentId } : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        user: { select: { id: true, name: true, userRank: true } },
+        monument: { select: { id: true, name: true, locationName: true } },
+        likes: { select: { userId: true } },
+        _count: { select: { likes: true } }
+      }
+    });
+
+    return posts
+      .filter((post) => filter !== 'NEARBY' || post.monument.locationName.toLowerCase().includes('bhubaneswar'))
+      .map((post) => ({
+        id: post.id,
+        userId: post.user.id,
+        userName: post.user.name,
+        userRank: post.user.userRank,
+        monumentId: post.monument.id,
+        monumentName: post.monument.name,
+        locationName: post.monument.locationName,
+        imageUrl: post.imageUrl || undefined,
+        caption: post.caption,
+        postType: post.postType,
+        likesCount: post._count.likes,
+        isLiked: viewerId ? post.likes.some((like) => like.userId === viewerId) : false,
+        commentsCount: 0,
+        timestamp: post.createdAt.getTime()
+      }));
+  }
+
+  public static async createPost(userId: string, monumentId: string | undefined, monumentName: string | undefined, caption: string, postType = 'CHECKIN', imageUrl?: string) {
+    const cleanCaption = caption.trim();
+    if (cleanCaption.length < 1 || cleanCaption.length > 2000) throw { status: 400, message: 'Caption must be between 1 and 2000 characters' };
+    const normalizedName = monumentName?.trim().toLowerCase();
+    const monument = monumentId
+      ? await prisma.monument.findUnique({ where: { id: monumentId } })
+      : (await prisma.monument.findMany()).find((item) => item.name.toLowerCase() === normalizedName);
+    if (!monument) throw { status: 404, message: 'Choose a valid monument from the catalog' };
+    if (!allowedPostTypes.has(postType)) throw { status: 400, message: 'Unsupported post type' };
+
+    const post = await prisma.post.create({
+      data: { userId, monumentId: monument.id, caption: cleanCaption, postType, imageUrl },
+      include: {
+        user: { select: { id: true, name: true, userRank: true } },
+        monument: { select: { id: true, name: true, locationName: true } },
+        _count: { select: { likes: true } }
+      }
+    });
+
+    return {
+      id: post.id,
+      userId: post.user.id,
+      userName: post.user.name,
+      userRank: post.user.userRank,
+      monumentId: post.monument.id,
+      monumentName: post.monument.name,
+      locationName: post.monument.locationName,
+      imageUrl: post.imageUrl || undefined,
+      caption: post.caption,
+      postType: post.postType,
+      likesCount: post._count.likes,
       isLiked: false,
-      commentsCount: 7,
-      timestamp: Date.now() - 1000 * 60 * 110
-    },
-    {
-      id: 'p3',
-      userId: 'u3',
-      userName: 'Subhashree Das',
-      userRank: 'First Discoverer',
-      monumentName: 'Dhauli Shanti Stupa',
-      locationName: 'Dhauli Hills, Bhubaneswar',
-      imageUrl: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?q=80&w=800&auto=format&fit=crop',
-      caption: 'Stood on Dhauli Hills where Emperor Ashoka renounced war after the Kalinga War in 261 BC. The peace pagoda overlooks the Daya River. 🕊️🌿',
-      postType: 'DISCOVERY',
-      likesCount: 115,
-      isLiked: true,
-      commentsCount: 18,
-      timestamp: Date.now() - 1000 * 3600 * 5
-    }
-  ];
-
-  public static async getFeed(filter: string = 'GLOBAL'): Promise<SocialFeedItem[]> {
-    if (filter === 'NEARBY') {
-      return this.postsList.filter(p => p.locationName.includes('Bhubaneswar'));
-    }
-    return this.postsList;
-  }
-
-  public static async createPost(
-    userId: string,
-    userName: string,
-    monumentName: string,
-    caption: string,
-    postType: string = 'CHECKIN',
-    imageUrl?: string
-  ): Promise<SocialFeedItem> {
-    const newPost: SocialFeedItem = {
-      id: 'sp_' + Date.now(),
-      userId,
-      userName: userName || 'Adventurer',
-      userRank: 'Bhubaneswar Explorer',
-      monumentName,
-      locationName: 'Bhubaneswar, Odisha',
-      imageUrl,
-      caption,
-      postType,
-      likesCount: 1,
-      isLiked: true,
       commentsCount: 0,
-      timestamp: Date.now()
+      timestamp: post.createdAt.getTime()
     };
-
-    this.postsList.unshift(newPost);
-    return newPost;
   }
 
-  public static async toggleLike(postId: string): Promise<{ likesCount: number; isLiked: boolean }> {
-    const post = this.postsList.find(p => p.id === postId);
-    if (!post) throw new Error('Post not found');
-
-    post.isLiked = !post.isLiked;
-    post.likesCount += post.isLiked ? 1 : -1;
-    return { likesCount: post.likesCount, isLiked: post.isLiked };
+  public static async toggleLike(postId: string, userId: string) {
+    const result = await prisma.$transaction(async (tx) => {
+      const post = await tx.post.findUnique({ where: { id: postId } });
+      if (!post) throw { status: 404, message: 'Post not found' };
+      const existing = await tx.postLike.findUnique({ where: { postId_userId: { postId, userId } } });
+      if (existing) await tx.postLike.delete({ where: { id: existing.id } });
+      else await tx.postLike.create({ data: { postId, userId } });
+      const likesCount = await tx.postLike.count({ where: { postId } });
+      return { likesCount, isLiked: !existing };
+    });
+    return result;
   }
 }
