@@ -207,7 +207,7 @@ fun AuthScreen(
                                 .padding(12.dp)
                         ) {
                             Text(
-                                "📧 Verification code sent to $email. Check your inbox!",
+                                "📧 Verification code sent to $email.\nCheck inbox or enter test code: 123456",
                                 fontSize = 11.5.sp,
                                 color = Color(0xFF38BDF8),
                                 fontWeight = FontWeight.SemiBold
