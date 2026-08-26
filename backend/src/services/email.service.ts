@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { prisma } from '../lib/prisma';
-import { env } from '../config/env';
+import { config } from '../config/env';
 
 const GMAIL_USER = process.env.GMAIL_USER || 'amanamarjit04@gmail.com';
 const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD || 'yaow cedqaynotjww';

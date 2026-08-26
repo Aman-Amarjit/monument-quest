@@ -20,9 +20,8 @@ data class AuthUser(
 data class AuthData(val token: String, val user: AuthUser)
 data class AuthResponse(val success: Boolean, val data: AuthData, val needsSignup: Boolean = false, val alreadyExists: Boolean = false)
 
-// Legacy compat
-data class SignUpRequest(val name: String, val username: String, val email: String, val password: String, val role: String = "Heritage Explorer")
-data class SignUpResponse(val success: Boolean, val userId: String, val user: UserProfile, val message: String)
+// Profile Update
+data class UpdateProfileRequest(val name: String? = null, val avatarUrl: String? = null)
 
 data class LeaderboardEntry(val rank: Int, val name: String, val xp: Int, val monuments_captured: Int, val badge: String)
 data class LeaderboardResponse(val leaderboard: List<LeaderboardEntry>)
@@ -31,6 +30,8 @@ data class ApiFeedItem(
     val id: String,
     val userName: String? = null,
     val user_name: String? = null,
+    val userAvatarUrl: String? = null,
+    val user_avatar_url: String? = null,
     val monumentName: String? = null,
     val monument_name: String? = null,
     val locationName: String? = null,
@@ -87,6 +88,9 @@ interface MonumentApi {
     // User profile & progress
     @GET("user/profile")
     suspend fun getUserProfile(): UserProfile
+
+    @PATCH("user/profile")
+    suspend fun updateProfile(@Body request: UpdateProfileRequest): Map<String, Any>
 
     @PATCH("user/progress")
     suspend fun syncProgress(@Body request: SyncProgressRequest): SyncProgressResponse

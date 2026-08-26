@@ -10,7 +10,7 @@ export class FeedService {
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
-        user: { select: { name: true } },
+        user: { select: { name: true, avatarUrl: true } },
         monument: { select: { name: true, locationName: true } },
         _count: { select: { likes: true } }
       }
@@ -28,6 +28,7 @@ export class FeedService {
     const items = rows.map((post) => ({
       id: post.id,
       userName: post.user.name,
+      userAvatarUrl: post.user.avatarUrl || null,
       monumentName: post.monument.name,
       locationName: post.monument.locationName,
       imageUrl: post.imageUrl || 'https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800',
@@ -46,7 +47,6 @@ export class FeedService {
     const caption = input.caption.trim();
     if (!caption || caption.length > 500) throw { status: 400, message: 'Caption must be between 1 and 500 characters' };
 
-    // Find default monument or first monument in DB
     let monumentId = input.monumentId;
     let monument = await prisma.monument.findUnique({ where: { id: monumentId } });
     if (!monument) {
@@ -80,7 +80,7 @@ export class FeedService {
         postType: input.postType || 'CHECKIN'
       },
       include: {
-        user: { select: { name: true } },
+        user: { select: { name: true, avatarUrl: true } },
         monument: { select: { name: true, locationName: true } },
         _count: { select: { likes: true } }
       }
@@ -89,6 +89,7 @@ export class FeedService {
     return {
       id: post.id,
       userName: post.user.name,
+      userAvatarUrl: post.user.avatarUrl || null,
       monumentName: post.monument.name,
       locationName: post.monument.locationName,
       imageUrl: post.imageUrl,
@@ -101,7 +102,7 @@ export class FeedService {
     };
   }
 
-  static async toggleLike(postId: string, userId: string) {
+  static async toggleLike(postId: String, userId: string) {
     return prisma.$transaction(async (tx) => {
       const post = await tx.post.findUnique({ where: { id: postId } });
       if (!post) throw { status: 404, message: 'Post not found' };
