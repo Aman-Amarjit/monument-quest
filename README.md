@@ -106,3 +106,25 @@ npm run start
 
 ## 📄 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+
+## Backend API
+
+The backend in [backend](backend) is now persistent and runnable locally. It uses Prisma with SQLite by default, JWT authentication, and transactional discovery rewards.
+
+```bash
+cd backend
+cp .env.example .env
+npm install
+npm run db:push
+npm run db:seed
+npm run dev
+```
+
+The API is served under `/api/v1`:
+
+- `POST /auth/register`, `POST /auth/login`, `POST /auth/guest`, and authenticated `GET /auth/me`
+- `GET /monuments`, `GET /monuments/nearby?latitude=20.24&longitude=85.83`, and authenticated `POST /monuments/capture`
+- `GET /feed`, authenticated `POST /feed/posts`, and authenticated `POST /feed/posts/:id/like`
+
+Use `Authorization: Bearer <token>` for protected routes. A discovery can only award XP once per explorer and only within 100 metres of the seeded monument.
