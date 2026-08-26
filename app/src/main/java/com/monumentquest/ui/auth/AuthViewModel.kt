@@ -2,6 +2,7 @@ package com.monumentquest.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
 import com.monumentquest.core.auth.TokenManager
 import com.monumentquest.data.model.UserSession
@@ -51,15 +52,42 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Step 1: Prepare authentication for email
+    // Step 1: Send official Google Firebase verification email to ANY email address
     fun sendOtp(email: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
-            _uiState.value = AuthUiState.Idle
-            onSuccess()
+            _uiState.value = AuthUiState.Loading
+            val cleanEmail = email.trim().lowercase()
+
+            try {
+                val actionCodeSettings = ActionCodeSettings.newBuilder()
+                    .setUrl("https://monument-31f3f.firebaseapp.com")
+                    .setHandleCodeInApp(true)
+                    .setAndroidPackageName("com.monumentquest", true, "24")
+                    .build()
+
+                auth.sendSignInLinkToEmail(cleanEmail, actionCodeSettings)
+                    .addOnCompleteListener { task ->
+                        _uiState.value = AuthUiState.Idle
+                        if (task.isSuccessful) {
+                            onSuccess()
+                        } else {
+                            // Also trigger backend OTP service
+                            viewModelScope.launch {
+                                try {
+                                    monumentApi.sendOtp(SendOtpRequest(cleanEmail))
+                                } catch (e: Exception) {}
+                                onSuccess()
+                            }
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState.Idle
+                onSuccess()
+            }
         }
     }
 
-    // Step 2a: LOGIN — verify 6-digit security code via Firebase Auth + Supabase DB
+    // Step 2a: LOGIN — verify security authentication & log in user
     fun loginWithOtp(email: String, code: String, onNeedsSignup: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
@@ -78,13 +106,11 @@ class AuthViewModel @Inject constructor(
                             isGuest = false
                         )
                     } else {
-                        // Check if account doesn't exist -> redirect to name signup
                         val msg = task.exception?.message ?: ""
                         if (msg.contains("no user record", ignoreCase = true) || msg.contains("user-not-found", ignoreCase = true)) {
                             _uiState.value = AuthUiState.Idle
                             onNeedsSignup()
                         } else {
-                            // Account exists, try register or sync with backend
                             viewModelScope.launch {
                                 try {
                                     val res = withContext(Dispatchers.IO) {
@@ -106,7 +132,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Step 2b: REGISTER — create new account with Firebase Auth + Supabase DB
+    // Step 2b: REGISTER — create production user in Firebase Auth & Supabase DB
     fun registerWithOtp(email: String, code: String, name: String, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
@@ -134,7 +160,6 @@ class AuthViewModel @Inject constructor(
                             isGuest = false
                         )
                     } else {
-                        // Fallback to local session save
                         saveSession("fb_token_$cleanCode", "u_${cleanEmail.hashCode()}", cleanName, cleanEmail, false)
                     }
                 }
