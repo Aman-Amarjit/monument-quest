@@ -66,7 +66,7 @@ class SocialFeedViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val prefs = context.getSharedPreferences("monument_feed_cache", Context.MODE_PRIVATE)
-    private val profilePrefs = context.getSharedPreferences("monument_profile_prefs", Context.MODE_PRIVATE)
+    private val profilePrefs = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
 
     private val _stories = MutableStateFlow<List<DiscovererStory>>(emptyList())
@@ -93,10 +93,12 @@ class SocialFeedViewModel @Inject constructor(
     private val userPostsList = mutableListOf<SocialPost>()
 
     private fun getMyAvatarUrl(): String? {
-        val userEmail = tokenManager.getUserEmail()?.lowercase()?.trim() ?: ""
-        return if (userEmail.isNotEmpty()) {
-            profilePrefs.getString("profile_avatar_uri_$userEmail", null)
-        } else null
+        val rawEmail = tokenManager.getUserEmail()?.lowercase()?.trim()
+            ?: auth.currentUser?.email?.lowercase()?.trim()
+            ?: ""
+        if (rawEmail.isEmpty()) return null
+        val userKey = rawEmail.replace("@", "_").replace(".", "_")
+        return profilePrefs.getString("profile_avatar_uri_$userKey", null)
     }
 
     init {
@@ -120,7 +122,11 @@ class SocialFeedViewModel @Inject constructor(
             if (!cachedPostsJson.isNullOrBlank()) {
                 val type = object : TypeToken<List<SocialPost>>() {}.type
                 val list: List<SocialPost> = gson.fromJson(cachedPostsJson, type)
-                _posts.value = filterList(list, _currentFilter.value)
+                val myAvatar = getMyAvatarUrl()
+                val updatedWithAvatar = list.map { p ->
+                    if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
+                }
+                _posts.value = filterList(updatedWithAvatar, _currentFilter.value)
             }
         } catch (e: Exception) {}
     }
@@ -216,11 +222,20 @@ class SocialFeedViewModel @Inject constructor(
                         timestampFormatted = formatTimeAgo(ts)
                     )
                 }
-                val allPosts = (userPostsList + serverPosts).distinctBy { it.id }
+
+                val userPostsWithAvatar = userPostsList.map { p ->
+                    if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
+                }
+
+                val allPosts = (userPostsWithAvatar + serverPosts).distinctBy { it.id }
                 _posts.value = filterList(allPosts, _currentFilter.value)
                 saveCache(_posts.value)
             } catch (e: Exception) {
-                _posts.value = filterList(userPostsList, _currentFilter.value)
+                val myAvatar = getMyAvatarUrl()
+                val userPostsWithAvatar = userPostsList.map { p ->
+                    if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
+                }
+                _posts.value = filterList(userPostsWithAvatar, _currentFilter.value)
             }
         }
     }
