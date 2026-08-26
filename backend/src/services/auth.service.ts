@@ -49,16 +49,24 @@ export class AuthService {
     return this.result(this.toProfile(user));
   }
 
-  // OTP-based register — no password, just name + email
+  // OTP-based register — strict unique username enforcement
   static async registerWithOtp(email: string, name: string): Promise<ReturnType<typeof AuthService.result>> {
     const normalizedEmail = email.trim().toLowerCase();
     const cleanName = name.trim();
     if (!/^[^\s]+@[^\s]+\.[^\s]+$/.test(normalizedEmail))
       throw { status: 400, message: 'A valid email is required' };
     if (cleanName.length < 2 || cleanName.length > 80)
-      throw { status: 400, message: 'Name must be between 2 and 80 characters' };
+      throw { status: 400, message: 'Username must be between 2 and 80 characters' };
 
-    // Auto-generate internal password hash (user never needs to know it)
+    // Enforce unique username across all users (case-insensitive check)
+    const existingNameUser = await prisma.user.findFirst({
+      where: { name: { equals: cleanName, mode: 'insensitive' } }
+    });
+    if (existingNameUser && existingNameUser.email !== normalizedEmail) {
+      throw { status: 409, message: `Username "${cleanName}" is already taken by another explorer. Please choose a different username.` };
+    }
+
+    // Auto-generate internal password hash
     const passwordHash = await bcrypt.hash(randomUUID(), 10);
     try {
       const user = await prisma.user.create({
@@ -80,7 +88,7 @@ export class AuthService {
         id,
         email: 'guest-' + id + '@guest.monumentquest.app',
         passwordHash: await bcrypt.hash(randomUUID(), 10),
-        name: 'Guest Explorer'
+        name: 'Guest Explorer ' + id.substring(0, 4)
       },
       include: { guild: true }
     });

@@ -123,7 +123,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Step 2b: REGISTER — strict new user registration via Firebase / backend API
+    // Step 2b: REGISTER — strict unique username check & account creation
     fun registerWithOtp(email: String, code: String, name: String, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
@@ -132,10 +132,46 @@ class AuthViewModel @Inject constructor(
             val cleanName = name.trim()
 
             if (cleanName.length < 2) {
-                _uiState.value = AuthUiState.Error("Please enter your full name.")
+                val err = "Username must be at least 2 characters long."
+                _uiState.value = AuthUiState.Error(err)
+                onError(err)
                 return@launch
             }
 
+            // 1. First validate username uniqueness with backend DB
+            try {
+                val backendRes = withContext(Dispatchers.IO) {
+                    monumentApi.registerWithOtp(RegisterWithOtpRequest(cleanEmail, cleanCode, cleanName))
+                }
+                if (backendRes.success) {
+                    // Unique username approved & account registered in DB
+                    auth.createUserWithEmailAndPassword(cleanEmail, "Pass#$cleanCode")
+                        .addOnCompleteListener { fbTask ->
+                            val fbUser = auth.currentUser
+                            fbUser?.updateProfile(com.google.firebase.auth.userProfileChangeRequest {
+                                displayName = cleanName
+                            })
+                            saveSession(backendRes.data.token, backendRes.data.user.id, cleanName, cleanEmail, false)
+                        }
+                    return@launch
+                } else if (backendRes.alreadyExists) {
+                    val err = "Username \"$cleanName\" is already taken. Please choose another username."
+                    _uiState.value = AuthUiState.Error(err)
+                    onError(err)
+                    return@launch
+                }
+            } catch (e: Exception) {
+                // If backend API returned error (e.g. 409 Username Taken), show exact message
+                val msg = e.message ?: ""
+                if (msg.contains("taken", ignoreCase = true) || msg.contains("409")) {
+                    val err = "Username \"$cleanName\" is already taken. Please choose another username."
+                    _uiState.value = AuthUiState.Error(err)
+                    onError(err)
+                    return@launch
+                }
+            }
+
+            // 2. Firebase Auth user creation fallback
             auth.createUserWithEmailAndPassword(cleanEmail, "Pass#$cleanCode")
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
@@ -151,24 +187,9 @@ class AuthViewModel @Inject constructor(
                             isGuest = false
                         )
                     } else {
-                        viewModelScope.launch {
-                            try {
-                                val res = withContext(Dispatchers.IO) {
-                                    monumentApi.registerWithOtp(RegisterWithOtpRequest(cleanEmail, cleanCode, cleanName))
-                                }
-                                if (res.success) {
-                                    saveSession(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, false)
-                                } else {
-                                    val err = task.exception?.message ?: "Registration failed. Invalid code."
-                                    _uiState.value = AuthUiState.Error(err)
-                                    onError(err)
-                                }
-                            } catch (e: Exception) {
-                                val err = task.exception?.message ?: "Registration failed. Check network or verification code."
-                                _uiState.value = AuthUiState.Error(err)
-                                onError(err)
-                            }
-                        }
+                        val err = task.exception?.message ?: "Registration failed. Username taken or invalid email."
+                        _uiState.value = AuthUiState.Error(err)
+                        onError(err)
                     }
                 }
         }

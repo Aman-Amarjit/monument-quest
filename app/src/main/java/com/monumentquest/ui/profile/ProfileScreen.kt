@@ -57,11 +57,15 @@ fun ProfileScreen(
     val prefs = remember { context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE) }
     val tokenManager = remember { TokenManager(context) }
 
+    val userKey = remember(currentSession) {
+        currentSession?.email?.lowercase()?.replace("@", "_")?.replace(".", "_") ?: "guest"
+    }
+
     var liveProfile by remember { mutableStateOf(UserProfile()) }
 
     var customUsername by remember {
         mutableStateOf(
-            prefs.getString("profile_name", null)
+            prefs.getString("profile_name_$userKey", null)
                 ?: currentSession?.name
                 ?: tokenManager.getUserName()
                 ?: "Explorer"
@@ -70,12 +74,12 @@ fun ProfileScreen(
 
     var customBio by remember {
         mutableStateOf(
-            prefs.getString("profile_bio", "Odisha Heritage Explorer & Monument Discoverer")!!
+            prefs.getString("profile_bio_$userKey", "Odisha Heritage Explorer & Monument Discoverer")!!
         )
     }
 
     var customAvatarUriString by remember {
-        mutableStateOf(prefs.getString("profile_avatar_uri", null))
+        mutableStateOf(prefs.getString("profile_avatar_uri_$userKey", null))
     }
 
     var showEditDialog by remember { mutableStateOf(false) }
@@ -86,25 +90,32 @@ fun ProfileScreen(
         if (uri != null) {
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
-                val destFile = File(context.filesDir, "user_profile_avatar.jpg")
+                val destFile = File(context.filesDir, "user_avatar_$userKey.jpg")
                 val outputStream = FileOutputStream(destFile)
                 inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
                 val savedUri = Uri.fromFile(destFile).toString()
 
                 customAvatarUriString = savedUri
-                prefs.edit().putString("profile_avatar_uri", savedUri).apply()
+                prefs.edit().putString("profile_avatar_uri_$userKey", savedUri).apply()
             } catch (e: Exception) {
                 customAvatarUriString = uri.toString()
-                prefs.edit().putString("profile_avatar_uri", uri.toString()).apply()
+                prefs.edit().putString("profile_avatar_uri_$userKey", uri.toString()).apply()
             }
         }
     }
 
-    LaunchedEffect(currentSession) {
+    LaunchedEffect(currentSession, userKey) {
+        customUsername = prefs.getString("profile_name_$userKey", null)
+            ?: currentSession?.name
+            ?: tokenManager.getUserName()
+            ?: "Explorer"
+        customBio = prefs.getString("profile_bio_$userKey", "Odisha Heritage Explorer & Monument Discoverer")!!
+        customAvatarUriString = prefs.getString("profile_avatar_uri_$userKey", null)
+
         if (currentSession != null && !currentSession!!.isGuest) {
-            if (prefs.getString("profile_name", null) == null) {
+            if (prefs.getString("profile_name_$userKey", null) == null) {
                 customUsername = currentSession!!.name
-                prefs.edit().putString("profile_name", currentSession!!.name).apply()
+                prefs.edit().putString("profile_name_$userKey", currentSession!!.name).apply()
             }
         }
 
@@ -525,8 +536,8 @@ fun ProfileScreen(
                         customBio = cleanBio
 
                         prefs.edit()
-                            .putString("profile_name", cleanName)
-                            .putString("profile_bio", cleanBio)
+                            .putString("profile_name_$userKey", cleanName)
+                            .putString("profile_bio_$userKey", cleanBio)
                             .apply()
                         tokenManager.saveUserName(cleanName)
 
