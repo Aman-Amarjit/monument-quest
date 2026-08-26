@@ -112,21 +112,27 @@ class SocialFeedViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val feedRes = withContext(Dispatchers.IO) { monumentApi.getFeed() }
-                val serverPosts = feedRes.feed.map { f ->
+                val rawItems = feedRes.data ?: feedRes.feed ?: emptyList()
+                val serverPosts = rawItems.map { f ->
+                    val name = f.userName ?: f.user_name ?: "Heritage Explorer"
+                    val mon = f.monumentName ?: f.monument_name ?: "Lingaraj Temple"
+                    val img = f.imageUrl ?: f.image_url ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
+                    val likes = f.likesCount ?: f.likes ?: 0
+
                     SocialPost(
                         id = f.id,
                         userId = "user_feed_" + f.id,
-                        userName = f.user_name,
+                        userName = name,
                         userRank = "Heritage Explorer",
-                        monumentName = f.monument_name,
-                        locationName = "Bhubaneswar, Odisha",
-                        imageUrl = f.image_url.ifBlank { "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800" },
+                        monumentName = mon,
+                        locationName = f.locationName ?: "Bhubaneswar, Odisha",
+                        imageUrl = img,
                         caption = f.caption,
-                        postType = "CHECKIN",
-                        likesCount = f.likes,
-                        isLiked = false,
-                        commentsCount = 0,
-                        timestamp = System.currentTimeMillis(),
+                        postType = f.postType ?: "CHECKIN",
+                        likesCount = likes,
+                        isLiked = f.isLiked,
+                        commentsCount = f.commentsCount,
+                        timestamp = f.timestamp,
                         timestampFormatted = "Just now"
                     )
                 }
@@ -188,6 +194,8 @@ class SocialFeedViewModel @Inject constructor(
                 }
             }
 
+            val photoUrlToUse = savedPhotoUrl ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
+
             val newPost = SocialPost(
                 id = "sp_" + System.currentTimeMillis(),
                 userId = user?.uid ?: "user_me",
@@ -195,7 +203,7 @@ class SocialFeedViewModel @Inject constructor(
                 userRank = "Bhubaneswar Explorer",
                 monumentName = monumentName.ifBlank { "Lingaraj Temple" },
                 locationName = "Bhubaneswar, Odisha",
-                imageUrl = savedPhotoUrl ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800",
+                imageUrl = photoUrlToUse,
                 caption = caption,
                 postType = "CHECKIN",
                 likesCount = 1,
@@ -214,7 +222,7 @@ class SocialFeedViewModel @Inject constructor(
                     monumentApi.createPost(CreatePostRequest(
                         caption = caption,
                         monumentId = "m1",
-                        imageUrl = savedPhotoUrl ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
+                        imageUrl = photoUrlToUse
                     ))
                 } catch (e: Exception) {}
             }

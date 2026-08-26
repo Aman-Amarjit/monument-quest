@@ -26,8 +26,31 @@ data class SignUpResponse(val success: Boolean, val userId: String, val user: Us
 
 data class LeaderboardEntry(val rank: Int, val name: String, val xp: Int, val monuments_captured: Int, val badge: String)
 data class LeaderboardResponse(val leaderboard: List<LeaderboardEntry>)
-data class FeedPost(val id: String, val user_name: String, val monument_name: String, val image_url: String, val caption: String, val likes: Int)
-data class FeedResponse(val feed: List<FeedPost>)
+
+data class ApiFeedItem(
+    val id: String,
+    val userName: String? = null,
+    val user_name: String? = null,
+    val monumentName: String? = null,
+    val monument_name: String? = null,
+    val locationName: String? = null,
+    val imageUrl: String? = null,
+    val image_url: String? = null,
+    val caption: String,
+    val postType: String? = "CHECKIN",
+    val likesCount: Int? = 0,
+    val likes: Int? = 0,
+    val isLiked: Boolean = false,
+    val commentsCount: Int = 0,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class FeedResponse(
+    val success: Boolean = true,
+    val data: List<ApiFeedItem>? = null,
+    val feed: List<ApiFeedItem>? = null
+)
+
 data class CreatePostRequest(val caption: String, val monumentId: String = "m1", val imageUrl: String? = null)
 data class CreatePostResponse(val success: Boolean, val data: Map<String, Any>?)
 data class GuildItem(val id: String, val name: String, val description: String, val members_count: Int, val total_xp: Int, val rank: Int)
