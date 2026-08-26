@@ -8,7 +8,7 @@ plugins {
 }
 
 val monumentQuestApiBaseUrl = project.providers.gradleProperty("MONUMENTQUEST_API_BASE_URL")
-    .orElse("http://10.0.2.2:3000/api/v1/")
+    .orElse("https://monument-ten.vercel.app/api/v1/")
     .get()
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")

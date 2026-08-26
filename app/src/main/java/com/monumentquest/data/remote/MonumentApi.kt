@@ -28,6 +28,8 @@ data class LeaderboardEntry(val rank: Int, val name: String, val xp: Int, val mo
 data class LeaderboardResponse(val leaderboard: List<LeaderboardEntry>)
 data class FeedPost(val id: String, val user_name: String, val monument_name: String, val image_url: String, val caption: String, val likes: Int)
 data class FeedResponse(val feed: List<FeedPost>)
+data class CreatePostRequest(val caption: String, val monumentId: String = "m1", val imageUrl: String? = null)
+data class CreatePostResponse(val success: Boolean, val data: Map<String, Any>?)
 data class GuildItem(val id: String, val name: String, val description: String, val members_count: Int, val total_xp: Int, val rank: Int)
 data class GuildsResponse(val guilds: List<GuildItem>)
 
@@ -81,6 +83,9 @@ interface MonumentApi {
 
     @GET("feed")
     suspend fun getFeed(): FeedResponse
+
+    @POST("feed/posts")
+    suspend fun createPost(@Body request: CreatePostRequest): CreatePostResponse
 
     @GET("guilds")
     suspend fun getGuilds(): GuildsResponse

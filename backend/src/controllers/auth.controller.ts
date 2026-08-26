@@ -4,7 +4,7 @@ import { EmailService } from '../services/email.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 export class AuthController {
-  // POST /auth/send-otp — send OTP to email & return in data for instant on-screen notification
+  // POST /auth/send-otp
   static async sendOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email } = req.body ?? {};
@@ -15,14 +15,14 @@ export class AuthController {
     } catch (error) { next(error); }
   }
 
-  // POST /auth/login-with-otp — verify OTP then log in (existing users)
+  // POST /auth/login-with-otp — verify database OTP then log in
   static async loginWithOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, code } = req.body ?? {};
       if (typeof email !== 'string' || typeof code !== 'string')
         return res.status(400).json({ success: false, error: 'Email and OTP code required' });
 
-      const valid = EmailService.verifyOtp(email.trim().toLowerCase(), code.trim());
+      const valid = await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim());
       if (!valid)
         return res.status(400).json({ success: false, error: 'Invalid or expired OTP code' });
 
@@ -35,14 +35,14 @@ export class AuthController {
     }
   }
 
-  // POST /auth/register-with-otp — verify OTP then create account (new users)
+  // POST /auth/register-with-otp — verify database OTP then create account
   static async registerWithOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, code, name } = req.body ?? {};
       if (typeof email !== 'string' || typeof code !== 'string' || typeof name !== 'string')
         return res.status(400).json({ success: false, error: 'Email, OTP code, and name required' });
 
-      const valid = EmailService.verifyOtp(email.trim().toLowerCase(), code.trim());
+      const valid = await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim());
       if (!valid)
         return res.status(400).json({ success: false, error: 'Invalid or expired OTP code' });
 
