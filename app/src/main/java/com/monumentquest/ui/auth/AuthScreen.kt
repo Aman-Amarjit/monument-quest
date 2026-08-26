@@ -207,7 +207,7 @@ fun AuthScreen(
                                 .padding(12.dp)
                         ) {
                             Text(
-                                "📧 Verification code sent to $email. Check your inbox!",
+                                "🔒 Enter your 6-digit Security PIN for $email",
                                 fontSize = 11.5.sp,
                                 color = Color(0xFF38BDF8),
                                 fontWeight = FontWeight.SemiBold
@@ -217,8 +217,8 @@ fun AuthScreen(
                         OutlinedTextField(
                             value = otpCode,
                             onValueChange = { if (it.length <= 6) otpCode = it },
-                            label = { Text("Enter 6-Digit Email OTP") },
-                            leadingIcon = { Icon(Icons.Default.MarkEmailRead, null, tint = Gold) },
+                            label = { Text("Enter 6-Digit Security PIN") },
+                            leadingIcon = { Icon(Icons.Default.Lock, null, tint = Gold) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
