@@ -54,11 +54,18 @@ export class AuthController {
       if (!valid)
         return res.status(400).json({ success: false, error: 'Invalid or expired OTP code' });
 
-      const data = await AuthService.registerWithOtp(email, name);
-      return res.status(201).json({ success: true, data });
+      try {
+        const data = await AuthService.registerWithOtp(email, name);
+        return res.status(201).json({ success: true, data });
+      } catch (error: any) {
+        if (error?.status === 409) {
+          // Account already exists — fallback to instant login
+          const data = await AuthService.loginWithOtp(email);
+          return res.status(200).json({ success: true, data });
+        }
+        throw error;
+      }
     } catch (error: any) {
-      if (error?.status === 409)
-        return res.status(409).json({ success: false, error: error.message, alreadyExists: true });
       next(error);
     }
   }
