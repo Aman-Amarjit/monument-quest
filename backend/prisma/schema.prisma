@@ -14,19 +14,22 @@ model User {
   name         String
   userRank     String       @default("Bhubaneswar Explorer")
   points       Int          @default(100)
-  role         String       @default("EXPLORER") // EXPLORER, HISTORIAN, CUSTODIAN, ADMIN
+  role         String       @default("EXPLORER")
   guildId      String?
   guild        Guild?       @relation(fields: [guildId], references: [id])
   posts        Post[]
+  likes        PostLike[]
   discoveries  Discovery[]
   timeCapsules TimeCapsule[]
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+
+  @@index([points])
 }
 
 model Guild {
   id          String   @id @default(uuid())
-  name        String
+  name        String   @unique
   region      String
   totalPoints Int      @default(0)
   members     User[]
@@ -34,7 +37,7 @@ model Guild {
 }
 
 model Monument {
-  id                       String        @id @default(uuid())
+  id                       String        @id
   name                     String
   locationName             String
   latitude                 Float
@@ -48,41 +51,63 @@ model Monument {
   timeCapsules             TimeCapsule[]
   discoveries              Discovery[]
   createdAt                DateTime      @default(now())
+
+  @@index([latitude, longitude])
 }
 
 model Post {
   id           String     @id @default(uuid())
   userId       String
-  user         User       @relation(fields: [userId], references: [id])
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   monumentId   String
-  monument     Monument   @relation(fields: [monumentId], references: [id])
+  monument     Monument   @relation(fields: [monumentId], references: [id], onDelete: Cascade)
   caption      String
   imageUrl     String?
-  postType     String     @default("CHECKIN") // DISCOVERY, CHECKIN, TIME_CAPSULE, REFLECTION
-  likesCount   Int        @default(0)
+  postType     String     @default("CHECKIN")
   createdAt    DateTime   @default(now())
+  likes        PostLike[]
+
+  @@index([createdAt])
+  @@index([monumentId, createdAt])
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
 }
 
 model Discovery {
-  id           String     @id @default(uuid())
+  id           String    @id @default(uuid())
   userId       String
-  user         User       @relation(fields: [userId], references: [id])
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   monumentId   String
-  monument     Monument   @relation(fields: [monumentId], references: [id])
+  monument     Monument  @relation(fields: [monumentId], references: [id], onDelete: Cascade)
   imageUrl     String?
-  pointsEarned Int        @default(1000)
-  isFirst      Boolean    @default(true)
-  createdAt    DateTime   @default(now())
+  pointsEarned Int       @default(1000)
+  isFirst      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, monumentId])
+  @@index([monumentId, createdAt])
 }
 
 model TimeCapsule {
-  id           String     @id @default(uuid())
+  id           String   @id @default(uuid())
   monumentId   String
-  monument     Monument   @relation(fields: [monumentId], references: [id])
+  monument     Monument @relation(fields: [monumentId], references: [id], onDelete: Cascade)
   userId       String
-  user         User       @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   message      String
   latitude     Float
   longitude    Float
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime @default(now())
+
+  @@index([monumentId, createdAt])
 }
