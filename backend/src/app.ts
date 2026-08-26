@@ -2,28 +2,25 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { config } from './config/env';
+import { config, allowedOrigins } from './config/env';
 import router from './routes';
 import { errorHandler } from './middleware/error.middleware';
-
+import { requestId, rateLimit } from './middleware/request.middleware';
+import { disconnectPrisma, prisma } from './lib/prisma';
 const app = express();
-
+app.disable('x-powered-by');
+if (config.trustProxy) app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({ origin: config.corsOrigin === '*' ? true : config.corsOrigin.split(',').map((origin) => origin.trim()) }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
+app.use(cors({ origin: allowedOrigins() === '*' ? true : allowedOrigins(), methods: ['GET', 'POST', 'PATCH', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'] }));
+app.use(requestId);
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
+app.use(rateLimit());
 if (config.nodeEnv !== 'test') app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
-
+app.get('/health/live', (_req, res) => res.json({ status: 'ok', service: 'monument-quest-api' }));
+app.get('/health/ready', async (_req, res) => { try { await prisma.$queryRawUnsafe('SELECT 1'); res.json({ status: 'ready', database: 'ok' }); } catch { res.status(503).json({ status: 'not_ready', database: 'unavailable' }); } });
 app.use('/api/v1', router);
 app.use((_req, res) => res.status(404).json({ success: false, error: 'Route not found' }));
 app.use(errorHandler);
-
-if (require.main === module) {
-  app.listen(config.port, () => {
-    console.log('MonumentQuest API listening on port ' + config.port);
-    console.log('Health check: http://localhost:' + config.port + '/api/v1/health');
-  });
-}
-
+if (require.main === module) { const server = app.listen(config.port, '0.0.0.0', () => console.log('MonumentQuest API listening on port ' + config.port)); const shutdown = async (signal: string) => { console.log(signal + ': shutting down'); server.close(async () => { await disconnectPrisma(); process.exit(0); }); }; process.once('SIGTERM', () => void shutdown('SIGTERM')); process.once('SIGINT', () => void shutdown('SIGINT')); }
 export default app;
