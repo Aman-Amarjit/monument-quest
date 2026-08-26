@@ -1,5 +1,9 @@
 package com.monumentquest.ui.social
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,11 +22,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import com.monumentquest.data.model.DiscovererStory
 import com.monumentquest.data.model.SocialPost
 import com.monumentquest.ui.common.EmptyStateView
@@ -226,8 +232,8 @@ fun SocialFeedScreen(
         if (showCreateModal) {
             CreatePostModal(
                 onDismiss = { showCreateModal = false },
-                onSubmit  = { caption, monument ->
-                    viewModel.createPost(caption, monument)
+                onSubmit  = { caption, monument, photoUri ->
+                    viewModel.createPost(caption, monument, photoUri)
                     showCreateModal = false
                 }
             )
@@ -633,10 +639,19 @@ private fun CommentsSheetModal(
 @Composable
 private fun CreatePostModal(
     onDismiss: () -> Unit,
-    onSubmit: (String, String) -> Unit
+    onSubmit: (String, String, Uri?) -> Unit
 ) {
     var caption      by remember { mutableStateOf("") }
     var monumentName by remember { mutableStateOf("Lingaraj Temple") }
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedPhotoUri = uri
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -645,7 +660,7 @@ private fun CreatePostModal(
             Text("Create Expedition Log", fontWeight = FontWeight.Bold, color = TextPrimary)
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = monumentName,
                     onValueChange = { monumentName = it },
@@ -668,7 +683,7 @@ private fun CreatePostModal(
                     label = { Text("Share your discovery…") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp),
+                        .height(90.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor   = Gold,
@@ -679,11 +694,40 @@ private fun CreatePostModal(
                         unfocusedLabelColor  = TextSecondary
                     )
                 )
+
+                // Image upload selector card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Surface2)
+                        .border(1.dp, Border, RoundedCornerShape(12.dp))
+                        .clickable { photoPickerLauncher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selectedPhotoUri != null) {
+                        Image(
+                            painter = rememberAsyncImagePainter(selectedPhotoUri),
+                            contentDescription = "Selected Photo",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Default.AddAPhoto, null, tint = Gold, modifier = Modifier.size(24.dp))
+                            Text("Tap to Attach Monument Photo", fontSize = 12.sp, color = TextSecondary, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { onSubmit(caption, monumentName) },
+                onClick = { onSubmit(caption, monumentName, selectedPhotoUri) },
                 colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Bg),
                 enabled = caption.isNotBlank()
             ) {

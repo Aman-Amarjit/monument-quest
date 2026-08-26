@@ -1,5 +1,7 @@
 package com.monumentquest.ui.social
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -8,9 +10,12 @@ import com.monumentquest.data.model.DiscovererStory
 import com.monumentquest.data.model.SocialPost
 import com.monumentquest.data.remote.MonumentApi
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 enum class FeedFilter {
@@ -26,6 +31,7 @@ data class PostComment(
 
 @HiltViewModel
 class SocialFeedViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
     private val monumentApi: MonumentApi
@@ -177,9 +183,27 @@ class SocialFeedViewModel @Inject constructor(
         }
     }
 
-    fun createPost(caption: String, monumentName: String) {
+    fun createPost(caption: String, monumentName: String, photoUri: Uri? = null) {
         viewModelScope.launch {
             val user = auth.currentUser
+
+            // Save photo permanently to app internal files if selected
+            var savedPhotoUrl: String? = "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
+            if (photoUri != null) {
+                try {
+                    val postsDir = File(context.filesDir, "post_photos")
+                    if (!postsDir.exists()) postsDir.mkdirs()
+                    val destFile = File(postsDir, "post_${System.currentTimeMillis()}.jpg")
+
+                    val inputStream = context.contentResolver.openInputStream(photoUri)
+                    val outputStream = FileOutputStream(destFile)
+                    inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
+                    savedPhotoUrl = Uri.fromFile(destFile).toString()
+                } catch (e: Exception) {
+                    savedPhotoUrl = photoUri.toString()
+                }
+            }
+
             val newPost = SocialPost(
                 id = "sp_" + System.currentTimeMillis(),
                 userId = user?.uid ?: "user_me",
@@ -187,7 +211,7 @@ class SocialFeedViewModel @Inject constructor(
                 userRank = "Bhubaneswar Explorer",
                 monumentName = monumentName,
                 locationName = "Bhubaneswar, Odisha",
-                imageUrl = "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800",
+                imageUrl = savedPhotoUrl,
                 caption = caption,
                 postType = "CHECKIN",
                 likesCount = 1,
