@@ -47,7 +47,10 @@ fun HotelPerksScreen() {
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
-                val okHttp = NetworkModule.provideOkHttpClient()
+                val okHttp = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
                 val retro = NetworkModule.provideRetrofit(okHttp)
                 val api = NetworkModule.provideMonumentApi(retro)
                 val res = api.getPartnerHotels(20.2381, 85.8338)

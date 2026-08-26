@@ -72,7 +72,10 @@ fun ProfileScreen(
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
-                val okHttp = NetworkModule.provideOkHttpClient()
+                val okHttp = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
                 val retro = NetworkModule.provideRetrofit(okHttp)
                 val api = NetworkModule.provideMonumentApi(retro)
                 val p = api.getUserProfile()

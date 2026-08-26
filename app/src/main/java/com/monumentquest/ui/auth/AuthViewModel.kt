@@ -48,7 +48,7 @@ class AuthViewModel @Inject constructor(
                 userRank = "Explorer",
                 points   = 0,
                 isGuest  = false,
-                guildName = null
+                guildName = ""
             )
             _currentSession.value = session
             _uiState.value = AuthUiState.Authenticated(session)
@@ -132,12 +132,12 @@ class AuthViewModel @Inject constructor(
                     saveSessionFromAuth(res.data.token, res.data.user.id, "Guest Explorer", res.data.user.email, true)
                 } else {
                     // Offline guest fallback
-                    val session = UserSession("guest_local", "Guest Explorer", "guest@local", "Wanderer", 0, true, null)
+                    val session = UserSession("guest_local", "Guest Explorer", "guest@local", "Wanderer", 0, true, "")
                     _currentSession.value = session
                     _uiState.value = AuthUiState.Authenticated(session)
                 }
             } catch (e: Exception) {
-                val session = UserSession("guest_local", "Guest Explorer", "guest@local", "Wanderer", 0, true, null)
+                val session = UserSession("guest_local", "Guest Explorer", "guest@local", "Wanderer", 0, true, "")
                 _currentSession.value = session
                 _uiState.value = AuthUiState.Authenticated(session)
             }
@@ -163,7 +163,7 @@ class AuthViewModel @Inject constructor(
         tokenManager.saveUserEmail(email)
         val session = UserSession(
             uid = id, name = name, email = email,
-            userRank = "Explorer", points = 0, isGuest = isGuest, guildName = null
+            userRank = "Explorer", points = 0, isGuest = isGuest, guildName = ""
         )
         _currentSession.value = session
         _uiState.value = AuthUiState.Authenticated(session)
