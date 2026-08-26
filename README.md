@@ -110,7 +110,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Backend API
 
-The backend in [backend](backend) is now persistent and runnable locally. It uses Prisma with SQLite by default, JWT authentication, and transactional discovery rewards.
+The backend in [backend](backend) is now persistent and runnable locally. It uses Prisma with PostgreSQL, JWT authentication, transactional discovery rewards, and a shared PostgreSQL rate-limit bucket for multi-instance deployments.
+
+The API contract is available at [backend/openapi.yaml](backend/openapi.yaml). In production, set a strong JWT_SECRET, a PostgreSQL DATABASE_URL, and an explicit CORS_ORIGIN (comma-separated origins are supported). Run npm run db:push once during initial provisioning, then npm run db:seed to load the catalog.
 
 ```bash
 cd backend
