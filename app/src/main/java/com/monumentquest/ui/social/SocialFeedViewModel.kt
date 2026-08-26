@@ -205,7 +205,13 @@ class SocialFeedViewModel @Inject constructor(
 
                     val isMe = name.equals(myName, ignoreCase = true)
                     val serverAvatar = f.userAvatarUrl ?: f.user_avatar_url
-                    val avatarToUse = if (isMe && !myAvatar.isNullOrBlank()) myAvatar else serverAvatar
+                    val defaultAvatar = "https://ui-avatars.com/api/?name=${android.net.Uri.encode(name)}&background=1E293B&color=D4AF37&bold=true&size=200"
+
+                    val avatarToUse = when {
+                        isMe && !myAvatar.isNullOrBlank() -> myAvatar
+                        !serverAvatar.isNullOrBlank() -> serverAvatar
+                        else -> defaultAvatar
+                    }
 
                     val localState = currentLocalMap[f.id]
                     val isLiked = localState?.first ?: f.isLiked
