@@ -11,7 +11,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -133,7 +133,7 @@ fun ProfileScreen(
     val totalDistanceKm = liveProfile.totalDistanceKm
 
     val nextLevelXp = 500
-    val levelProgress = (xp.toFloat() / nextLevelXp.toFloat()).coerceIn(0f, 1f)
+    val levelProgress = (xp.toFloat() / nextLevelXp.toFloat()).coerceIn(0.05f, 1f)
 
     Scaffold(
         containerColor = Bg,
@@ -169,11 +169,12 @@ fun ProfileScreen(
                     IconButton(
                         onClick = { showEditDialog = true },
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(Surface2)
+                            .border(1.dp, Border, CircleShape)
                     ) {
-                        Icon(Icons.Default.Settings, null, tint = Gold, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Settings, null, tint = Gold, modifier = Modifier.size(19.dp))
                     }
                 }
                 HorizontalDivider(color = BorderSubtle, modifier = Modifier.padding(top = 8.dp))
@@ -193,7 +194,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
                     colors = CardDefaults.cardColors(containerColor = Surface1),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Gold.copy(alpha = 0.4f))
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Gold.copy(alpha = 0.45f))
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -206,22 +207,22 @@ fun ProfileScreen(
                                     painter = rememberAsyncImagePainter(customAvatarUriString),
                                     contentDescription = "Profile Photo",
                                     modifier = Modifier
-                                        .size(88.dp)
+                                        .size(92.dp)
                                         .clip(CircleShape)
-                                        .border(2.dp, Gold, CircleShape),
+                                        .border(2.5.dp, Gold, CircleShape),
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
                                 UserAvatar(
                                     name = customUsername,
-                                    size = 88.dp,
+                                    size = 92.dp,
                                     borderColor = Gold
                                 )
                             }
 
                             Box(
                                 modifier = Modifier
-                                    .size(28.dp)
+                                    .size(30.dp)
                                     .clip(CircleShape)
                                     .background(Gold)
                                     .border(2.dp, Surface1, CircleShape)
@@ -232,12 +233,12 @@ fun ProfileScreen(
                                     imageVector = Icons.Default.CameraAlt,
                                     contentDescription = "Change Photo",
                                     tint = Bg,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -253,7 +254,7 @@ fun ProfileScreen(
                             Icon(Icons.Default.Verified, null, tint = Gold, modifier = Modifier.size(18.dp))
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -268,13 +269,13 @@ fun ProfileScreen(
                                         )
                                     )
                                     .border(1.dp, Gold.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Icon(Icons.Default.MilitaryTech, null, tint = Gold, modifier = Modifier.size(13.dp))
+                                    Icon(Icons.Default.MilitaryTech, null, tint = Gold, modifier = Modifier.size(14.dp))
                                     Text(
                                         text = "Bhubaneswar Explorer",
                                         color = Gold,
@@ -288,14 +289,14 @@ fun ProfileScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(Color(0xFF2A0A00))
-                                    .border(1.dp, RedAccent.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .border(1.dp, RedAccent.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Icon(Icons.Default.LocalFireDepartment, null, tint = RedAccent, modifier = Modifier.size(13.dp))
+                                    Icon(Icons.Default.LocalFireDepartment, null, tint = RedAccent, modifier = Modifier.size(14.dp))
                                     Text(
                                         text = "$streakDays Day Streak",
                                         color = RedAccent,
@@ -306,7 +307,7 @@ fun ProfileScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
                             text = customBio,
@@ -354,7 +355,7 @@ fun ProfileScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Icon(Icons.Default.ElectricBolt, null, tint = Gold, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.ElectricBolt, null, tint = Gold, modifier = Modifier.size(17.dp))
                                 Text(
                                     text = "LEVEL $level EXPLORER",
                                     style = MaterialTheme.typography.labelSmall,
@@ -394,14 +395,14 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     MetricCard(
-                        label = "Monuments",
-                        value = "$visitedCount Captured",
+                        label = "Monuments Discovered",
+                        value = "$visitedCount",
                         icon = Icons.Default.Place,
                         iconColor = Color(0xFF38BDF8),
                         modifier = Modifier.weight(1f)
                     )
                     MetricCard(
-                        label = "Distance",
+                        label = "Distance Walked",
                         value = String.format("%.1f km", totalDistanceKm),
                         icon = Icons.Default.DirectionsWalk,
                         iconColor = Color(0xFF4ADE80),
@@ -412,7 +413,7 @@ fun ProfileScreen(
 
             // Badges & Trophies Section
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = "EXPLORER BADGES & UNLOCKS",
                         fontSize = 11.sp,
@@ -422,7 +423,7 @@ fun ProfileScreen(
                     )
 
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         item {
                             BadgeCard(title = "Deula Pioneer", desc = "Visited 1st Kalinga Temple", icon = Icons.Default.TempleHindu, accentColor = Gold, isUnlocked = visitedCount >= 1)
@@ -566,7 +567,7 @@ private fun MetricCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(40.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(iconColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
@@ -575,7 +576,7 @@ private fun MetricCard(
             }
 
             Column {
-                Text(value, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                Text(value, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
                 Text(label, fontSize = 11.sp, color = TextSecondary)
             }
         }
@@ -591,7 +592,7 @@ private fun BadgeCard(
     isUnlocked: Boolean
 ) {
     Card(
-        modifier = Modifier.width(160.dp),
+        modifier = Modifier.width(175.dp),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Surface1),
         border = androidx.compose.foundation.BorderStroke(1.dp, if (isUnlocked) accentColor.copy(alpha = 0.5f) else Border)
@@ -602,7 +603,7 @@ private fun BadgeCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
                     .background(if (isUnlocked) accentColor.copy(alpha = 0.2f) else Surface2),
                 contentAlignment = Alignment.Center
@@ -610,7 +611,7 @@ private fun BadgeCard(
                 Icon(
                     icon, null,
                     tint = if (isUnlocked) accentColor else TextSecondary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(17.dp)
                 )
             }
 
@@ -618,13 +619,17 @@ private fun BadgeCard(
                 title,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isUnlocked) TextPrimary else TextSecondary
+                color = if (isUnlocked) TextPrimary else TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 if (isUnlocked) "UNLOCKED 🎉" else desc,
-                fontSize = 10.sp,
+                fontSize = 10.5.sp,
                 color = if (isUnlocked) accentColor else TextSecondary,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
