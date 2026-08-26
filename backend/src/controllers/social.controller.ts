@@ -1,0 +1,3 @@
+import { Request, Response, NextFunction } from 'express';
+import { SocialService } from '../services/social.service';
+export class SocialController { static async leaderboard(req: Request, res: Response, next: NextFunction) { try { res.json({ success: true, data: await SocialService.leaderboard(Number(req.query.limit) || 50) }); } catch (error) { next(error); } } static async guilds(_req: Request, res: Response, next: NextFunction) { try { res.json({ success: true, data: await SocialService.guilds() }); } catch (error) { next(error); } } }
