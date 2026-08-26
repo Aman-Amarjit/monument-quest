@@ -1,3 +1,9 @@
+val monumentQuestApiBaseUrl = project.providers.gradleProperty("MONUMENTQUEST_API_BASE_URL")
+    .orElse("http://10.0.2.2:3000/api/v1/")
+    .get()
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -25,8 +31,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"$monumentQuestApiBaseUrl\"")
+        }
         release {
             isMinifyEnabled = false
+            buildConfigField("String", "API_BASE_URL", "\"$monumentQuestApiBaseUrl\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -42,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     // composeOptions block not needed with Kotlin 2.x + compose compiler plugin
     packaging {
