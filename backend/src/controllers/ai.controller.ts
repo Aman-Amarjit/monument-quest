@@ -1,32 +1,3 @@
 import { Request, Response, NextFunction } from 'express';
 import { AIService } from '../services/ai.service';
-
-export class AIController {
-  public static async talkToNarrator(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { monumentName, message } = req.body;
-      if (!monumentName || !message) {
-        return res.status(400).json({ success: false, error: 'monumentName and message are required' });
-      }
-
-      const response = await AIService.getPersonaResponse(monumentName, message);
-      res.json({ success: true, data: { role: 'assistant', message: response } });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  public static async verifyReflection(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { monumentName, content } = req.body;
-      if (!monumentName || !content) {
-        return res.status(400).json({ success: false, error: 'monumentName and content are required' });
-      }
-
-      const result = await AIService.verifyReflection(monumentName, content);
-      res.json({ success: true, data: result });
-    } catch (err) {
-      next(err);
-    }
-  }
-}
+export class AIController { static async talkToNarrator(req: Request, res: Response, next: NextFunction) { try { const { monumentName, message } = req.body || {}; if (typeof monumentName !== 'string' || typeof message !== 'string' || !message.trim()) return res.status(400).json({ success: false, error: 'monumentName and message are required' }); res.json({ success: true, data: { role: 'assistant', message: await AIService.getPersonaResponse(monumentName.slice(0, 120), message.slice(0, 1000)) } }); } catch (error) { next(error); } } static async verifyReflection(req: Request, res: Response, next: NextFunction) { try { const { monumentName, content } = req.body || {}; if (typeof monumentName !== 'string' || typeof content !== 'string' || !content.trim()) return res.status(400).json({ success: false, error: 'monumentName and content are required' }); res.json({ success: true, data: AIService.verifyReflection(monumentName.slice(0, 120), content.slice(0, 5000)) }); } catch (error) { next(error); } } }
