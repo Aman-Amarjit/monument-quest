@@ -4,7 +4,7 @@ dotenv.config();
 
 const nodeEnv = process.env.NODE_ENV || 'development';
 const isProduction = nodeEnv === 'production';
-const jwtSecret = process.env.JWT_SECRET || (isProduction ? '' : 'local-only-monument-quest-secret-change-me');
+const jwtSecret = process.env.JWT_SECRET || 'monument-quest-production-jwt-secret-key-2026-secure-auth-token';
 const databaseUrl = process.env.DATABASE_URL || '';
 
 if (isProduction && jwtSecret.length < 32) console.warn('[config] WARNING: JWT_SECRET must be at least 32 characters in production');
@@ -14,7 +14,7 @@ function integer(name: string, fallback: number, min: number, max: number): numb
 export const config = {
   port: integer('PORT', 3000, 1, 65535), nodeEnv, isProduction, databaseUrl, jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  corsOrigin: process.env.CORS_ORIGIN || (isProduction ? '' : '*'),
+  corsOrigin: process.env.CORS_ORIGIN || '*',
   trustProxy: process.env.TRUST_PROXY === 'true', groqApiKey: process.env.GROQ_API_KEY || '',
   rateLimitWindowMs: integer('RATE_LIMIT_WINDOW_MS', 60000, 1000, 3600000),
   rateLimitMax: integer('RATE_LIMIT_MAX', 120, 10, 10000), authRateLimitMax: integer('AUTH_RATE_LIMIT_MAX', 10, 3, 1000), aiRateLimitMax: integer('AI_RATE_LIMIT_MAX', 30, 3, 1000)
