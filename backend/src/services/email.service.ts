@@ -22,17 +22,16 @@ export class EmailService {
     const cleanEmail = email.trim().toLowerCase();
     const code = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const key = `otp:${cleanEmail}`;
 
     // Save OTP to PostgreSQL database so all Vercel serverless instances can read it
     try {
-      const key = `otp:${cleanEmail}`;
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO "RateLimitBucket" ("key", "count", "resetAt") VALUES ($1, $2, $3)
-         ON CONFLICT ("key") DO UPDATE SET "count" = $2, "resetAt" = $3`,
-        key,
-        parseInt(code, 10),
-        expiresAt
-      );
+      await prisma.rateLimitBucket.upsert({
+        where: { key },
+        update: { count: parseInt(code, 10), resetAt: expiresAt },
+        create: { key, count: parseInt(code, 10), resetAt: expiresAt }
+      });
+      console.log(`[EmailService] Persisted OTP for ${cleanEmail} in PostgreSQL DB`);
     } catch (e: any) {
       console.error('[EmailService] DB OTP store catch:', e?.message || e);
     }
@@ -80,26 +79,22 @@ export class EmailService {
   static async verifyOtpAsync(email: string, code: string): Promise<boolean> {
     const cleanEmail = email.trim().toLowerCase();
     const cleanCode = code.trim();
+    const key = `otp:${cleanEmail}`;
 
     try {
-      const key = `otp:${cleanEmail}`;
-      const rows = await prisma.$queryRawUnsafe<Array<{ count: number; resetAt: Date }>>(
-        `SELECT "count", "resetAt" FROM "RateLimitBucket" WHERE "key" = $1`,
-        key
-      );
-
-      if (!rows || rows.length === 0) return false;
-      const record = rows[0];
+      const record = await prisma.rateLimitBucket.findUnique({ where: { key } });
+      if (!record) return false;
 
       const resetTime = record.resetAt instanceof Date ? record.resetAt.getTime() : new Date(record.resetAt).getTime();
       if (Date.now() > resetTime) return false;
 
-      // Handle leading zero padding e.g. 018901 vs 18901
       const storedCode = String(record.count).padStart(6, '0');
-      if (storedCode !== cleanCode && String(record.count) !== cleanCode) return false;
+      const rawStoredCode = String(record.count);
+
+      if (storedCode !== cleanCode && rawStoredCode !== cleanCode) return false;
 
       // Delete matched key so code cannot be reused
-      await prisma.$executeRawUnsafe(`DELETE FROM "RateLimitBucket" WHERE "key" = $1`, key);
+      await prisma.rateLimitBucket.delete({ where: { key } }).catch(() => {});
       return true;
     } catch (e) {
       return false;
