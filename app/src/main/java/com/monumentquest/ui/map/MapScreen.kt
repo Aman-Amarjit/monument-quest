@@ -268,9 +268,9 @@ fun MapScreen(
     var hasZoomedToUser  by remember { mutableStateOf(false) }
 
 
-    val collapsedSheetH = 260.dp
+    val collapsedSheetH = 195.dp
     val cardBottomPad: Dp by animateDpAsState(
-        targetValue   = if (isSheetExpanded) 420.dp else collapsedSheetH + 10.dp,
+        targetValue   = if (isSheetExpanded) 360.dp else collapsedSheetH + 10.dp,
         animationSpec = tween(280), label = "cardPad"
     )
 
@@ -482,28 +482,29 @@ fun MapScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(10.dp, RoundedCornerShape(18.dp))
+                    .shadow(12.dp, RoundedCornerShape(20.dp))
                     .clip(
                         if (searchResults.isNotEmpty())
-                            RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-                        else RoundedCornerShape(18.dp)
+                            RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                        else RoundedCornerShape(20.dp)
                     )
-                    .background(Color(0xF2FFFFFF))
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                    .background(Surface1.copy(alpha = 0.95f))
+                    .border(1.dp, BorderSubtle, if (searchResults.isNotEmpty()) RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp) else RoundedCornerShape(20.dp))
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .padding(start = 8.dp)
+                        .padding(start = 6.dp)
                         .size(32.dp)
                         .clip(CircleShape)
                         .background(
-                            if (isSearching) Color(0xFFF0A500).copy(alpha = 0.15f)
+                            if (isSearching) Gold.copy(alpha = 0.15f)
                             else Color.Transparent
                         ),
                     contentAlignment = Alignment.Center
@@ -512,12 +513,12 @@ fun MapScreen(
                         CircularProgressIndicator(
                             modifier    = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
-                            color       = Color(0xFFF0A500)
+                            color       = Gold
                         )
                     } else {
                         Icon(
                             Icons.Default.Search, null,
-                            tint     = Color(0xFF64748B),
+                            tint     = Gold,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -526,13 +527,13 @@ fun MapScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 8.dp, vertical = 10.dp)
+                        .padding(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     if (searchQuery.isEmpty()) {
                         Text(
                             "Search monuments...",
-                            color    = Color(0xFF94A3B8),
-                            fontSize = 13.sp
+                            color    = TextSecondary,
+                            fontSize = 13.5.sp
                         )
                     }
                     BasicTextField(
@@ -545,7 +546,7 @@ fun MapScreen(
                             }
                         },
                         singleLine = true,
-                        textStyle  = TextStyle(fontSize = 13.sp, color = Color(0xFF0F172A)),
+                        textStyle  = TextStyle(fontSize = 13.5.sp, color = TextPrimary, fontWeight = FontWeight.Medium),
                         modifier   = Modifier.fillMaxWidth()
                     )
                 }
@@ -555,7 +556,7 @@ fun MapScreen(
                         onClick  = { searchQuery = ""; viewModel.clearSearch() },
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(Icons.Default.Close, null, tint = Color(0xFF64748B), modifier = Modifier.size(15.dp))
+                        Icon(Icons.Default.Close, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
                     }
                 }
 
@@ -564,17 +565,15 @@ fun MapScreen(
                         .padding(end = 4.dp)
                         .shadow(4.dp, RoundedCornerShape(14.dp))
                         .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.horizontalGradient(listOf(Color(0xFFF0A500), Color(0xFFFFB703)))
-                        )
+                        .background(GoldLinearGradient)
                         .padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Icon(Icons.Default.Star, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                    Icon(Icons.Default.Star, null, tint = Bg, modifier = Modifier.size(15.dp))
                     Text(
                         "${userProfile.xp} XP",
-                        color      = Color.White,
+                        color      = Bg,
                         fontSize   = 12.5.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -585,8 +584,8 @@ fun MapScreen(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (isCapturableInRange) Color(0xDC064E3B) else Color(0xDC1E293B))
-                    .border(1.dp, if (isCapturableInRange) Color(0xFF10B981) else Color(0xFFF0A500), RoundedCornerShape(12.dp))
+                    .background(if (isCapturableInRange) Color(0xDC064E3B) else Surface2.copy(alpha = 0.92f))
+                    .border(1.dp, if (isCapturableInRange) GreenAccent else Gold.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 10.dp, vertical = 5.dp)
                     .align(Alignment.Start),
                 verticalAlignment = Alignment.CenterVertically,
@@ -594,15 +593,16 @@ fun MapScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(7.dp)
                         .clip(CircleShape)
-                        .background(if (isCapturableInRange) Color(0xFF10B981) else Color(0xFFF0A500))
+                        .background(if (isCapturableInRange) GreenAccent else Gold)
                 )
                 Text(
-                    if (isCapturableInRange) "🟢 GREEN ZONE: Instant Verification (+500 XP)" else "✨ SPECIAL DISCOVERY MODE: Photo Review (+250 XP)",
-                    color = if (isCapturableInRange) Color(0xFFA7F3D0) else Color(0xFFFFD166),
+                    text = if (isCapturableInRange) "GREEN ZONE: Instant Verification (+500 XP)" else "SPECIAL DISCOVERY MODE: Photo Review (+250 XP)",
+                    color = if (isCapturableInRange) GreenAccent else Gold,
                     fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
                 )
             }
 
@@ -610,12 +610,13 @@ fun MapScreen(
                 Surface(
                     modifier        = Modifier.fillMaxWidth(),
                     shape           = RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp),
-                    color           = Color.White,
+                    color           = Surface1,
+                    border          = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle),
                     shadowElevation = 12.dp
                 ) {
                     Column {
                         searchResults.take(6).forEachIndexed { idx, result ->
-                            if (idx > 0) HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.5.dp)
+                            if (idx > 0) HorizontalDivider(color = BorderSubtle, thickness = 0.5.dp)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -633,20 +634,20 @@ fun MapScreen(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFFEF3C7)),
+                                        .background(GoldTint),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(Icons.Default.Place, null,
-                                        tint     = Color(0xFFF0A500),
+                                        tint     = Gold,
                                         modifier = Modifier.size(16.dp))
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(result.name, fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF1E293B), maxLines = 1)
+                                        color = TextPrimary, maxLines = 1)
                                     if (result.distanceMeters > 0) {
                                         Text(formatDistance(result.distanceMeters),
-                                            fontSize = 11.sp, color = Color(0xFF94A3B8))
+                                            fontSize = 11.sp, color = TextSecondary)
                                     }
                                 }
                             }
@@ -659,20 +660,20 @@ fun MapScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 14.dp, bottom = 320.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(end = 14.dp, bottom = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             MapControlFab(
                 onClick = { mapViewInstance?.controller?.zoomIn() },
-                bgColor = Color(0xF5FFFFFF)
+                bgColor = Surface1
             ) {
-                Icon(Icons.Default.Add, null, tint = Color(0xFF334155), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Add, null, tint = TextPrimary, modifier = Modifier.size(22.dp))
             }
             MapControlFab(
                 onClick = { mapViewInstance?.controller?.zoomOut() },
-                bgColor = Color(0xF5FFFFFF)
+                bgColor = Surface1
             ) {
-                Icon(Icons.Default.Remove, null, tint = Color(0xFF334155), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Remove, null, tint = TextPrimary, modifier = Modifier.size(22.dp))
             }
             MapControlFab(
                 onClick = {
@@ -681,7 +682,7 @@ fun MapScreen(
                 },
                 bgColor = Color(0xFF1A73E8)
             ) {
-                Icon(Icons.Default.MyLocation, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.MyLocation, null, tint = Color.White, modifier = Modifier.size(22.dp))
             }
         }
 
@@ -709,14 +710,14 @@ fun MapScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(start = 14.dp, end = 14.dp, bottom = 88.dp)
+                .padding(start = 14.dp, end = 14.dp, bottom = 4.dp)
         ) {
             Surface(
                 modifier        = Modifier.fillMaxWidth(),
                 shape           = RoundedCornerShape(22.dp),
-                color           = Color(0xFF0F172A),
-                border          = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B)),
-                shadowElevation = 14.dp
+                color           = Surface1.copy(alpha = 0.96f),
+                border          = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle),
+                shadowElevation = 16.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -728,7 +729,7 @@ fun MapScreen(
                             .width(36.dp)
                             .height(4.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF334155))
+                            .background(Border)
                             .align(Alignment.CenterHorizontally)
                             .clickable(
                                 indication        = null,
@@ -742,7 +743,7 @@ fun MapScreen(
                         "GAME QUEST PROGRESS",
                         fontSize      = 10.sp,
                         fontWeight    = FontWeight.Bold,
-                        color         = Color(0xFFF0A500),
+                        color         = Gold,
                         letterSpacing = 1.sp
                     )
                     Spacer(Modifier.height(6.dp))
@@ -761,7 +762,7 @@ fun MapScreen(
                         "EXPLORATION LOGISTICS",
                         fontSize      = 10.sp,
                         fontWeight    = FontWeight.Bold,
-                        color         = Color(0xFF3B82F6),
+                        color         = BlueAccent,
                         letterSpacing = 1.sp
                     )
                     Spacer(Modifier.height(6.dp))
@@ -780,12 +781,12 @@ fun MapScreen(
                     ) {
                         Column {
                             Spacer(Modifier.height(14.dp))
-                            HorizontalDivider(color = Color(0xFF1E293B))
+                            HorizontalDivider(color = BorderSubtle)
                             Spacer(Modifier.height(12.dp))
                             Text(
                                 "Recent Stops",
                                 fontWeight = FontWeight.SemiBold,
-                                color      = Color(0xFFF8FAFC),
+                                color      = TextPrimary,
                                 fontSize   = 13.sp
                             )
                             Spacer(Modifier.height(10.dp))
@@ -804,25 +805,25 @@ fun MapScreen(
                                                 modifier = Modifier
                                                     .size(32.dp)
                                                     .clip(RoundedCornerShape(9.dp))
-                                                    .background(Color(0xFF1E293B)),
+                                                    .background(Surface2),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     stop.icon, null,
-                                                    tint     = Color(0xFFF0A500),
+                                                    tint     = Gold,
                                                     modifier = Modifier.size(16.dp)
                                                 )
                                             }
                                             Text(
                                                 stop.name,
                                                 fontWeight = FontWeight.Medium,
-                                                color      = Color(0xFFCBD5E1),
+                                                color      = TextPrimary,
                                                 fontSize   = 13.sp
                                             )
                                         }
                                         Text(
                                             stop.time,
-                                            color    = Color(0xFF64748B),
+                                            color    = TextSecondary,
                                             fontSize = 11.sp
                                         )
                                     }
@@ -843,7 +844,7 @@ fun MapScreen(
                     ) {
                         Text(
                             if (isSheetExpanded) "Show less" else "Recent stops",
-                            color    = Color(0xFF64748B),
+                            color    = TextSecondary,
                             fontSize = 11.sp
                         )
                     }
@@ -853,32 +854,30 @@ fun MapScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = (-12).dp, y = (-32).dp)
+                    .offset(x = (-14).dp, y = (-28).dp)
             ) {
                 if (isCapturableInRange) {
                     Box(
                         modifier = Modifier
-                            .size(76.dp)
+                            .size(72.dp)
                             .scale(pulseScale)
                             .clip(CircleShape)
-                            .background(Color(0xFF10B981).copy(alpha = pulseGlowAlpha))
+                            .background(GreenAccent.copy(alpha = pulseGlowAlpha))
                             .align(Alignment.Center)
                     )
                 }
 
                 Box(
                     modifier = Modifier
-                        .size(68.dp)
+                        .size(64.dp)
                         .scale(if (isCapturableInRange) pulseScale else 1.0f)
                         .shadow(12.dp, CircleShape)
                         .clip(CircleShape)
                         .background(
-                            Brush.linearGradient(
-                                if (isCapturableInRange)
-                                    listOf(Color(0xFF10B981), Color(0xFF34D399))
-                                else
-                                    listOf(Color(0xFFF0A500), Color(0xFFFFCA28))
-                            )
+                            if (isCapturableInRange)
+                                EmeraldLinearGradient
+                            else
+                                GoldLinearGradient
                         )
                         .clickable { attemptCapture() }
                         .align(Alignment.Center),
@@ -887,8 +886,8 @@ fun MapScreen(
                     Icon(
                         Icons.Default.AddAPhoto,
                         contentDescription = "Log Visit",
-                        tint               = Color.White,
-                        modifier           = Modifier.size(28.dp)
+                        tint               = Bg,
+                        modifier           = Modifier.size(26.dp)
                     )
                 }
             }

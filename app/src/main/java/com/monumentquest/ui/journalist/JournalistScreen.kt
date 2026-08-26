@@ -79,7 +79,7 @@ fun JournalistScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = CreamWhite)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = CreamWhite)
                 }
                 Spacer(modifier = Modifier.width(4.dp))
                 Box(

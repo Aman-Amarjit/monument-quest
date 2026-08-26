@@ -1,6 +1,7 @@
 package com.monumentquest.core.di
 
 import com.monumentquest.BuildConfig
+import com.monumentquest.core.auth.AuthInterceptor
 import com.monumentquest.data.remote.MonumentApi
 import dagger.Module
 import dagger.Provides
@@ -17,16 +18,16 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // Override with -PMONUMENTQUEST_API_BASE_URL=... for a deployed API.
     private const val DEFAULT_BASE_URL = "http://10.0.2.2:3000/api/v1/"
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         return OkHttpClient.Builder()
-            .connectTimeout(8, TimeUnit.SECONDS)
-            .readTimeout(8, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
+            .addInterceptor(authInterceptor)          // JWT token on every request
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BASIC
             })

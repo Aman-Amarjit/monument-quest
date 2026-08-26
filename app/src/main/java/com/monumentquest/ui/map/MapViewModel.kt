@@ -111,7 +111,7 @@ class MapViewModel @Inject constructor(
 
     private val prefs = context.getSharedPreferences("discovery_prefs", Context.MODE_PRIVATE)
     private var lastLocation: Location? = null
-    private var isOverpassFetched = false
+    private var lastMonumentFetchLocation: Location? = null
     private var lastGeometryFetchLocation: Location? = null
 
     init {
@@ -148,9 +148,10 @@ class MapViewModel @Inject constructor(
 
                         detectCityName(location.latitude, location.longitude)
 
-                        if (!isOverpassFetched) {
+                        if (lastMonumentFetchLocation == null ||
+                            lastMonumentFetchLocation!!.distanceTo(location) > 500f) {
                             fetchRealOverpassMonuments(location.latitude, location.longitude)
-                            isOverpassFetched = true
+                            lastMonumentFetchLocation = location
                         }
 
                         val rawSpeedKmh = if (location.hasSpeed()) location.speed * 3.6f else 0f

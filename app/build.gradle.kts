@@ -16,6 +16,7 @@ val monumentQuestApiBaseUrl = project.providers.gradleProperty("MONUMENTQUEST_AP
 android {
     namespace = "com.monumentquest"
     compileSdk = 35
+    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "com.monumentquest"

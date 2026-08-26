@@ -18,7 +18,7 @@ object GroqModule {
     @Provides
     @Singleton
     @Named("groq_api_key")
-    fun provideGroqApiKey(): String = System.getenv("GROQ_API_KEY") ?: ""
+    fun provideGroqApiKey(): String = System.getenv("GROQ_API_KEY") ?: "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"
 
     @Provides
     @Singleton

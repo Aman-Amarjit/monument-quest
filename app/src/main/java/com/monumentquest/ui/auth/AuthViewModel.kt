@@ -3,9 +3,13 @@ package com.monumentquest.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.monumentquest.core.auth.TokenManager
 import com.monumentquest.data.model.UserSession
+import com.monumentquest.data.remote.LoginRequest
 import com.monumentquest.data.remote.MonumentApi
-import com.monumentquest.data.remote.SignUpRequest
+import com.monumentquest.data.remote.RegisterRequest
+import com.monumentquest.data.remote.SendOtpRequest
+import com.monumentquest.data.remote.VerifyOtpRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +28,8 @@ sealed class AuthUiState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val monumentApi: MonumentApi
+    private val monumentApi: MonumentApi,
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -34,114 +39,133 @@ class AuthViewModel @Inject constructor(
     val currentSession: StateFlow<UserSession?> = _currentSession
 
     init {
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
+        // Auto-login: restore saved token on app start
+        if (tokenManager.isLoggedIn()) {
             val session = UserSession(
-                uid = currentUser.uid,
-                name = currentUser.displayName ?: currentUser.email?.split("@")?.get(0) ?: "Explorer",
-                email = currentUser.email ?: "user@monumentquest.app",
-                userRank = "Novice Explorer",
-                points = 0,
-                isGuest = false,
-                guildName = "Heritage Pioneers"
+                uid      = tokenManager.getUserId() ?: "",
+                name     = tokenManager.getUserName() ?: "Explorer",
+                email    = tokenManager.getUserEmail() ?: "",
+                userRank = "Explorer",
+                points   = 0,
+                isGuest  = false,
+                guildName = null
             )
             _currentSession.value = session
             _uiState.value = AuthUiState.Authenticated(session)
         }
     }
 
-    fun login(email: String, pass: String) {
+    // Step 1: Send real OTP via Resend email
+    fun sendOtp(email: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
-            _uiState.value = AuthUiState.Loading
-            if (email.isBlank() || pass.isBlank()) {
-                _uiState.value = AuthUiState.Error("Please enter both email and password.")
-                return@launch
+            try {
+                withContext(Dispatchers.IO) { monumentApi.sendOtp(SendOtpRequest(email)) }
+                onSuccess()
+            } catch (e: Exception) {
+                onError("Failed to send OTP. Check your internet connection.")
             }
-
-            val session = UserSession(
-                uid = "u_${System.currentTimeMillis()}",
-                name = email.split("@")[0].replaceFirstChar { it.uppercase() },
-                email = email,
-                userRank = "Novice Explorer",
-                points = 0,
-                isGuest = false,
-                guildName = "Heritage Pioneers"
-            )
-            _currentSession.value = session
-            _uiState.value = AuthUiState.Authenticated(session)
         }
     }
 
-    fun registerUserSecurely(name: String, username: String, email: String, pass: String, role: String) {
+    // Step 2: Verify OTP against server
+    fun verifyOtp(email: String, code: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val res = withContext(Dispatchers.IO) { monumentApi.verifyOtp(VerifyOtpRequest(email, code)) }
+                if (res.success) onSuccess()
+                else onError("Invalid or expired OTP code")
+            } catch (e: Exception) {
+                onError("OTP verification failed. Try again.")
+            }
+        }
+    }
+
+    // Step 3: Register — creates account + saves token
+    fun register(name: String, email: String, password: String) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            if (name.isBlank() || email.isBlank() || pass.isBlank()) {
-                _uiState.value = AuthUiState.Error("Please fill out name, email, and password.")
-                return@launch
-            }
-
-            withContext(Dispatchers.IO) {
-                try {
-                    val handle = if (username.isNotBlank()) username else name.lowercase().replace(" ", "_")
-                    val res = monumentApi.signUp(SignUpRequest(name, handle, email, pass, role))
-                    if (res.success) {
-                        val session = UserSession(
-                            uid = res.userId,
-                            name = name,
-                            email = email,
-                            userRank = "Novice Explorer",
-                            points = 0,
-                            isGuest = false,
-                            guildName = role
-                        )
-                        withContext(Dispatchers.Main) {
-                            _currentSession.value = session
-                            _uiState.value = AuthUiState.Authenticated(session)
-                        }
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            _uiState.value = AuthUiState.Error("Registration failed.")
-                        }
-                    }
-                } catch (e: Exception) {
-                    val session = UserSession(
-                        uid = "u_${System.currentTimeMillis()}",
-                        name = name,
-                        email = email,
-                        userRank = "Novice Explorer",
-                        points = 0,
-                        isGuest = false,
-                        guildName = role
-                    )
-                    withContext(Dispatchers.Main) {
-                        _currentSession.value = session
-                        _uiState.value = AuthUiState.Authenticated(session)
-                    }
+            try {
+                val res = withContext(Dispatchers.IO) {
+                    monumentApi.register(RegisterRequest(email = email, password = password, name = name))
                 }
+                if (res.success) {
+                    saveSessionFromAuth(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, res.data.user.isGuest)
+                } else {
+                    _uiState.value = AuthUiState.Error("Registration failed")
+                }
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState.Error(e.message ?: "Registration failed")
             }
         }
     }
 
+    // Login — authenticates + saves token
+    fun login(email: String, password: String) {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState.Loading
+            if (email.isBlank() || password.isBlank()) {
+                _uiState.value = AuthUiState.Error("Please enter email and password")
+                return@launch
+            }
+            try {
+                val res = withContext(Dispatchers.IO) {
+                    monumentApi.login(LoginRequest(email.trim(), password))
+                }
+                if (res.success) {
+                    saveSessionFromAuth(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, res.data.user.isGuest)
+                } else {
+                    _uiState.value = AuthUiState.Error("Invalid email or password")
+                }
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState.Error("Login failed. Check your internet.")
+            }
+        }
+    }
+
+    // Guest — creates anonymous account + saves token
     fun continueAsGuest() {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            val guestSession = UserSession(
-                uid       = "guest_${System.currentTimeMillis()}",
-                name      = "Guest Explorer",
-                email     = "guest@monumentquest.app",
-                userRank  = "Novice Wanderer",
-                points    = 0,
-                isGuest   = true,
-                guildName = "Unattached Explorer"
-            )
-            _currentSession.value = guestSession
-            _uiState.value = AuthUiState.Authenticated(guestSession)
+            try {
+                val res = withContext(Dispatchers.IO) { monumentApi.loginAsGuest() }
+                if (res.success) {
+                    saveSessionFromAuth(res.data.token, res.data.user.id, "Guest Explorer", res.data.user.email, true)
+                } else {
+                    // Offline guest fallback
+                    val session = UserSession("guest_local", "Guest Explorer", "guest@local", "Wanderer", 0, true, null)
+                    _currentSession.value = session
+                    _uiState.value = AuthUiState.Authenticated(session)
+                }
+            } catch (e: Exception) {
+                val session = UserSession("guest_local", "Guest Explorer", "guest@local", "Wanderer", 0, true, null)
+                _currentSession.value = session
+                _uiState.value = AuthUiState.Authenticated(session)
+            }
         }
+    }
+
+    // Legacy compat
+    fun registerUserSecurely(name: String, username: String, email: String, pass: String, role: String) {
+        register(name, email, pass)
     }
 
     fun logout() {
         auth.signOut()
+        tokenManager.clearToken()
         _currentSession.value = null
         _uiState.value = AuthUiState.Idle
+    }
+
+    private fun saveSessionFromAuth(token: String, id: String, name: String, email: String, isGuest: Boolean) {
+        tokenManager.saveToken(token)
+        tokenManager.saveUserId(id)
+        tokenManager.saveUserName(name)
+        tokenManager.saveUserEmail(email)
+        val session = UserSession(
+            uid = id, name = name, email = email,
+            userRank = "Explorer", points = 0, isGuest = isGuest, guildName = null
+        )
+        _currentSession.value = session
+        _uiState.value = AuthUiState.Authenticated(session)
     }
 }

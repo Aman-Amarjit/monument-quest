@@ -51,13 +51,13 @@ fun AuthScreen(
     var email             by remember { mutableStateOf("") }
     var password          by remember { mutableStateOf("") }
     var otpCode           by remember { mutableStateOf("") }
-    var generatedDemoOtp  by remember { mutableStateOf("") }
     var name              by remember { mutableStateOf("") }
     var username          by remember { mutableStateOf("") }
     var role              by remember { mutableStateOf("Heritage Explorer") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var errorMessage      by remember { mutableStateOf<String?>(null) }
     var isSendingOtp      by remember { mutableStateOf(false) }
+    var otpVerified       by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         if (uiState is AuthUiState.Authenticated) {
@@ -229,7 +229,6 @@ fun AuthScreen(
                         )
                     }
 
-                    // ── STEP 2: VERIFY EMAIL OTP ─────────────────────────────
                     if (isSignUpMode && signUpStep == 2) {
                         Box(
                             modifier = Modifier
@@ -239,7 +238,7 @@ fun AuthScreen(
                                 .padding(12.dp)
                         ) {
                             Text(
-                                "📧 Verification code sent to " + email + ". Code: " + (if (generatedDemoOtp.isNotBlank()) generatedDemoOtp else "123456"),
+                                "📧 Verification code sent to $email. Check your inbox!",
                                 fontSize = 11.5.sp,
                                 color = Color(0xFF38BDF8),
                                 fontWeight = FontWeight.SemiBold
@@ -321,38 +320,48 @@ fun AuthScreen(
                             if (!isSignUpMode) {
                                 viewModel.login(email, password)
                             } else if (signUpStep == 1) {
-                                if (email.contains("@") && password.length >= 4) {
+                                if (email.contains("@") && password.length >= 8) {
                                     isSendingOtp = true
-                                    scope.launch(Dispatchers.IO) {
-                                        try {
-                                            val okHttp = NetworkModule.provideOkHttpClient()
-                                            val retro = NetworkModule.provideRetrofit(okHttp)
-                                            val api = NetworkModule.provideMonumentApi(retro)
-                                            val res = api.sendOtp(SendOtpRequest(email))
-                                            withContext(Dispatchers.Main) {
-                                                isSendingOtp = false
-                                                generatedDemoOtp = res.otpCode
-                                                signUpStep = 2
-                                            }
-                                        } catch (e: Exception) {
-                                            withContext(Dispatchers.Main) {
-                                                isSendingOtp = false
-                                                generatedDemoOtp = "123456"
-                                                signUpStep = 2
-                                            }
+                                    viewModel.sendOtp(
+                                        email = email,
+                                        onSuccess = {
+                                            isSendingOtp = false
+                                            signUpStep = 2
+                                        },
+                                        onError = { msg ->
+                                            isSendingOtp = false
+                                            errorMessage = msg
                                         }
-                                    }
+                                    )
+                                } else if (password.length < 8) {
+                                    errorMessage = "Password must be at least 8 characters."
                                 } else {
-                                    errorMessage = "Please enter a valid email and password."
+                                    errorMessage = "Please enter a valid email address."
                                 }
                             } else if (signUpStep == 2) {
-                                if (otpCode.length == 6 || otpCode == generatedDemoOtp || otpCode == "123456") {
-                                    signUpStep = 3
+                                if (otpCode.length == 6) {
+                                    isSendingOtp = true
+                                    viewModel.verifyOtp(
+                                        email = email,
+                                        code = otpCode,
+                                        onSuccess = {
+                                            isSendingOtp = false
+                                            signUpStep = 3
+                                        },
+                                        onError = { msg ->
+                                            isSendingOtp = false
+                                            errorMessage = msg
+                                        }
+                                    )
                                 } else {
-                                    errorMessage = "Invalid OTP code. Please enter the 6-digit code."
+                                    errorMessage = "Enter the 6-digit code from your email."
                                 }
                             } else {
-                                viewModel.registerUserSecurely(name, username, email, password, role)
+                                if (name.length >= 2) {
+                                    viewModel.register(name, email, password)
+                                } else {
+                                    errorMessage = "Please enter your full name."
+                                }
                             }
                         },
                         modifier = Modifier

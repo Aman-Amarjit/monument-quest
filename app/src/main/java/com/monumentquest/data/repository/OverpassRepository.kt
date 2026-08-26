@@ -87,16 +87,24 @@ class OverpassRepository @Inject constructor() {
         TacticalGeometry(emptyList(), emptyList())
     }
 
-    suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 10000): List<MapMonumentItem> = withContext(Dispatchers.IO) {
+    suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 15000): List<MapMonumentItem> = withContext(Dispatchers.IO) {
+        // Comprehensive Overpass query: temples, forts, museums, monuments, parks, attractions
         val query = """
-            [out:json][timeout:15];
+            [out:json][timeout:25];
             (
               node["historic"](around:$radiusMeters,$lat,$lon);
               way["historic"](around:$radiusMeters,$lat,$lon);
               node["tourism"="attraction"](around:$radiusMeters,$lat,$lon);
+              node["tourism"="museum"](around:$radiusMeters,$lat,$lon);
+              node["tourism"="artwork"](around:$radiusMeters,$lat,$lon);
+              node["tourism"="viewpoint"](around:$radiusMeters,$lat,$lon);
               node["amenity"="place_of_worship"](around:$radiusMeters,$lat,$lon);
+              way["amenity"="place_of_worship"](around:$radiusMeters,$lat,$lon);
+              node["leisure"="park"]["name"](around:$radiusMeters,$lat,$lon);
+              node["amenity"="library"]["name"](around:$radiusMeters,$lat,$lon);
+              node["landuse"="cemetery"]["name"](around:$radiusMeters,$lat,$lon);
             );
-            out body 15;
+            out center 40;
         """.trimIndent()
 
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
@@ -106,38 +114,80 @@ class OverpassRepository @Inject constructor() {
             val url = URL(overpassUrl)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
-            conn.connectTimeout = 8000
-            conn.readTimeout = 8000
+            conn.connectTimeout = 12000
+            conn.readTimeout = 15000
 
             if (conn.responseCode == 200) {
                 val responseText = conn.inputStream.bufferedReader().use { it.readText() }
                 val json = JSONObject(responseText)
                 val elements = json.optJSONArray("elements") ?: return@withContext emptyList()
 
+                val seen = mutableSetOf<String>()
                 val items = mutableListOf<MapMonumentItem>()
+
                 for (i in 0 until elements.length()) {
                     val elem = elements.getJSONObject(i)
                     val tags = elem.optJSONObject("tags") ?: continue
-                    val name = tags.optString("name", tags.optString("name:en", ""))
-                    if (name.isBlank()) continue
 
-                    val nodeLat = elem.optDouble("lat", lat)
-                    val nodeLon = elem.optDouble("lon", lon)
-                    val historicType = tags.optString("historic", tags.optString("amenity", "Heritage Landmark"))
+                    // Prefer English name, fallback to local name
+                    val name = tags.optString("name:en", "").ifBlank {
+                        tags.optString("name", "")
+                    }
+                    if (name.isBlank() || seen.contains(name)) continue
+                    seen.add(name)
+
+                    // Extract lat/lon — handle both node and way (center)
+                    val nodeLat = if (elem.has("lat")) elem.optDouble("lat")
+                                  else elem.optJSONObject("center")?.optDouble("lat") ?: continue
+                    val nodeLon = if (elem.has("lon")) elem.optDouble("lon")
+                                  else elem.optJSONObject("center")?.optDouble("lon") ?: continue
+
+                    // Build a human-readable category label
+                    val category = when {
+                        tags.has("historic") -> tags.optString("historic").replace("_", " ").uppercase()
+                        tags.optString("tourism") == "museum" -> "MUSEUM"
+                        tags.optString("tourism") == "attraction" -> "ATTRACTION"
+                        tags.optString("tourism") == "viewpoint" -> "VIEWPOINT"
+                        tags.optString("tourism") == "artwork" -> "PUBLIC ART"
+                        tags.has("amenity") && tags.optString("amenity") == "place_of_worship" -> {
+                            val rel = tags.optString("religion", "")
+                            if (rel.isNotBlank()) "${rel.uppercase()} TEMPLE" else "PLACE OF WORSHIP"
+                        }
+                        tags.optString("leisure") == "park" -> "PARK"
+                        tags.optString("amenity") == "library" -> "LIBRARY"
+                        else -> "HERITAGE LANDMARK"
+                    }
+
+                    // Calculate real distance from user
+                    val results = FloatArray(1)
+                    android.location.Location.distanceBetween(lat, lon, nodeLat, nodeLon, results)
+                    val dist = results[0].toInt()
+
+                    // Point value based on historic importance
+                    val points = when {
+                        tags.has("historic") -> 500
+                        tags.optString("tourism") == "museum" -> 400
+                        else -> 300
+                    }
 
                     items.add(
                         MapMonumentItem(
                             id = "osm_" + elem.optLong("id", i.toLong()),
                             name = name,
-                            locationName = tags.optString("addr:city", "Local Region"),
+                            locationName = tags.optString("addr:city",
+                                tags.optString("addr:suburb", "Nearby")),
                             geoPoint = GeoPoint(nodeLat, nodeLon),
-                            points = 500,
-                            category = historicType.replace("_", " ").uppercase(),
-                            distanceMeters = 0
+                            points = points,
+                            category = category,
+                            distanceMeters = dist
                         )
                     )
                 }
-                if (items.isNotEmpty()) return@withContext items
+
+                if (items.isNotEmpty()) {
+                    // Sort by distance, closest first
+                    return@withContext items.sortedBy { it.distanceMeters }
+                }
             }
         } catch (e: Exception) {
             // Fallback
