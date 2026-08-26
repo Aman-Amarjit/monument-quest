@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "755143715714",
+    "project_id": "monument-31f3f",
+    "storage_bucket": "monument-31f3f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:755143715714:android:a33aeea09f25260c353d9b",
+        "android_client_info": {
+          "package_name": "com.monumentquest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXEddcymDdwkxjPUctrAKUIApSn0VfH9Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

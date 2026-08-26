@@ -4,7 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
-    // id("com.google.gms.google-services")
+    id("com.google.gms.google-services")
 }
 
 val monumentQuestApiBaseUrl = project.providers.gradleProperty("MONUMENTQUEST_API_BASE_URL")
