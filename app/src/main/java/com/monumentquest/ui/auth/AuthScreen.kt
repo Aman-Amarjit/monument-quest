@@ -292,34 +292,33 @@ fun AuthScreen(
                                 }
                                 2 -> {
                                     if (otpCode.length == 6) {
-                                        if (isSignUpMode) {
-                                            currentStep = 3
-                                        } else {
-                                            viewModel.loginWithOtp(
-                                                email = email,
-                                                code = otpCode,
-                                                onNeedsSignup = {
-                                                    isSignUpMode = true
-                                                    currentStep = 3
-                                                    errorMessage = "No existing account found. Enter your name to register!"
-                                                },
-                                                onError = { msg -> errorMessage = msg }
-                                            )
-                                        }
+                                        // Always test login first: if user already has an account, log them in instantly!
+                                        viewModel.loginWithOtp(
+                                            email = email,
+                                            code = otpCode,
+                                            onNeedsSignup = {
+                                                isSignUpMode = true
+                                                currentStep = 3
+                                            },
+                                            onError = { msg -> errorMessage = msg }
+                                        )
                                     } else {
                                         errorMessage = "Please enter the 6-digit code sent to your email."
                                     }
                                 }
                                 3 -> {
-                                    if (name.trim().length >= 2) {
+                                    val cleanName = name.trim()
+                                    if (cleanName.matches(Regex("^[0-9]+$"))) {
+                                        errorMessage = "Please enter your full name (letters only, e.g. Aman Amarjit)."
+                                    } else if (cleanName.length >= 2) {
                                         viewModel.registerWithOtp(
                                             email = email,
                                             code = otpCode,
-                                            name = name,
+                                            name = cleanName,
                                             onError = { msg -> errorMessage = msg }
                                         )
                                     } else {
-                                        errorMessage = "Please enter your name."
+                                        errorMessage = "Please enter a valid name (at least 2 letters)."
                                     }
                                 }
                             }
@@ -327,28 +326,27 @@ fun AuthScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Gold,
-                            contentColor   = Bg
-                        ),
                         shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Gold),
                         enabled = uiState !is AuthUiState.Loading && !isSendingOtp
                     ) {
                         if (uiState is AuthUiState.Loading || isSendingOtp) {
-                            CircularProgressIndicator(color = Bg, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Bg, strokeWidth = 2.dp)
                         } else {
                             Text(
                                 text = when (currentStep) {
                                     1 -> "Send Verification OTP >"
-                                    2 -> if (isSignUpMode) "Continue to Details >" else "Verify OTP & Sign In 🎉"
+                                    2 -> "Verify Code & Sign In 🔒"
                                     else -> "Complete Registration & Start Quest 🎉"
                                 },
+                                color = Bg,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.5.sp
                             )
                         }
                     }
 
+                    // Back Navigation
                     if (currentStep > 1) {
                         TextButton(
                             onClick = {
@@ -361,28 +359,21 @@ fun AuthScreen(
                         }
                     }
 
-                    HorizontalDivider(color = Border, modifier = Modifier.padding(vertical = 2.dp))
+                    Divider(color = Border, thickness = 0.5.dp)
 
+                    // Guest Login Option
                     OutlinedButton(
                         onClick = { viewModel.continueAsGuest() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Border),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Surface2,
-                            contentColor   = TextSecondary
-                        )
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
                     ) {
-                        Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Shield, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Continue as Guest", fontWeight = FontWeight.Medium, fontSize = 12.5.sp)
+                        Text("Continue as Guest", color = TextSecondary, fontSize = 13.sp)
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(30.dp))
         }
     }
 }
