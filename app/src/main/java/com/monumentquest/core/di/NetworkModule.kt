@@ -18,7 +18,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val DEFAULT_BASE_URL = "http://10.0.2.2:3000/api/v1/"
+    private const val DEFAULT_BASE_URL = "https://monument-ten.vercel.app/api/v1/"
 
     @Provides
     @Singleton
