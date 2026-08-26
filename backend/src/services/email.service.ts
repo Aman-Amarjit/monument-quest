@@ -1,3 +1,4 @@
+import nodemailer from 'nodemailer';
 import { supabase } from '../lib/supabase';
 
 // In-memory OTP store: email -> { code, expiresAt }
@@ -7,7 +8,17 @@ function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-const HARDCODED_RESEND_KEY = 're_jfKDehjR_DEvS45UtNV1eYJ83sprevo95';
+// Gmail SMTP transporter using authorized App Password
+const GMAIL_USER = process.env.GMAIL_USER || 'amanamarjit04@gmail.com';
+const GMAIL_APP_PASS = (process.env.GMAIL_APP_PASSWORD || 'yaowcedqaynotjww').replace(/\s+/g, '');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: GMAIL_USER,
+    pass: GMAIL_APP_PASS
+  }
+});
 
 export class EmailService {
   static async sendOtp(email: string): Promise<string> {
@@ -15,44 +26,53 @@ export class EmailService {
     const code = generateOtp();
     otpStore.set(cleanEmail, { code, expiresAt: Date.now() + 10 * 60 * 1000 });
 
-    const resendApiKey = process.env.RESEND_API_KEY || HARDCODED_RESEND_KEY;
-
-    // 1. Dispatch real email via Resend API
+    // 1. Dispatch real 6-digit OTP email via Gmail SMTP
     try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: 'MonumentQuest <onboarding@resend.dev>',
-          to: [cleanEmail],
-          subject: `${code} — Your MonumentQuest Verification Code`,
-          html: `
-            <div style="font-family:Arial,sans-serif;background:#0A1628;color:#fff;padding:40px;border-radius:12px;max-width:480px;margin:auto">
-              <h2 style="color:#D4AF37">🏛️ MonumentQuest</h2>
-              <p style="color:#94A3B8">Heritage Discovery Platform</p>
-              <p>Your verification code is:</p>
-              <div style="background:#1B2A33;border:2px solid #D4AF37;border-radius:12px;padding:24px;text-align:center;margin:20px 0">
-                <span style="font-size:40px;font-weight:bold;color:#D4AF37;letter-spacing:12px">${code}</span>
-              </div>
-              <p style="color:#94A3B8;font-size:13px">Expires in <b>10 minutes</b>. Never share this code.</p>
-            </div>`
-        })
-      });
+      const mailOptions = {
+        from: `"MonumentQuest" <${GMAIL_USER}>`,
+        to: cleanEmail,
+        subject: `${code} — Your MonumentQuest Verification Code`,
+        html: `
+          <div style="font-family: Arial, sans-serif; background: #0A1628; color: #ffffff; padding: 40px; border-radius: 16px; max-width: 480px; margin: auto; border: 1px solid #1E293B;">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <h1 style="color: #D4AF37; margin: 0; font-size: 28px;">🏛️ MonumentQuest</h1>
+              <p style="color: #94A3B8; font-size: 14px; margin-top: 4px;">Heritage Discovery & Travel Platform</p>
+            </div>
+            
+            <p style="font-size: 15px; color: #CBD5E1;">Hello Explorer,</p>
+            <p style="font-size: 14px; color: #94A3B8;">Use the following 6-digit verification code to complete your login or registration:</p>
 
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        console.log(`[EmailService] Resend email dispatched to ${cleanEmail}`);
-      } else {
-        console.error(`[EmailService] Resend API notice for ${cleanEmail}:`, data);
-      }
-    } catch (err) {
-      console.error('[EmailService] Resend fetch error:', err);
+            <div style="background: #1E293B; border: 2px solid #D4AF37; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+              <span style="font-size: 38px; font-weight: bold; color: #D4AF37; letter-spacing: 10px;">${code}</span>
+            </div>
+
+            <p style="color: #64748B; font-size: 12px; text-align: center; margin-top: 24px;">
+              This code will expire in <b>10 minutes</b>. Never share this code with anyone.
+            </p>
+          </div>
+        `
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`[EmailService] Real Gmail OTP sent to ${cleanEmail}: ${info.messageId}`);
+    } catch (err: any) {
+      console.error('[EmailService] Gmail SMTP error:', err?.message || err);
+      // Secondary fallback to secondary Gmail user if needed
+      try {
+        const altTransporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: { user: 'amanamarjit243222@gmail.com', pass: GMAIL_APP_PASS }
+        });
+        await altTransporter.sendMail({
+          from: `"MonumentQuest" <amanamarjit243222@gmail.com>`,
+          to: cleanEmail,
+          subject: `${code} — Your MonumentQuest Verification Code`,
+          html: `<p>Your code is <b>${code}</b></p>`
+        });
+      } catch (e) {}
     }
 
-    // 2. Also trigger Supabase built-in auth OTP
+    // 2. Also trigger Supabase auth OTP as secondary backup
     try {
       await supabase.auth.signInWithOtp({ email: cleanEmail });
     } catch (e) {}
@@ -76,6 +96,7 @@ export class EmailService {
       return false;
     }
 
+    // Code matched — consume it
     otpStore.delete(cleanEmail);
     return true;
   }
