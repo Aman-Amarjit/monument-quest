@@ -52,42 +52,33 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Step 1: Send official Google Firebase verification email to ANY email address
+    // Step 1: Send official Google Firebase verification link to email
     fun sendOtp(email: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             val cleanEmail = email.trim().lowercase()
 
-            try {
-                val actionCodeSettings = ActionCodeSettings.newBuilder()
-                    .setUrl("https://monument-31f3f.firebaseapp.com")
-                    .setHandleCodeInApp(true)
-                    .setAndroidPackageName("com.monumentquest", true, "24")
-                    .build()
+            val actionCodeSettings = ActionCodeSettings.newBuilder()
+                .setUrl("https://monument-31f3f.firebaseapp.com")
+                .setHandleCodeInApp(true)
+                .setAndroidPackageName("com.monumentquest", true, "24")
+                .build()
 
-                auth.sendSignInLinkToEmail(cleanEmail, actionCodeSettings)
-                    .addOnCompleteListener { task ->
-                        _uiState.value = AuthUiState.Idle
-                        if (task.isSuccessful) {
-                            onSuccess()
-                        } else {
-                            // Also trigger backend OTP service
-                            viewModelScope.launch {
-                                try {
-                                    monumentApi.sendOtp(SendOtpRequest(cleanEmail))
-                                } catch (e: Exception) {}
-                                onSuccess()
-                            }
-                        }
+            auth.sendSignInLinkToEmail(cleanEmail, actionCodeSettings)
+                .addOnCompleteListener { task ->
+                    _uiState.value = AuthUiState.Idle
+                    if (task.isSuccessful) {
+                        onSuccess()
+                    } else {
+                        val errorMsg = task.exception?.message ?: "Failed to send email link."
+                        _uiState.value = AuthUiState.Error(errorMsg)
+                        onError(errorMsg)
                     }
-            } catch (e: Exception) {
-                _uiState.value = AuthUiState.Idle
-                onSuccess()
-            }
+                }
         }
     }
 
-    // Step 2a: LOGIN — verify security authentication & log in user
+    // Step 2a: LOGIN — strict authentication via Firebase / backend API
     fun loginWithOtp(email: String, code: String, onNeedsSignup: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
@@ -106,25 +97,25 @@ class AuthViewModel @Inject constructor(
                             isGuest = false
                         )
                     } else {
-                        val msg = task.exception?.message ?: ""
-                        if (msg.contains("no user record", ignoreCase = true) || msg.contains("user-not-found", ignoreCase = true)) {
-                            _uiState.value = AuthUiState.Idle
-                            onNeedsSignup()
-                        } else {
-                            viewModelScope.launch {
-                                try {
-                                    val res = withContext(Dispatchers.IO) {
-                                        monumentApi.loginWithOtp(LoginWithOtpRequest(cleanEmail, cleanCode))
-                                    }
-                                    if (res.success) {
-                                        saveSession(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, false)
-                                    } else {
-                                        _uiState.value = AuthUiState.Idle
-                                        onNeedsSignup()
-                                    }
-                                } catch (e: Exception) {
-                                    saveSession("fb_token_$cleanCode", "u_${cleanEmail.hashCode()}", cleanEmail.split("@")[0].replaceFirstChar { it.uppercase() }, cleanEmail, false)
+                        viewModelScope.launch {
+                            try {
+                                val res = withContext(Dispatchers.IO) {
+                                    monumentApi.loginWithOtp(LoginWithOtpRequest(cleanEmail, cleanCode))
                                 }
+                                if (res.success) {
+                                    saveSession(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, false)
+                                } else if (res.needsSignup) {
+                                    _uiState.value = AuthUiState.Idle
+                                    onNeedsSignup()
+                                } else {
+                                    val err = "Authentication failed. Invalid verification code."
+                                    _uiState.value = AuthUiState.Error(err)
+                                    onError(err)
+                                }
+                            } catch (e: Exception) {
+                                val err = task.exception?.message ?: "Invalid verification code or unverified account."
+                                _uiState.value = AuthUiState.Error(err)
+                                onError(err)
                             }
                         }
                     }
@@ -132,7 +123,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Step 2b: REGISTER — create production user in Firebase Auth & Supabase DB
+    // Step 2b: REGISTER — strict new user registration via Firebase / backend API
     fun registerWithOtp(email: String, code: String, name: String, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
@@ -160,7 +151,24 @@ class AuthViewModel @Inject constructor(
                             isGuest = false
                         )
                     } else {
-                        saveSession("fb_token_$cleanCode", "u_${cleanEmail.hashCode()}", cleanName, cleanEmail, false)
+                        viewModelScope.launch {
+                            try {
+                                val res = withContext(Dispatchers.IO) {
+                                    monumentApi.registerWithOtp(RegisterWithOtpRequest(cleanEmail, cleanCode, cleanName))
+                                }
+                                if (res.success) {
+                                    saveSession(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, false)
+                                } else {
+                                    val err = task.exception?.message ?: "Registration failed. Invalid code."
+                                    _uiState.value = AuthUiState.Error(err)
+                                    onError(err)
+                                }
+                            } catch (e: Exception) {
+                                val err = task.exception?.message ?: "Registration failed. Check network or verification code."
+                                _uiState.value = AuthUiState.Error(err)
+                                onError(err)
+                            }
+                        }
                     }
                 }
         }
