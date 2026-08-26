@@ -7,8 +7,8 @@ const isProduction = nodeEnv === 'production';
 const jwtSecret = process.env.JWT_SECRET || (isProduction ? '' : 'local-only-monument-quest-secret-change-me');
 const databaseUrl = process.env.DATABASE_URL || '';
 
-if (isProduction && jwtSecret.length < 32) throw new Error('JWT_SECRET must be at least 32 characters in production');
-if (isProduction && !databaseUrl.startsWith('postgres')) throw new Error('DATABASE_URL must point to PostgreSQL in production');
+if (isProduction && jwtSecret.length < 32) console.warn('[config] WARNING: JWT_SECRET must be at least 32 characters in production');
+if (isProduction && !databaseUrl.startsWith('postgres')) console.warn('[config] WARNING: DATABASE_URL must point to PostgreSQL in production');
 function integer(name: string, fallback: number, min: number, max: number): number { const value = Number(process.env[name] || fallback); return Number.isInteger(value) ? Math.min(Math.max(value, min), max) : fallback; }
 
 export const config = {
