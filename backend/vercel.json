@@ -1,12 +1,15 @@
 {
   "version": 2,
-  "buildCommand": "npm install --ignore-scripts && npx prisma generate && npx tsc",
   "builds": [
     {
       "src": "api/index.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["prisma/**", "node_modules/.prisma/**", "node_modules/@prisma/client/**"]
+        "includeFiles": [
+          "prisma/**",
+          "node_modules/.prisma/**",
+          "node_modules/@prisma/client/**"
+        ]
       }
     }
   ],
