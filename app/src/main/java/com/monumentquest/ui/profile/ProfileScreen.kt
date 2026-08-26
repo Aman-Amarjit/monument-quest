@@ -86,12 +86,18 @@ fun ProfileScreen(
                 inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
                 val savedUri = Uri.fromFile(destFile).toString()
 
-                customAvatarUriString = savedUri
-                prefs.edit().putString("profile_avatar_uri_$userKey", savedUri).apply()
-                profileViewModel.updateProfile(avatarUrl = savedUri)
+                val base64DataUrl = com.monumentquest.core.utils.ImageUtils.uriToBase64DataUrl(context, uri)
+                val urlToSave = base64DataUrl ?: savedUri
+
+                customAvatarUriString = urlToSave
+                prefs.edit().putString("profile_avatar_uri_$userKey", urlToSave).apply()
+                profileViewModel.updateProfile(avatarUrl = urlToSave)
             } catch (e: Exception) {
-                customAvatarUriString = uri.toString()
-                prefs.edit().putString("profile_avatar_uri_$userKey", uri.toString()).apply()
+                val base64DataUrl = com.monumentquest.core.utils.ImageUtils.uriToBase64DataUrl(context, uri)
+                val urlToSave = base64DataUrl ?: uri.toString()
+                customAvatarUriString = urlToSave
+                prefs.edit().putString("profile_avatar_uri_$userKey", urlToSave).apply()
+                profileViewModel.updateProfile(avatarUrl = urlToSave)
             }
         }
     }
