@@ -18,9 +18,10 @@ export class FeedService {
 
     const hasMore = posts.length > take;
     const rows = posts.slice(0, take);
-    const liked = userId
+    const postIds: string[] = rows.map((post) => post.id);
+    const liked = userId && postIds.length > 0
       ? new Set((await prisma.postLike.findMany({
-          where: { userId, postId: { in: rows.map((post) => post.id) } },
+          where: { userId, postId: { in: postIds } },
           select: { postId: true }
         })).map((like) => like.postId))
       : new Set<string>();
@@ -102,7 +103,7 @@ export class FeedService {
     };
   }
 
-  static async toggleLike(postId: String, userId: string) {
+  static async toggleLike(postId: string, userId: string) {
     return prisma.$transaction(async (tx) => {
       const post = await tx.post.findUnique({ where: { id: postId } });
       if (!post) throw { status: 404, message: 'Post not found' };
