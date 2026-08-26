@@ -13,6 +13,7 @@ model User {
   email        String       @unique
   passwordHash String
   name         String
+  avatarUrl    String?
   userRank     String       @default("Bhubaneswar Explorer")
   points       Int          @default(100)
   role         String       @default("EXPLORER")
@@ -73,7 +74,6 @@ model Post {
   createdAt  DateTime   @default(now())
   likes      PostLike[]
 
-  @@index([createdAt, id])
   @@index([userId, createdAt])
   @@index([monumentId, createdAt])
 }
@@ -81,49 +81,41 @@ model Post {
 model PostLike {
   id        String   @id @default(uuid())
   postId    String
-  userId    String
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([postId, userId])
-  @@index([userId])
 }
 
 model Discovery {
-  id           String   @id @default(uuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  monumentId   String
-  monument     Monument @relation(fields: [monumentId], references: [id], onDelete: Cascade)
-  imageUrl     String?
-  pointsEarned Int      @default(1000)
-  isFirst      Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monumentId String
+  monument   Monument @relation(fields: [monumentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
 
   @@unique([userId, monumentId])
-  @@index([monumentId, createdAt])
-  @@index([userId, createdAt])
 }
 
 model TimeCapsule {
   id         String   @id @default(uuid())
-  monumentId String
-  monument   Monument @relation(fields: [monumentId], references: [id], onDelete: Cascade)
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monumentId String
+  monument   Monument @relation(fields: [monumentId], references: [id], onDelete: Cascade)
   message    String
-  latitude   Float
-  longitude  Float
+  mediaUrl   String?
+  unlockAt   DateTime
   createdAt  DateTime @default(now())
 
-  @@index([monumentId, createdAt])
+  @@index([monumentId, unlockAt])
 }
 
 model RateLimitBucket {
   key     String   @id
-  count   Int
+  count   Int      @default(1)
   resetAt DateTime
-
-  @@index([resetAt])
 }

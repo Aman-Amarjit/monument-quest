@@ -642,7 +642,7 @@ private fun CreatePostModal(
     onSubmit: (String, String, Uri?) -> Unit
 ) {
     var caption      by remember { mutableStateOf("") }
-    var monumentName by remember { mutableStateOf("Lingaraj Temple") }
+    var monumentName by remember { mutableStateOf("") }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -664,7 +664,8 @@ private fun CreatePostModal(
                 OutlinedTextField(
                     value = monumentName,
                     onValueChange = { monumentName = it },
-                    label = { Text("Monument Site") },
+                    label = { Text("Monument or Site Name") },
+                    placeholder = { Text("e.g. Rajarani Temple, Mukteshwar", fontSize = 12.sp, color = TextSecondary) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
