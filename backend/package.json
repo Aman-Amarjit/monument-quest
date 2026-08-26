@@ -1,19 +1,19 @@
 {
   "name": "monument-quest-backend",
-  "version": "2.0.0",
-  "description": "Persistent API for MonumentQuest heritage discovery platform",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Production API for MonumentQuest heritage discovery platform",
   "main": "dist/app.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/app.js",
     "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed"
   },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  },
+  "prisma": { "seed": "ts-node prisma/seed.ts" },
   "dependencies": {
     "@prisma/client": "^5.10.0",
     "axios": "^1.6.7",
@@ -35,7 +35,7 @@
     "@types/node": "^20.11.24",
     "prisma": "^5.10.0",
     "ts-node": "^10.9.2",
-    "ts-node-dev": "^2.0.0",
+    "ts-node-dev": "^2.0.2",
     "typescript": "^5.3.3"
   }
 }
