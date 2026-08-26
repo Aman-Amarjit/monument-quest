@@ -2,8 +2,9 @@ package com.monumentquest.ui.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,11 +26,12 @@ import com.monumentquest.ui.theme.*
 data class ExplorerProfileData(
     val userId: String,
     val name: String,
+    val avatarUrl: String? = null,
     val username: String = "@explorer",
     val rank: String = "Heritage Explorer",
-    val xp: Int = 1250,
-    val visitedCount: Int = 8,
-    val distanceKm: Double = 14.2,
+    val xp: Int = 500,
+    val visitedCount: Int = 3,
+    val distanceKm: Double = 5.2,
     val guildName: String = "Kalinga Keepers",
     val badges: List<String> = listOf("Deula Pioneer", "Kalinga Keeper", "Temple Scholar"),
     val bio: String = "Passionate heritage explorer mapping temple architecture across Odisha. 🛕📜"
@@ -68,7 +70,8 @@ fun PublicProfileDialog(
                 Box(contentAlignment = Alignment.BottomEnd) {
                     UserAvatar(
                         name = profile.name,
-                        size = 80.dp,
+                        avatarUrl = profile.avatarUrl,
+                        size = 76.dp,
                         borderColor = Gold
                     )
                     Box(
@@ -87,7 +90,7 @@ fun PublicProfileDialog(
 
                 Text(
                     text = profile.name,
-                    fontSize = 19.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = TextPrimary
                 )
@@ -131,14 +134,14 @@ fun PublicProfileDialog(
                 // Bio
                 Text(
                     text = profile.bio,
-                    fontSize = 12.sp,
+                    fontSize = 11.5.sp,
                     color = TextPrimary,
                     textAlign = TextAlign.Center,
                     lineHeight = 16.sp,
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(14.dp))
 
                 // Stats Grid: XP, Visited, Distance
                 Row(
@@ -170,24 +173,24 @@ fun PublicProfileDialog(
 
                 Spacer(Modifier.height(6.dp))
 
-                Row(
+                LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    profile.badges.forEach { badge ->
+                    items(profile.badges) { badge ->
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(Surface2)
                                 .border(1.dp, Border, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(Icons.Default.WorkspacePremium, null, tint = Gold, modifier = Modifier.size(12.dp))
-                                Text(badge, fontSize = 10.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                                Icon(Icons.Default.WorkspacePremium, null, tint = Gold, modifier = Modifier.size(13.dp))
+                                Text(badge, fontSize = 11.sp, color = TextPrimary, fontWeight = FontWeight.Medium, maxLines = 1)
                             }
                         }
                     }
@@ -202,9 +205,10 @@ fun PublicProfileDialog(
                 ) {
                     Button(
                         onClick = onFollowToggle,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp),
+                            .height(42.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isFollowed) Surface2 else Gold,
@@ -214,21 +218,23 @@ fun PublicProfileDialog(
                         Icon(
                             if (isFollowed) Icons.Default.Check else Icons.Default.PersonAdd,
                             null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(4.dp))
                         Text(
                             if (isFollowed) "Following" else "Follow Explorer",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 12.sp,
+                            maxLines = 1
                         )
                     }
 
                     OutlinedButton(
                         onClick = onDismiss,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp),
+                            .height(42.dp),
                         shape = RoundedCornerShape(12.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Border),
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -236,7 +242,7 @@ fun PublicProfileDialog(
                             contentColor = TextSecondary
                         )
                     ) {
-                        Text("Close", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                        Text("Close", fontWeight = FontWeight.Medium, fontSize = 12.sp)
                     }
                 }
             }

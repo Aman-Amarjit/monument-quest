@@ -214,6 +214,7 @@ fun SocialFeedScreen(
                             activeExplorerProfile = ExplorerProfileData(
                                 userId = post.userId,
                                 name = post.userName,
+                                avatarUrl = post.userAvatarUrl,
                                 username = "@${post.userName.lowercase().replace(" ", "_")}",
                                 rank = post.userRank,
                                 xp = 1850 + (post.likesCount * 30),
