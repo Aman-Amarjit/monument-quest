@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.monumentquest.data.model.User
+import com.monumentquest.ui.common.ExplorerProfileData
+import com.monumentquest.ui.common.PublicProfileDialog
 import com.monumentquest.ui.common.UserAvatar
 import com.monumentquest.ui.theme.*
 
@@ -30,6 +32,8 @@ fun LeaderboardScreen(
 ) {
     val allUsers by viewModel.users.collectAsState()
     var selectedTab by remember { mutableStateOf(0) }
+    var activeProfile by remember { mutableStateOf<ExplorerProfileData?>(null) }
+    var followedUserIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     val filteredUsers = remember(selectedTab, allUsers) {
         when (selectedTab) {
@@ -41,6 +45,25 @@ fun LeaderboardScreen(
 
     val topThree       = filteredUsers.take(3)
     val remainingUsers = if (filteredUsers.size > 3) filteredUsers.drop(3) else emptyList()
+
+    fun openUserProfile(user: User, rankDisplay: Int) {
+        val userRankTitle = when {
+            user.points >= 1000 -> "Grand Master Explorer"
+            user.points >= 500 -> "Master Pathfinder"
+            else -> "Heritage Explorer"
+        }
+        activeProfile = ExplorerProfileData(
+            userId = user.id,
+            name = user.name,
+            username = "@${user.name.lowercase().replace(" ", "_")}",
+            rank = userRankTitle,
+            xp = user.points,
+            visitedCount = (user.points / 150) + 3,
+            distanceKm = 12.5 + (user.points / 100.0),
+            guildName = "Kalinga Keepers",
+            bio = "Master explorer competing in global leaderboard rankings!"
+        )
+    }
 
     Scaffold(
         containerColor = Bg,
@@ -57,8 +80,8 @@ fun LeaderboardScreen(
                     text = "Leaderboard",
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 18.sp
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
                 )
 
                 // Tab row
@@ -84,7 +107,7 @@ fun LeaderboardScreen(
             if (topThree.size >= 3) {
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
-                    PodiumSection(topThree)
+                    PodiumSection(topThree, onMemberClick = { user, rank -> openUserProfile(user, rank) })
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
@@ -107,8 +130,27 @@ fun LeaderboardScreen(
             }
 
             itemsIndexed(remainingUsers) { index, user ->
-                LeaderboardItem(index + 4, user)  // remainingUsers starts after top-3, so rank = index + 4
+                LeaderboardItem(
+                    rankIndex = index + 4,
+                    user = user,
+                    onClick = { openUserProfile(user, index + 4) }
+                )
             }
+        }
+
+        activeProfile?.let { prof ->
+            PublicProfileDialog(
+                profile = prof,
+                isFollowed = followedUserIds.contains(prof.userId),
+                onFollowToggle = {
+                    followedUserIds = if (followedUserIds.contains(prof.userId)) {
+                        followedUserIds - prof.userId
+                    } else {
+                        followedUserIds + prof.userId
+                    }
+                },
+                onDismiss = { activeProfile = null }
+            )
         }
     }
 }
@@ -122,15 +164,15 @@ private fun LeaderboardTab(text: String, selected: Boolean, onClick: () -> Unit)
         Text(
             text = text,
             color = if (selected) TextPrimary else TextSecondary,
-            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-            fontSize = 13.sp
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 13.5.sp
         )
         Spacer(modifier = Modifier.height(6.dp))
         if (selected) {
             Box(
                 modifier = Modifier
-                    .width(16.dp)
-                    .height(2.dp)
+                    .width(20.dp)
+                    .height(2.5.dp)
                     .background(Gold, RoundedCornerShape(1.dp))
             )
         }
@@ -138,7 +180,7 @@ private fun LeaderboardTab(text: String, selected: Boolean, onClick: () -> Unit)
 }
 
 @Composable
-fun PodiumSection(topThree: List<User>) {
+fun PodiumSection(topThree: List<User>, onMemberClick: (User, Int) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -146,9 +188,9 @@ fun PodiumSection(topThree: List<User>) {
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.Bottom
     ) {
-        PodiumMember(topThree[1], 2, 68.dp, MedalSilver)
-        PodiumMember(topThree[0], 1, 88.dp, MedalGold)
-        PodiumMember(topThree[2], 3, 60.dp, MedalBronze)
+        PodiumMember(topThree[1], 2, 68.dp, MedalSilver, onClick = { onMemberClick(topThree[1], 2) })
+        PodiumMember(topThree[0], 1, 88.dp, MedalGold, onClick = { onMemberClick(topThree[0], 1) })
+        PodiumMember(topThree[2], 3, 60.dp, MedalBronze, onClick = { onMemberClick(topThree[2], 3) })
     }
 }
 
@@ -157,13 +199,14 @@ fun PodiumMember(
     user: User,
     rank: Int,
     avatarSize: Dp,
-    medalColor: Color
+    medalColor: Color,
+    onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.clickable { onClick() }
     ) {
-        // Rank badge above avatar — large enough to be readable
         Box(
             modifier = Modifier
                 .size(28.dp)
@@ -176,11 +219,10 @@ fun PodiumMember(
                 "#$rank",
                 fontWeight = FontWeight.Bold,
                 color = medalColor,
-                fontSize = 9.sp
+                fontSize = 10.sp
             )
         }
 
-        // Avatar with optional gold-tint background for #1
         Box(
             modifier = if (rank == 1)
                 Modifier
@@ -195,8 +237,8 @@ fun PodiumMember(
 
         Text(
             user.name,
-            fontWeight = FontWeight.Medium,
-            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.5.sp,
             color = TextPrimary,
             maxLines = 1
         )
@@ -204,19 +246,26 @@ fun PodiumMember(
             "${user.points} XP",
             style = MaterialTheme.typography.bodySmall,
             color = if (rank == 1) Gold else TextSecondary,
-            fontSize = 11.sp,
-            fontWeight = if (rank == 1) FontWeight.SemiBold else FontWeight.Normal
+            fontSize = 11.5.sp,
+            fontWeight = if (rank == 1) FontWeight.Bold else FontWeight.Normal
         )
     }
 }
 
 @Composable
-fun LeaderboardItem(rankIndex: Int, user: User) {
+fun LeaderboardItem(rankIndex: Int, user: User, onClick: () -> Unit) {
+    val userRankTitle = when {
+        user.points >= 1000 -> "Grand Master"
+        user.points >= 500 -> "Pathfinder"
+        else -> "Explorer"
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Surface1),
         border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
@@ -228,27 +277,33 @@ fun LeaderboardItem(rankIndex: Int, user: User) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                "$rankIndex",   // rankIndex is already the correct display rank (4, 5, 6…)
-                fontWeight = FontWeight.Normal,
+                "#$rankIndex",
+                fontWeight = FontWeight.Bold,
                 color = TextSecondary,
-                fontSize = 14.sp,
-                modifier = Modifier.width(24.dp)
-            )
-            UserAvatar(name = user.name, size = 36.dp, borderColor = Border)
-
-            Text(
-                user.name,
-                fontWeight = FontWeight.Medium,
-                color = TextPrimary,
-                fontSize = 14.sp,
-                modifier = Modifier.weight(1f)
-            )
-
-            Text(
-                "${user.points} pts",
-                color = Gold,
                 fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold
+                modifier = Modifier.width(28.dp)
+            )
+            UserAvatar(name = user.name, size = 38.dp, borderColor = Gold)
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    user.name,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    fontSize = 14.sp
+                )
+                Text(
+                    userRankTitle,
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+            }
+
+            Text(
+                "${user.points} XP",
+                color = Gold,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.ExtraBold
             )
         }
     }

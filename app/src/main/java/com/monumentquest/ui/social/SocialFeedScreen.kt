@@ -10,17 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +26,8 @@ import coil.compose.AsyncImage
 import com.monumentquest.data.model.DiscovererStory
 import com.monumentquest.data.model.SocialPost
 import com.monumentquest.ui.common.EmptyStateView
+import com.monumentquest.ui.common.ExplorerProfileData
+import com.monumentquest.ui.common.PublicProfileDialog
 import com.monumentquest.ui.common.UserAvatar
 import com.monumentquest.ui.theme.*
 
@@ -57,6 +49,7 @@ fun SocialFeedScreen(
 
     var showCreateModal      by remember { mutableStateOf(false) }
     var activeCommentsPostId by remember { mutableStateOf<String?>(null) }
+    var activeExplorerProfile by remember { mutableStateOf<ExplorerProfileData?>(null) }
 
     Scaffold(
         containerColor = Bg,
@@ -75,17 +68,26 @@ fun SocialFeedScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Chronicles",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 18.sp
-                    )
+                    Column {
+                        Text(
+                            text = "CHRONICLES & EXPEDITIONS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Gold,
+                            letterSpacing = 1.2.sp
+                        )
+                        Text(
+                            text = "Explorer Feed",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 22.sp
+                        )
+                    }
 
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(40.dp)
                             .clip(CircleShape)
                             .background(Gold)
                             .clickable { showCreateModal = true },
@@ -95,12 +97,12 @@ fun SocialFeedScreen(
                             Icons.Default.Add,
                             contentDescription = "Create Log",
                             tint = Bg,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
 
-                // Search bar — use OutlinedTextField to avoid height-clipping cursor issue
+                // Search bar
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
@@ -118,9 +120,9 @@ fun SocialFeedScreen(
                             }
                         }
                     },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor    = Border,
+                        focusedBorderColor    = Gold,
                         unfocusedBorderColor  = Border,
                         focusedContainerColor = Surface1,
                         unfocusedContainerColor = Surface1,
@@ -137,7 +139,7 @@ fun SocialFeedScreen(
                     modifier = Modifier.padding(top = 2.dp)
                 ) {
                     FeedTabItem(
-                        text = "Global",
+                        text = "Global Expeditions",
                         selected = currentFilter == FeedFilter.GLOBAL,
                         onClick = { viewModel.setFilter(FeedFilter.GLOBAL) }
                     )
@@ -158,10 +160,26 @@ fun SocialFeedScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
             contentPadding = PaddingValues(top = 8.dp, bottom = 140.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                StoriesBar(stories = stories, onAddStory = { showCreateModal = true })
+                StoriesBar(
+                    stories = stories,
+                    onAddStory = { showCreateModal = true },
+                    onStoryClick = { story ->
+                        activeExplorerProfile = ExplorerProfileData(
+                            userId = story.id,
+                            name = story.userName,
+                            username = "@${story.userName.lowercase().replace(" ", "_")}",
+                            rank = "Grand Master Explorer",
+                            xp = 3450,
+                            visitedCount = 14,
+                            distanceKm = 28.5,
+                            guildName = "Kalinga Keepers",
+                            bio = "Passionate heritage explorer mapping ancient monuments and sharing historical chronicles across Odisha. 🛕✨"
+                        )
+                    }
+                )
             }
 
             if (posts.isEmpty()) {
@@ -185,12 +203,26 @@ fun SocialFeedScreen(
                         onFollowToggle     = { viewModel.toggleFollow(post.userId) },
                         onSaveToggle       = { viewModel.toggleSavePost(post.id) },
                         onOpenComments     = { activeCommentsPostId = post.id },
-                        onNavigateToNarrator = onNavigateToNarrator
+                        onNavigateToNarrator = onNavigateToNarrator,
+                        onUserClick        = {
+                            activeExplorerProfile = ExplorerProfileData(
+                                userId = post.userId,
+                                name = post.userName,
+                                username = "@${post.userName.lowercase().replace(" ", "_")}",
+                                rank = post.userRank,
+                                xp = 1850 + (post.likesCount * 30),
+                                visitedCount = 9,
+                                distanceKm = 16.4,
+                                guildName = "Kalinga Keepers",
+                                bio = "Active explorer sharing discoveries and time capsules at historic landmarks."
+                            )
+                        }
                     )
                 }
             }
         }
 
+        // Modals & Dialogs
         if (showCreateModal) {
             CreatePostModal(
                 onDismiss = { showCreateModal = false },
@@ -209,6 +241,15 @@ fun SocialFeedScreen(
                 onAddComment = { text -> viewModel.addComment(postId, text) }
             )
         }
+
+        activeExplorerProfile?.let { prof ->
+            PublicProfileDialog(
+                profile = prof,
+                isFollowed = followedUsers.contains(prof.userId),
+                onFollowToggle = { viewModel.toggleFollow(prof.userId) },
+                onDismiss = { activeExplorerProfile = null }
+            )
+        }
     }
 }
 
@@ -224,17 +265,17 @@ private fun FeedTabItem(text: String, selected: Boolean, onClick: () -> Unit) {
         Text(
             text = text,
             color = if (selected) TextPrimary else TextSecondary,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            fontSize = 14.sp
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            fontSize = 13.5.sp
         )
         Spacer(modifier = Modifier.height(5.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(2.dp)
+                .height(2.5.dp)
                 .background(
                     color = if (selected) Gold else Color.Transparent,
-                    shape = RoundedCornerShape(1.dp)
+                    shape = RoundedCornerShape(2.dp)
                 )
         )
     }
@@ -243,10 +284,11 @@ private fun FeedTabItem(text: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun StoriesBar(
     stories: List<DiscovererStory>,
-    onAddStory: () -> Unit
+    onAddStory: () -> Unit,
+    onStoryClick: (DiscovererStory) -> Unit
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
@@ -257,35 +299,36 @@ private fun StoriesBar(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(52.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
                         .background(Surface2)
-                        .border(1.dp, Border, CircleShape),
+                        .border(1.5.dp, Gold, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.AddAPhoto,
                         contentDescription = "Add",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(20.dp)
+                        tint = Gold,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-                Text("Add", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
+                Text("Your Story", style = MaterialTheme.typography.labelSmall, color = TextPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
 
         items(stories) { story ->
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.clickable { onStoryClick(story) }
             ) {
-                // Gold ring on story avatars so they're visible
-                UserAvatar(name = story.userName, size = 52.dp, borderColor = Gold)
+                UserAvatar(name = story.userName, size = 56.dp, borderColor = Gold)
                 Text(
                     story.userName.split(" ")[0],
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary,
-                    fontSize = 10.sp
+                    color = TextPrimary,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -301,18 +344,19 @@ private fun PostCard(
     onFollowToggle: () -> Unit,
     onSaveToggle: () -> Unit,
     onOpenComments: () -> Unit,
-    onNavigateToNarrator: (String) -> Unit
+    onNavigateToNarrator: (String) -> Unit,
+    onUserClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Surface1),
         border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header
+            // Header: User avatar + info + tag chip
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -321,16 +365,24 @@ private fun PostCard(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onUserClick() }
                 ) {
-                    UserAvatar(name = post.userName, size = 40.dp)
+                    UserAvatar(name = post.userName, size = 42.dp, borderColor = Gold)
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            post.userName,
-                            fontWeight = FontWeight.Medium,
-                            color = TextPrimary,
-                            fontSize = 14.sp
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                post.userName,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary,
+                                fontSize = 14.5.sp
+                            )
+                            Icon(Icons.Default.Verified, null, tint = Gold, modifier = Modifier.size(13.dp))
+                        }
                         Text(
                             "${post.userRank} · ${post.timestampFormatted}",
                             style = MaterialTheme.typography.labelSmall,
@@ -341,118 +393,138 @@ private fun PostCard(
                 }
 
                 val (tagBg, tagFg, tagLabel) = when (post.postType) {
-                    "DISCOVERY"    -> Triple(Color(0xFF1A1200), Gold,                  "Discovery")
-                    "TIME_CAPSULE" -> Triple(Color(0xFF160A24), Color(0xFFB06EE8),     "Time Capsule")
-                    "REFLECTION"   -> Triple(Color(0xFF1A0A00), Color(0xFFFF8C42),     "Reflection")
-                    else           -> Triple(Surface3,          TextSecondary,         "Check-in")
+                    "DISCOVERY"    -> Triple(Color(0xFF2A1C00), Gold,              "🏛️ Discovery")
+                    "TIME_CAPSULE" -> Triple(Color(0xFF160A24), Color(0xFFC084FC), "🔮 Time Capsule")
+                    "REFLECTION"   -> Triple(Color(0xFF1A0A00), Color(0xFFFF8C42), "📜 Reflection")
+                    else           -> Triple(Surface2,          TextSecondary,     "📍 Check-in")
                 }
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .background(tagBg)
-                        .border(1.dp, tagFg.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .border(1.dp, tagFg.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
-                    Text(tagLabel, color = tagFg, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                    Text(tagLabel, color = tagFg, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Caption text
             Text(
                 text = post.caption,
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextPrimary,
-                fontSize = 14.sp,
-                lineHeight = 22.sp
+                fontSize = 13.5.sp,
+                lineHeight = 21.sp
             )
 
+            // Monument Image
             post.imageUrl?.let { url ->
-                Spacer(modifier = Modifier.height(10.dp))
-                AsyncImage(
-                    model = url,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
-                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(contentAlignment = Alignment.BottomStart) {
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(210.dp)
+                            .clip(RoundedCornerShape(14.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    // Monument location pill overlay on photo
+                    Box(
+                        modifier = Modifier
+                            .padding(10.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.75f))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Default.Place, null, tint = Gold, modifier = Modifier.size(13.dp))
+                            Text(post.monumentName, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Footer
+            // Footer Action Row: Likes, Comments, Save, AI Narrator
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
                         modifier = Modifier.clickable { onLikeToggle() },
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         Icon(
                             imageVector = if (post.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Like",
                             tint = if (post.isLiked) RedAccent else TextSecondary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                         Text(
                             "${post.likesCount}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary
+                            fontWeight = FontWeight.Bold,
+                            color = if (post.isLiked) RedAccent else TextSecondary,
+                            fontSize = 12.sp
                         )
                     }
 
                     Row(
                         modifier = Modifier.clickable { onOpenComments() },
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         Icon(
                             Icons.Default.ChatBubbleOutline,
                             contentDescription = "Comments",
                             tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                         Text(
                             "${post.commentsCount}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary
+                            fontWeight = FontWeight.Bold,
+                            color = TextSecondary,
+                            fontSize = 12.sp
                         )
                     }
 
-                    IconButton(onClick = onSaveToggle, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = onSaveToggle, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            contentDescription = if (isSaved) "Unsave post" else "Save post",
+                            contentDescription = "Save",
                             tint = if (isSaved) Gold else TextSecondary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
                 }
 
-                OutlinedButton(
+                Button(
                     onClick = { onNavigateToNarrator(post.monumentName) },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                    modifier = Modifier.height(28.dp),
-                    shape = RoundedCornerShape(6.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Border),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Surface2,
-                        contentColor   = TextSecondary
-                    )
+                    modifier = Modifier.height(32.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Surface2, contentColor = Gold),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Gold.copy(alpha = 0.3f))
                 ) {
-                    Icon(Icons.Default.Explore, null, tint = Gold, modifier = Modifier.size(11.dp))
+                    Icon(Icons.Default.Explore, null, tint = Gold, modifier = Modifier.size(13.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("AI Narrator", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    Text("AI Narrator", color = Gold, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -476,7 +548,7 @@ private fun CommentsSheetModal(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Comments", fontWeight = FontWeight.SemiBold, color = TextPrimary, fontSize = 16.sp)
+                Text("Expedition Comments", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
                 IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
                     Icon(Icons.Default.Close, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
                 }
@@ -495,11 +567,7 @@ private fun CommentsSheetModal(
                 ) {
                     if (comments.isEmpty()) {
                         item {
-                            Text(
-                                "No comments yet.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
+                            Text("No comments yet. Be the first explorer to comment!", color = TextSecondary, fontSize = 12.sp)
                         }
                     } else {
                         items(comments) { comment ->
@@ -513,25 +581,10 @@ private fun CommentsSheetModal(
                                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(
-                                            comment.userName,
-                                            fontWeight = FontWeight.Medium,
-                                            color = TextPrimary,
-                                            fontSize = 12.sp
-                                        )
-                                        Text(
-                                            comment.timeAgo,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = TextSecondary,
-                                            fontSize = 10.sp
-                                        )
+                                        Text(comment.userName, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 12.sp)
+                                        Text(comment.timeAgo, color = TextSecondary, fontSize = 10.sp)
                                     }
-                                    Text(
-                                        comment.text,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = TextPrimary,
-                                        fontSize = 11.sp
-                                    )
+                                    Text(comment.text, color = TextPrimary, fontSize = 11.5.sp)
                                 }
                             }
                         }
@@ -589,7 +642,7 @@ private fun CreatePostModal(
         onDismissRequest = onDismiss,
         containerColor = Surface1,
         title = {
-            Text("Create Expedition Log", fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text("Create Expedition Log", fontWeight = FontWeight.Bold, color = TextPrimary)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -634,7 +687,7 @@ private fun CreatePostModal(
                 colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Bg),
                 enabled = caption.isNotBlank()
             ) {
-                Text("Publish", fontWeight = FontWeight.SemiBold)
+                Text("Publish Log", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

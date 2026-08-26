@@ -33,8 +33,10 @@ class SocialFeedViewModel @Inject constructor(
 
     private val _stories = MutableStateFlow<List<DiscovererStory>>(
         listOf(
-            DiscovererStory("s1", "Aarav S.", "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=400"),
-            DiscovererStory("s2", "Priya P.", "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400")
+            DiscovererStory("s1", "Aarav Sharma", "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=400"),
+            DiscovererStory("s2", "Priya Patel", "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400"),
+            DiscovererStory("s3", "Subhashree Das", "https://images.unsplash.com/photo-1548013146-72479768bada?q=80&w=400"),
+            DiscovererStory("s4", "Rohan Mohanty", "https://images.unsplash.com/photo-1564507592333-c60657eea523?q=80&w=400")
         )
     )
     val stories: StateFlow<List<DiscovererStory>> = _stories
@@ -59,6 +61,9 @@ class SocialFeedViewModel @Inject constructor(
             "p1" to listOf(
                 PostComment("c1", "Priya Mohanty", "The morning light on the Deula spire is breathtaking! ✨"),
                 PostComment("c2", "Subhashree Das", "Visited during Shivaratri, such divine energy!")
+            ),
+            "p2" to listOf(
+                PostComment("c3", "Aarav Sharma", "The detailed carvings here are ancient mastercraft!")
             )
         )
     )
@@ -117,12 +122,12 @@ class SocialFeedViewModel @Inject constructor(
                     val postsList = feedRes.feed.map { f ->
                         SocialPost(
                             id = f.id,
-                            userId = "user_feed",
+                            userId = "user_feed_" + f.id,
                             userName = f.user_name,
                             userRank = "Heritage Explorer",
                             monumentName = f.monument_name,
                             locationName = "Bhubaneswar, Odisha",
-                            imageUrl = f.image_url,
+                            imageUrl = f.image_url.ifBlank { "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800" },
                             caption = f.caption,
                             postType = "CHECKIN",
                             likesCount = f.likes,
@@ -132,7 +137,7 @@ class SocialFeedViewModel @Inject constructor(
                             timestampFormatted = "Just now"
                         )
                     }
-                    _posts.value = filterList(postsList, _currentFilter.value)
+                    _posts.value = filterList(postsList + getSampleSocialPosts(), _currentFilter.value)
                 } else {
                     _posts.value = filterList(getSampleSocialPosts(), _currentFilter.value)
                 }
@@ -182,6 +187,7 @@ class SocialFeedViewModel @Inject constructor(
                 userRank = "Bhubaneswar Explorer",
                 monumentName = monumentName,
                 locationName = "Bhubaneswar, Odisha",
+                imageUrl = "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800",
                 caption = caption,
                 postType = "CHECKIN",
                 likesCount = 1,
@@ -206,8 +212,8 @@ class SocialFeedViewModel @Inject constructor(
                 monumentName = "Lingaraj Temple",
                 locationName = "Old Town, Bhubaneswar",
                 imageUrl = "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800&auto=format&fit=crop",
-                caption = "Witnessed the magnificent 11th-century Kalinga architecture at Lingaraj Temple today! 🛕✨ #lingaraj",
-                postType = "CHECKIN",
+                caption = "Witnessed the magnificent 11th-century Kalinga architecture at Lingaraj Temple today! The 180ft deula tower radiates ancient majesty. 🛕✨ #lingaraj #kalinga",
+                postType = "DISCOVERY",
                 likesCount = 42,
                 isLiked = true,
                 commentsCount = 2,
@@ -222,13 +228,29 @@ class SocialFeedViewModel @Inject constructor(
                 monumentName = "Mukteshvara Temple",
                 locationName = "Kedargouri, Bhubaneswar",
                 imageUrl = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=800&auto=format&fit=crop",
-                caption = "The ornate archway (torana) at Mukteshvara Temple is simply breathtaking. 🔮📜 #mukteshvara",
+                caption = "The ornate stone archway (torana) at Mukteshvara Temple is hailed as the 'Gem of Kalinga Architecture'. Left a time capsule message for future explorers! 🔮📜 #mukteshvara",
                 postType = "TIME_CAPSULE",
                 likesCount = 29,
                 isLiked = false,
                 commentsCount = 1,
                 timestamp = now - 1000 * 60 * 110,
                 timestampFormatted = "1h ago"
+            ),
+            SocialPost(
+                id = "p3",
+                userId = "u3",
+                userName = "Subhashree Das",
+                userRank = "Temple Scholar",
+                monumentName = "Dhauli Shanti Stupa",
+                locationName = "Dhauli Hills, Bhubaneswar",
+                imageUrl = "https://images.unsplash.com/photo-1548013146-72479768bada?q=80&w=800&auto=format&fit=crop",
+                caption = "Standing on Dhauli Hill where Emperor Ashoka renounced war after the Kalinga War in 261 BC. Quiet peace and Buddhist stupa white reflections against sunset. 🕊️🌅 #dhauli",
+                postType = "REFLECTION",
+                likesCount = 58,
+                isLiked = true,
+                commentsCount = 4,
+                timestamp = now - 1000 * 60 * 240,
+                timestampFormatted = "4h ago"
             )
         )
     }
