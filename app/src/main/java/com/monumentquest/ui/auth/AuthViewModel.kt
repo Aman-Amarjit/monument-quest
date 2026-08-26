@@ -2,7 +2,6 @@ package com.monumentquest.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
 import com.monumentquest.core.auth.TokenManager
 import com.monumentquest.data.model.UserSession
@@ -52,78 +51,63 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Step 1: Send official Google Firebase verification link to email
+    // Step 1: Send real 6-digit OTP email via Gmail SMTP API (No Firebase Quota limits)
     fun sendOtp(email: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             val cleanEmail = email.trim().lowercase()
 
-            val actionCodeSettings = ActionCodeSettings.newBuilder()
-                .setUrl("https://monument-31f3f.firebaseapp.com")
-                .setHandleCodeInApp(true)
-                .setAndroidPackageName("com.monumentquest", true, "24")
-                .build()
-
-            auth.sendSignInLinkToEmail(cleanEmail, actionCodeSettings)
-                .addOnCompleteListener { task ->
-                    _uiState.value = AuthUiState.Idle
-                    if (task.isSuccessful) {
-                        onSuccess()
-                    } else {
-                        val errorMsg = task.exception?.message ?: "Failed to send email link."
-                        _uiState.value = AuthUiState.Error(errorMsg)
-                        onError(errorMsg)
-                    }
+            try {
+                val res = withContext(Dispatchers.IO) {
+                    monumentApi.sendOtp(SendOtpRequest(cleanEmail))
                 }
+                _uiState.value = AuthUiState.Idle
+                if (res.success) {
+                    onSuccess()
+                } else {
+                    val err = res.message.ifBlank { "Could not send OTP email. Please try again." }
+                    _uiState.value = AuthUiState.Error(err)
+                    onError(err)
+                }
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState.Idle
+                val err = e.message ?: "Network error. Could not reach server."
+                _uiState.value = AuthUiState.Error(err)
+                onError(err)
+            }
         }
     }
 
-    // Step 2a: LOGIN — strict authentication via Firebase / backend API
+    // Step 2a: LOGIN — strict 6-digit OTP verification via backend API & Supabase DB
     fun loginWithOtp(email: String, code: String, onNeedsSignup: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             val cleanEmail = email.trim().lowercase()
             val cleanCode = code.trim()
 
-            auth.signInWithEmailAndPassword(cleanEmail, "Pass#$cleanCode")
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        val fbUser = auth.currentUser
-                        saveSession(
-                            token = "fb_token_${fbUser?.uid}",
-                            id = fbUser?.uid ?: "u_${cleanEmail.hashCode()}",
-                            name = fbUser?.displayName ?: cleanEmail.split("@")[0].replaceFirstChar { it.uppercase() },
-                            email = cleanEmail,
-                            isGuest = false
-                        )
-                    } else {
-                        viewModelScope.launch {
-                            try {
-                                val res = withContext(Dispatchers.IO) {
-                                    monumentApi.loginWithOtp(LoginWithOtpRequest(cleanEmail, cleanCode))
-                                }
-                                if (res.success) {
-                                    saveSession(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, false)
-                                } else if (res.needsSignup) {
-                                    _uiState.value = AuthUiState.Idle
-                                    onNeedsSignup()
-                                } else {
-                                    val err = "Authentication failed. Invalid verification code."
-                                    _uiState.value = AuthUiState.Error(err)
-                                    onError(err)
-                                }
-                            } catch (e: Exception) {
-                                val err = task.exception?.message ?: "Invalid verification code or unverified account."
-                                _uiState.value = AuthUiState.Error(err)
-                                onError(err)
-                            }
-                        }
-                    }
+            try {
+                val res = withContext(Dispatchers.IO) {
+                    monumentApi.loginWithOtp(LoginWithOtpRequest(cleanEmail, cleanCode))
                 }
+                if (res.success) {
+                    saveSession(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, false)
+                } else if (res.needsSignup) {
+                    _uiState.value = AuthUiState.Idle
+                    onNeedsSignup()
+                } else {
+                    val err = "Authentication failed. Invalid verification code."
+                    _uiState.value = AuthUiState.Error(err)
+                    onError(err)
+                }
+            } catch (e: Exception) {
+                val err = "Invalid or expired 6-digit verification code."
+                _uiState.value = AuthUiState.Error(err)
+                onError(err)
+            }
         }
     }
 
-    // Step 2b: REGISTER — strict unique username check & account creation
+    // Step 2b: REGISTER — strict 6-digit OTP verification & unique username check
     fun registerWithOtp(email: String, code: String, name: String, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
@@ -138,60 +122,31 @@ class AuthViewModel @Inject constructor(
                 return@launch
             }
 
-            // 1. First validate username uniqueness with backend DB
             try {
                 val backendRes = withContext(Dispatchers.IO) {
                     monumentApi.registerWithOtp(RegisterWithOtpRequest(cleanEmail, cleanCode, cleanName))
                 }
                 if (backendRes.success) {
-                    // Unique username approved & account registered in DB
-                    auth.createUserWithEmailAndPassword(cleanEmail, "Pass#$cleanCode")
-                        .addOnCompleteListener { fbTask ->
-                            val fbUser = auth.currentUser
-                            fbUser?.updateProfile(com.google.firebase.auth.userProfileChangeRequest {
-                                displayName = cleanName
-                            })
-                            saveSession(backendRes.data.token, backendRes.data.user.id, cleanName, cleanEmail, false)
-                        }
-                    return@launch
+                    saveSession(backendRes.data.token, backendRes.data.user.id, cleanName, cleanEmail, false)
                 } else if (backendRes.alreadyExists) {
                     val err = "Username \"$cleanName\" is already taken. Please choose another username."
                     _uiState.value = AuthUiState.Error(err)
                     onError(err)
-                    return@launch
-                }
-            } catch (e: Exception) {
-                // If backend API returned error (e.g. 409 Username Taken), show exact message
-                val msg = e.message ?: ""
-                if (msg.contains("taken", ignoreCase = true) || msg.contains("409")) {
-                    val err = "Username \"$cleanName\" is already taken. Please choose another username."
+                } else {
+                    val err = "Registration failed. Invalid code or username."
                     _uiState.value = AuthUiState.Error(err)
                     onError(err)
-                    return@launch
                 }
+            } catch (e: Exception) {
+                val msg = e.message ?: ""
+                val err = if (msg.contains("taken", ignoreCase = true) || msg.contains("409")) {
+                    "Username \"$cleanName\" is already taken. Please choose another username."
+                } else {
+                    "Registration failed. Invalid 6-digit code."
+                }
+                _uiState.value = AuthUiState.Error(err)
+                onError(err)
             }
-
-            // 2. Firebase Auth user creation fallback
-            auth.createUserWithEmailAndPassword(cleanEmail, "Pass#$cleanCode")
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        val fbUser = auth.currentUser
-                        fbUser?.updateProfile(com.google.firebase.auth.userProfileChangeRequest {
-                            displayName = cleanName
-                        })
-                        saveSession(
-                            token = "fb_token_${fbUser?.uid}",
-                            id = fbUser?.uid ?: "u_${cleanEmail.hashCode()}",
-                            name = cleanName,
-                            email = cleanEmail,
-                            isGuest = false
-                        )
-                    } else {
-                        val err = task.exception?.message ?: "Registration failed. Username taken or invalid email."
-                        _uiState.value = AuthUiState.Error(err)
-                        onError(err)
-                    }
-                }
         }
     }
 
