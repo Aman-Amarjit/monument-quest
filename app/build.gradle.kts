@@ -1,9 +1,3 @@
-val monumentQuestApiBaseUrl = project.providers.gradleProperty("MONUMENTQUEST_API_BASE_URL")
-    .orElse("http://10.0.2.2:3000/api/v1/")
-    .get()
-    .replace("\\", "\\\\")
-    .replace("\"", "\\\"")
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,6 +6,12 @@ plugins {
     id("com.google.dagger.hilt.android")
     // id("com.google.gms.google-services")
 }
+
+val monumentQuestApiBaseUrl = project.providers.gradleProperty("MONUMENTQUEST_API_BASE_URL")
+    .orElse("http://10.0.2.2:3000/api/v1/")
+    .get()
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
 
 android {
     namespace = "com.monumentquest"
