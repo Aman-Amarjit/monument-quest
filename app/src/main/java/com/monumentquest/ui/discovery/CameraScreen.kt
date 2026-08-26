@@ -1,9 +1,13 @@
 package com.monumentquest.ui.discovery
 
 import android.Manifest
+import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,7 +16,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -121,7 +124,7 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
                         .background(Color(0xFF22C55E))
                 )
                 Text(
-                    "LIVE ONSITE VERIFICATION ONLY",
+                    "LIVE ONSITE VERIFICATION & GALLERY SAVE",
                     color = Color.White,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -148,7 +151,7 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(
-                        onClick = { takePhoto(context, imageCapture, cameraExecutor, onImageCaptured) },
+                        onClick = { takePhotoAndSaveToGallery(context, imageCapture, cameraExecutor, onImageCaptured) },
                         modifier = Modifier.size(64.dp)
                     ) {
                         Box(
@@ -203,25 +206,37 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
     }
 }
 
-private fun takePhoto(
+private fun takePhotoAndSaveToGallery(
     context: Context,
     imageCapture: ImageCapture,
     executor: ExecutorService,
     onImageCaptured: (Uri) -> Unit
 ) {
-    val photoFile = File(
-        context.cacheDir,
-        "monument_discovery_${System.currentTimeMillis()}.jpg"
-    )
+    val filename = "monument_quest_${System.currentTimeMillis()}.jpg"
 
-    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+    val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+        put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/MonumentQuest")
+        }
+    }
+
+    val outputOptions = ImageCapture.OutputFileOptions.Builder(
+        context.contentResolver,
+        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+        contentValues
+    ).build()
 
     imageCapture.takePicture(
         outputOptions,
         executor,
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                val savedUri = Uri.fromFile(photoFile)
+                val savedUri = output.savedUri ?: Uri.fromFile(
+                    File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), filename)
+                )
+                Log.d("CameraScreen", "Photo saved to system gallery: $savedUri")
                 ContextCompat.getMainExecutor(context).execute {
                     onImageCaptured(savedUri)
                 }
@@ -229,6 +244,21 @@ private fun takePhoto(
 
             override fun onError(exception: ImageCaptureException) {
                 Log.e("CameraScreen", "Photo capture failed: ${exception.message}", exception)
+                // Fallback to cache file if MediaStore fails on older Android versions
+                val fallbackFile = File(context.cacheDir, filename)
+                val fallbackOptions = ImageCapture.OutputFileOptions.Builder(fallbackFile).build()
+                imageCapture.takePicture(
+                    fallbackOptions,
+                    executor,
+                    object : ImageCapture.OnImageSavedCallback {
+                        override fun onImageSaved(res: ImageCapture.OutputFileResults) {
+                            ContextCompat.getMainExecutor(context).execute {
+                                onImageCaptured(Uri.fromFile(fallbackFile))
+                            }
+                        }
+                        override fun onError(ex: ImageCaptureException) {}
+                    }
+                )
             }
         }
     )
