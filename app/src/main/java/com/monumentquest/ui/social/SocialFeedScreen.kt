@@ -217,8 +217,8 @@ fun SocialFeedScreen(
                                 avatarUrl = post.userAvatarUrl,
                                 username = "@${post.userName.lowercase().replace(" ", "_")}",
                                 rank = post.userRank,
-                                xp = post.likesCount * 100,
-                                visitedCount = if (post.likesCount > 0) 1 else 0,
+                                xp = 0,
+                                visitedCount = 0,
                                 distanceKm = 0.0,
                                 guildName = "Kalinga Keepers",
                                 bio = "Active explorer sharing discoveries and time capsules at historic landmarks."
