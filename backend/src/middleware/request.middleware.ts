@@ -83,7 +83,10 @@ export function rateLimit(options: { max?: number; windowMs?: number; key?: stri
   };
 }
 
-setInterval(() => {
+const intervalTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, bucket] of buckets) if (bucket.resetAt <= now) buckets.delete(key);
-}, 10 * 60 * 1000).unref();
+}, 10 * 60 * 1000);
+if (intervalTimer && typeof intervalTimer.unref === 'function') {
+  intervalTimer.unref();
+}
