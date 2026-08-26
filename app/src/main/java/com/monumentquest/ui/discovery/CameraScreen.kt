@@ -134,6 +134,7 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .padding(bottom = 44.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -158,7 +159,7 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Capture Photo Live",
+                                contentDescription = "Capture photo",
                                 tint = Color(0xFF0F172A),
                                 modifier = Modifier.size(28.dp)
                             )
