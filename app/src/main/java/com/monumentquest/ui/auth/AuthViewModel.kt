@@ -51,7 +51,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Step 1: Send OTP to email (shared for login + signup)
+    // Step 1: Send OTP to email
     fun sendOtp(email: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
@@ -59,16 +59,15 @@ class AuthViewModel @Inject constructor(
                 if (res.success) {
                     onSuccess()
                 } else {
-                    onError(res.message.ifBlank { "Could not send OTP. Try again." })
+                    onError(res.message.ifBlank { "Could not send OTP. Check email address." })
                 }
             } catch (e: Exception) {
-                // If API endpoint is deploying/error, allow demo OTP in fallback mode
-                onSuccess()
+                onError("Failed to send verification email. Check network connection.")
             }
         }
     }
 
-    // Step 2a: LOGIN — verify OTP, log in existing user
+    // Step 2a: LOGIN — verify exact OTP, log in existing user
     fun loginWithOtp(email: String, code: String, onNeedsSignup: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
@@ -82,16 +81,17 @@ class AuthViewModel @Inject constructor(
                     _uiState.value = AuthUiState.Idle
                     onNeedsSignup()
                 } else {
-                    _uiState.value = AuthUiState.Error("Login failed. Try again.")
+                    _uiState.value = AuthUiState.Error("Invalid or expired OTP code.")
+                    onError("Invalid or expired OTP code.")
                 }
             } catch (e: Exception) {
-                // Fallback to local session if backend error
-                saveSession("jwt_token_demo", "u_" + email.hashCode(), email.split("@")[0].capitalize(), email, false)
+                _uiState.value = AuthUiState.Error("Verification failed. Check the 6-digit code.")
+                onError("Verification failed. Check the 6-digit code.")
             }
         }
     }
 
-    // Step 2b: REGISTER — verify OTP + create new account with name
+    // Step 2b: REGISTER — verify exact OTP + create new account with name
     fun registerWithOtp(email: String, code: String, name: String, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
@@ -108,11 +108,10 @@ class AuthViewModel @Inject constructor(
                 } else if (res.alreadyExists) {
                     _uiState.value = AuthUiState.Error("Email already registered. Please log in instead.")
                 } else {
-                    _uiState.value = AuthUiState.Error("Registration failed. Try again.")
+                    _uiState.value = AuthUiState.Error("Registration failed. Invalid OTP code.")
                 }
             } catch (e: Exception) {
-                // Fallback to local session if backend error
-                saveSession("jwt_token_demo", "u_" + email.hashCode(), name.trim(), email, false)
+                _uiState.value = AuthUiState.Error("Registration failed. Invalid OTP code.")
             }
         }
     }

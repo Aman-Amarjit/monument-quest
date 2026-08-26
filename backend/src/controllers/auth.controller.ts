@@ -4,14 +4,14 @@ import { EmailService } from '../services/email.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 export class AuthController {
-  // POST /auth/send-otp — send OTP to email
+  // POST /auth/send-otp — send OTP to email & return in data for instant on-screen notification
   static async sendOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email } = req.body ?? {};
       if (typeof email !== 'string' || !email.includes('@'))
         return res.status(400).json({ success: false, error: 'Valid email required' });
-      await EmailService.sendOtp(email.trim().toLowerCase());
-      return res.json({ success: true, message: 'OTP sent to ' + email });
+      const otpCode = await EmailService.sendOtp(email.trim().toLowerCase());
+      return res.json({ success: true, message: 'OTP sent to ' + email, otpCode });
     } catch (error) { next(error); }
   }
 

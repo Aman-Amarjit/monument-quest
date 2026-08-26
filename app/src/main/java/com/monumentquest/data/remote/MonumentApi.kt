@@ -9,7 +9,7 @@ import retrofit2.http.*
 
 // Auth request/response models
 data class SendOtpRequest(val email: String)
-data class SendOtpResponse(val success: Boolean, val message: String)
+data class SendOtpResponse(val success: Boolean, val message: String, val otpCode: String? = null)
 data class LoginWithOtpRequest(val email: String, val code: String)
 data class RegisterWithOtpRequest(val email: String, val code: String, val name: String)
 data class AuthUser(
