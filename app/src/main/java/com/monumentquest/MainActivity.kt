@@ -114,7 +114,9 @@ class MainActivity : ComponentActivity() {
                         startDestination = "splash",
                         modifier         = Modifier
                             .fillMaxSize()
-                            .padding(top = innerPadding.calculateTopPadding())
+                            // Consume both top and bottom scaffold padding so the floating
+                            // nav bar never clips screen content.
+                            .padding(innerPadding)
                     ) {
                         composable("splash") {
                             SplashScreen(
@@ -253,11 +255,16 @@ private fun NavPillItem(
 ) {
     val tint = if (isSelected) Gold else TextTertiary
     Box(
-        modifier = modifier.fillMaxHeight().clip(RoundedCornerShape(18.dp)).background(if (isSelected) GoldTint else Color.Transparent).clickable(
-            indication = null,
-            interactionSource = remember { MutableInteractionSource() },
-            onClick = onClick
-        ),
+        modifier = modifier
+            .fillMaxHeight()
+            .heightIn(min = 48.dp)   // accessibility minimum touch target
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (isSelected) GoldTint else Color.Transparent)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onClick
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {

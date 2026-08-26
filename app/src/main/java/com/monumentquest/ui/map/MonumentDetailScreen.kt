@@ -11,7 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Directions
@@ -114,7 +114,7 @@ fun MonumentDetailScreen(
                             .clip(CircleShape)
                             .background(ObsidianBlack.copy(alpha = 0.7f))
                     ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = CreamWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = CreamWhite)
                     }
 
                     IconButton(

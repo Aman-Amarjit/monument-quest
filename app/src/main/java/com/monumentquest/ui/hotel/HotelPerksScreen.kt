@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -142,7 +144,9 @@ fun HotelPerksScreen() {
                         onValueChange = { searchQuery = it },
                         singleLine = true,
                         textStyle = TextStyle(fontSize = 13.sp, color = Color.White),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { contentDescription = "Search hotels" }
                     )
                 }
                 if (searchQuery.isNotEmpty()) {

@@ -74,7 +74,7 @@ fun EmptyStateView(
                 .background(ElevatedSurface),
             contentAlignment = Alignment.Center
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = GoldBright, modifier = Modifier.size(32.dp))
+            Icon(imageVector = icon, contentDescription = title, tint = GoldBright, modifier = Modifier.size(32.dp))
         }
 
         Spacer(modifier = Modifier.height(16.dp))

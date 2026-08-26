@@ -157,7 +157,7 @@ fun ProfileScreen(
                     ) {
                         Icon(
                             Icons.Default.PhotoCamera,
-                            null,
+                            contentDescription = "Change profile photo",
                             tint = Color(0xFF0F172A),
                             modifier = Modifier.size(16.dp)
                         )
@@ -478,13 +478,13 @@ private data class BadgeItem(
 @Composable
 private fun BadgeCardDetailed(badge: BadgeItem) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(72.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = if (badge.isUnlocked) Surface1 else Color(0xFF0F172A)),
         border = androidx.compose.foundation.BorderStroke(1.dp, if (badge.isUnlocked) badge.accentColor.copy(alpha = 0.5f) else BorderSubtle)
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(10.dp),
+            modifier = Modifier.fillMaxWidth().padding(10.dp).heightIn(min = 56.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {

@@ -429,10 +429,10 @@ private fun PostCard(
                         )
                     }
 
-                    IconButton(onClick = onSaveToggle, modifier = Modifier.size(18.dp)) {
+                    IconButton(onClick = onSaveToggle, modifier = Modifier.size(36.dp)) {
                         Icon(
                             imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            contentDescription = "Save",
+                            contentDescription = if (isSaved) "Unsave post" else "Save post",
                             tint = if (isSaved) Gold else TextSecondary,
                             modifier = Modifier.size(18.dp)
                         )
