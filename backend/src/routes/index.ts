@@ -5,7 +5,7 @@ import { MonumentController } from '../controllers/monument.controller';
 import { FeedController } from '../controllers/feed.controller';
 import { AIController } from '../controllers/ai.controller';
 import { SocialController } from '../controllers/social.controller';
-import { authenticateToken, optionalAuthenticateToken } from '../middleware/auth.middleware';
+import { authenticateToken, optionalAuthenticateToken, requireRegisteredUser } from '../middleware/auth.middleware';
 import { rateLimit } from '../middleware/request.middleware';
 import { config } from '../config/env';
 import { HotelController } from '../controllers/hotel.controller';
@@ -40,7 +40,7 @@ router.post('/monuments/capture', authenticateToken, MonumentController.capture)
 // Feed routes
 router.get('/feed',                           optionalAuthenticateToken, FeedController.getFeed);
 router.post('/feed/posts',                    authenticateToken, FeedController.createPost);
-router.post('/feed/posts/:id/like',           authenticateToken, FeedController.toggleLike);
+router.post('/feed/posts/:id/like',           authenticateToken, requireRegisteredUser, FeedController.toggleLike);
 
 // Social routes
 router.get('/leaderboard', SocialController.leaderboard);
