@@ -87,21 +87,25 @@ class OverpassRepository @Inject constructor() {
         TacticalGeometry(emptyList(), emptyList())
     }
 
-    suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 5000): List<MapMonumentItem> = withContext(Dispatchers.IO) {
-        // Query OpenStreetMap Overpass for REAL real-world places (Temples, Parks, Museums, Attractions, Public Sites)
+    suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 6000): List<MapMonumentItem> = withContext(Dispatchers.IO) {
+        // Query OpenStreetMap Overpass for REAL node + way areas (Temples, Parks, Museums, Attractions, Public Sites)
         val query = """
             [out:json][timeout:15];
             (
               node["historic"](around:$radiusMeters,$lat,$lon);
-              node["tourism"="attraction"](around:$radiusMeters,$lat,$lon);
-              node["tourism"="museum"](around:$radiusMeters,$lat,$lon);
-              node["tourism"="viewpoint"](around:$radiusMeters,$lat,$lon);
+              way["historic"](around:$radiusMeters,$lat,$lon);
+              node["tourism"](around:$radiusMeters,$lat,$lon);
+              way["tourism"](around:$radiusMeters,$lat,$lon);
               node["amenity"="place_of_worship"](around:$radiusMeters,$lat,$lon);
+              way["amenity"="place_of_worship"](around:$radiusMeters,$lat,$lon);
               node["leisure"="park"](around:$radiusMeters,$lat,$lon);
+              way["leisure"="park"](around:$radiusMeters,$lat,$lon);
               node["amenity"="library"](around:$radiusMeters,$lat,$lon);
+              way["amenity"="library"](around:$radiusMeters,$lat,$lon);
               node["amenity"="townhall"](around:$radiusMeters,$lat,$lon);
+              way["amenity"="townhall"](around:$radiusMeters,$lat,$lon);
             );
-            out body 60;
+            out center 80;
         """.trimIndent()
 
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
@@ -134,8 +138,9 @@ class OverpassRepository @Inject constructor() {
                         if (name.isBlank() || seen.contains(name)) continue
                         seen.add(name)
 
-                        val nodeLat = elem.optDouble("lat", Double.NaN)
-                        val nodeLon = elem.optDouble("lon", Double.NaN)
+                        val centerObj = elem.optJSONObject("center")
+                        val nodeLat = if (centerObj != null) centerObj.optDouble("lat", Double.NaN) else elem.optDouble("lat", Double.NaN)
+                        val nodeLon = if (centerObj != null) centerObj.optDouble("lon", Double.NaN) else elem.optDouble("lon", Double.NaN)
                         if (nodeLat.isNaN() || nodeLon.isNaN()) continue
 
                         val category = when {
@@ -178,7 +183,7 @@ class OverpassRepository @Inject constructor() {
             return@withContext nominatimRealPlaces
         }
 
-        // Guaranteed Relative Fallback if network API is offline
+        // Guaranteed Circular Range Fallback centered with user in the middle
         return@withContext getFallbackPublicPlaces(lat, lon)
     }
 
@@ -236,24 +241,25 @@ class OverpassRepository @Inject constructor() {
         val baseLat = if (userLat != 0.0) userLat else 20.2381
         val baseLon = if (userLon != 0.0) userLon else 85.8338
 
-        val offsets = listOf(
-            Triple(0.0015, 0.0012, Pair("Heritage Central Plaza", "PUBLIC SQUARE")),
-            Triple(-0.0018, 0.0015, Pair("Ancient Memorial Park & Garden", "PUBLIC PARK")),
-            Triple(0.0012, -0.0022, Pair("Royal Heritage Temple & Shrine", "HISTORIC TEMPLE")),
-            Triple(-0.0021, -0.0019, Pair("Old Town Landmark Clock Tower", "HERITAGE LANDMARK")),
-            Triple(0.0032, -0.0008, Pair("National History Museum", "MUSEUM")),
-            Triple(-0.0035, 0.0022, Pair("Civic Town Hall & Library", "TOWN HALL")),
-            Triple(0.0025, -0.0031, Pair("Ekamra Botanical Eco Park", "PUBLIC PARK")),
-            Triple(-0.0011, 0.0038, Pair("Grand Cultural Market", "PUBLIC MARKET")),
-            Triple(0.0041, 0.0019, Pair("Victoria Peace Memorial", "HISTORIC MONUMENT")),
-            Triple(-0.0028, -0.0035, Pair("Parsurameswara Temple Ruins", "ARCHAEOLOGICAL SITE"))
+        // Circular range surrounding userLocation directly in the center (360 degrees)
+        val circularOffsets = listOf(
+            Triple(0.0022, 0.0000, Pair("Heritage Central Plaza", "PUBLIC SQUARE")),          // North (240m)
+            Triple(0.0016, 0.0016, Pair("Ancient Memorial Garden", "PUBLIC PARK")),          // North-East (250m)
+            Triple(0.0000, 0.0023, Pair("Royal Sun Temple & Shrine", "HISTORIC TEMPLE")),       // East (240m)
+            Triple(-0.0016, 0.0016, Pair("Old Town Landmark Clock Tower", "HERITAGE LANDMARK")), // South-East (250m)
+            Triple(-0.0022, 0.0000, Pair("National History Museum", "MUSEUM")),              // South (240m)
+            Triple(-0.0016, -0.0016, Pair("Civic Town Hall & Library", "TOWN HALL")),        // South-West (250m)
+            Triple(0.0000, -0.0023, Pair("Ekamra Botanical Eco Park", "PUBLIC PARK")),       // West (240m)
+            Triple(0.0016, -0.0016, Pair("Grand Cultural Market", "PUBLIC MARKET")),         // North-West (250m)
+            Triple(0.0035, 0.0025, Pair("Victoria Peace Memorial", "HISTORIC MONUMENT")),    // Outer NE (420m)
+            Triple(-0.0035, -0.0025, Pair("Parsurameswara Temple Ruins", "ARCHAEOLOGICAL SITE")) // Outer SW (420m)
         )
 
-        return offsets.mapIndexed { idx, (latOffset, lonOffset, meta) ->
+        return circularOffsets.mapIndexed { idx, (latOffset, lonOffset, meta) ->
             val siteLat = baseLat + latOffset
             val siteLon = baseLon + lonOffset
             val results = FloatArray(1)
-            android.location.Location.distanceBetween(userLat, userLon, siteLat, siteLon, results)
+            android.location.Location.distanceBetween(baseLat, baseLon, siteLat, siteLon, results)
             MapMonumentItem(
                 id = "public_site_$idx",
                 name = meta.first,
