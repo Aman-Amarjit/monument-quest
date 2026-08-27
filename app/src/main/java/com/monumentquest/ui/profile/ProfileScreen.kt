@@ -70,7 +70,9 @@ fun ProfileScreen(
     }
 
     var customAvatarUriString by remember {
-        mutableStateOf(prefs.getString("profile_avatar_uri_$userKey", null))
+        mutableStateOf(prefs.getString("profile_avatar_uri_$userKey", null)
+             ?: liveProfile.avatarUrl
+             ?: tokenManager.getUserAvatarUrl())
     }
 
     var showEditDialog by remember { mutableStateOf(false) }
@@ -84,21 +86,27 @@ fun ProfileScreen(
                 val destFile = File(context.filesDir, "user_avatar_$userKey.jpg")
                 val outputStream = FileOutputStream(destFile)
                 inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
-                val savedUri = Uri.fromFile(destFile).toString()
-
                 val base64DataUrl = com.monumentquest.core.utils.ImageUtils.uriToBase64DataUrl(context, uri)
-                val urlToSave = base64DataUrl ?: savedUri
+                val urlToSave = base64DataUrl ?: return@rememberLauncherForActivityResult
 
                 customAvatarUriString = urlToSave
                 prefs.edit().putString("profile_avatar_uri_$userKey", urlToSave).apply()
                 profileViewModel.updateProfile(avatarUrl = urlToSave)
             } catch (e: Exception) {
                 val base64DataUrl = com.monumentquest.core.utils.ImageUtils.uriToBase64DataUrl(context, uri)
-                val urlToSave = base64DataUrl ?: uri.toString()
+                val urlToSave = base64DataUrl ?: return@rememberLauncherForActivityResult
                 customAvatarUriString = urlToSave
                 prefs.edit().putString("profile_avatar_uri_$userKey", urlToSave).apply()
                 profileViewModel.updateProfile(avatarUrl = urlToSave)
             }
+        }
+    }
+
+    LaunchedEffect(liveProfile.avatarUrl, userKey) {
+        val serverAvatar = liveProfile.avatarUrl
+        if (!serverAvatar.isNullOrBlank()) {
+            customAvatarUriString = serverAvatar
+            prefs.edit().putString("profile_avatar_uri_$userKey", serverAvatar).apply()
         }
     }
 
@@ -109,6 +117,8 @@ fun ProfileScreen(
             ?: "Explorer"
         customBio = prefs.getString("profile_bio_$userKey", "Odisha Heritage Explorer & Monument Discoverer")!!
         customAvatarUriString = prefs.getString("profile_avatar_uri_$userKey", null)
+             ?: liveProfile.avatarUrl
+             ?: tokenManager.getUserAvatarUrl()
 
         if (currentSession != null && !currentSession!!.isGuest) {
             if (prefs.getString("profile_name_$userKey", null) == null) {
