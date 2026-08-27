@@ -396,7 +396,17 @@ class SocialFeedViewModel @Inject constructor(
                 p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
             }
 
-            val combined = (localSavedPhotoPosts + userPostsWithAvatar + firestorePosts + serverPosts).distinctBy { it.id }
+            val combined = (serverPosts + firestorePosts + userPostsWithAvatar + localSavedPhotoPosts)
+                .distinctBy { post ->
+                    val cap = (post.caption ?: "").trim().lowercase()
+                    val img = (post.imageUrl ?: "").trim().lowercase()
+                    val user = (post.userName ?: "").trim().lowercase()
+                    if (cap.isNotEmpty() && img.isNotEmpty()) {
+                        "${user}_${cap}_${img}"
+                    } else {
+                        post.id
+                    }
+                }
             _posts.value = filterList(combined, _currentFilter.value)
             saveCache(_posts.value)
         }
