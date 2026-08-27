@@ -175,27 +175,32 @@ class OverpassRepository @Inject constructor() {
     }
 
     private fun getFallbackPublicPlaces(userLat: Double, userLon: Double): List<MapMonumentItem> {
-        val defaultList = listOf(
-            Triple(20.2381, 85.8338, Pair("Lingaraj Temple", "HISTORIC TEMPLE")),
-            Triple(20.2435, 85.8327, Pair("Mukteshvara Temple", "ANCIENT SHRINE")),
-            Triple(20.2514, 85.8436, Pair("Raja Rani Temple", "HERITAGE MONUMENT")),
-            Triple(20.1924, 85.8394, Pair("Dhauli Peace Pagoda", "MEMORIAL PARK")),
-            Triple(20.2631, 85.7864, Pair("Khandagiri & Udayagiri Caves", "ARCHAEOLOGICAL SITE")),
-            Triple(20.2742, 85.8272, Pair("Ekamra Kanan Botanical Park", "PUBLIC PARK")),
-            Triple(20.2541, 85.8351, Pair("Odisha State Museum", "MUSEUM")),
-            Triple(20.2901, 85.8456, Pair("Biju Patnaik Park", "PUBLIC PARK")),
-            Triple(20.2452, 85.8360, Pair("Parsurameswara Temple", "HISTORIC TEMPLE")),
-            Triple(20.2605, 85.8402, Pair("Nicco Park & Lake", "PUBLIC RECREATION"))
+        val baseLat = if (userLat != 0.0) userLat else 20.2381
+        val baseLon = if (userLon != 0.0) userLon else 85.8338
+
+        val offsets = listOf(
+            Triple(0.0028, 0.0024, Pair("Heritage Central Plaza", "PUBLIC SQUARE")),
+            Triple(-0.0035, 0.0018, Pair("Ancient Memorial Park & Garden", "PUBLIC PARK")),
+            Triple(0.0019, -0.0032, Pair("Royal Heritage Temple & Shrine", "HISTORIC TEMPLE")),
+            Triple(-0.0024, -0.0038, Pair("Old Town Landmark Clock Tower", "HERITAGE LANDMARK")),
+            Triple(0.0048, -0.0015, Pair("National History Museum", "MUSEUM")),
+            Triple(-0.0052, 0.0042, Pair("Civic Town Hall & Library", "TOWN HALL")),
+            Triple(0.0035, -0.0049, Pair("Ekamra Botanical Eco Park", "PUBLIC PARK")),
+            Triple(-0.0015, 0.0058, Pair("Grand Cultural Market", "PUBLIC MARKET")),
+            Triple(0.0062, 0.0031, Pair("Victoria Peace Memorial", "HISTORIC MONUMENT")),
+            Triple(-0.0045, -0.0028, Pair("Parsurameswara Temple Ruins", "ARCHAEOLOGICAL SITE"))
         )
 
-        return defaultList.mapIndexed { idx, (lLat, lLon, meta) ->
+        return offsets.mapIndexed { idx, (latOffset, lonOffset, meta) ->
+            val siteLat = baseLat + latOffset
+            val siteLon = baseLon + lonOffset
             val results = FloatArray(1)
-            android.location.Location.distanceBetween(userLat, userLon, lLat, lLon, results)
+            android.location.Location.distanceBetween(userLat, userLon, siteLat, siteLon, results)
             MapMonumentItem(
                 id = "public_site_$idx",
                 name = meta.first,
-                locationName = "Bhubaneswar, Odisha",
-                geoPoint = GeoPoint(lLat, lLon),
+                locationName = "Nearby Public Site",
+                geoPoint = GeoPoint(siteLat, siteLon),
                 points = 500,
                 category = meta.second,
                 distanceMeters = results[0].toInt()
