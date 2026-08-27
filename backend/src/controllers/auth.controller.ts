@@ -11,8 +11,8 @@ export class AuthController {
       if (typeof email !== 'string' || !email.includes('@'))
         return res.status(400).json({ success: false, error: 'Valid email required' });
       const cleanEmail = email.trim().toLowerCase();
-      const otpCode = await EmailService.sendOtp(cleanEmail);
-      return res.json({ success: true, message: 'OTP sent to ' + cleanEmail, ...(otpCode ? { otpCode } : {}) });
+      await EmailService.sendOtp(cleanEmail);
+      return res.json({ success: true, message: 'OTP verification code sent to ' + cleanEmail });
     } catch (error) { next(error); }
   }
 
