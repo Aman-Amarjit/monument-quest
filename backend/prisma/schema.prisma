@@ -17,20 +17,26 @@ model User {
   userRank     String       @default("Bhubaneswar Explorer")
   points       Int          @default(0)
   streakDays   Int          @default(0)
-  totalDistanceKm Float      @default(0)
+  totalDistanceKm Float     @default(0)
   areaUnlockedKm2 Float     @default(0)
   walkPathJson String        @default("[]")
   exploredZonesJson String   @default("[]")
-  role         String       @default("EXPLORER")
+  role         String        @default("EXPLORER")
   guildId      String?
-  guild        Guild?       @relation(fields: [guildId], references: [id])
+  guild        Guild?        @relation(fields: [guildId], references: [id], onDelete: SetNull)
   posts        Post[]
   likes        PostLike[]
   comments     Comment[]
   discoveries  Discovery[]
   timeCapsules TimeCapsule[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  following    Follow[]       @relation("following")
+  followers    Follow[]       @relation("followers")
+  savedPosts   SavedPost[]
+  stories      Story[]
+  storyViews   StoryView[]
+  reports      PostReport[]   @relation("postReportsByUser")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   @@index([points])
   @@index([guildId, points])
@@ -41,9 +47,11 @@ model Guild {
   id          String   @id @default(uuid())
   name        String   @unique
   region      String
+  description String   @default("")
   totalPoints Int      @default(0)
   members     User[]
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([totalPoints])
 }
@@ -77,12 +85,16 @@ model Post {
   caption    String
   imageUrl   String?
   postType   String     @default("CHECKIN")
+  visibility String     @default("PUBLIC")
   createdAt  DateTime   @default(now())
   likes      PostLike[]
   comments   Comment[]
+  savedBy    SavedPost[]
+  reports    PostReport[]
 
   @@index([userId, createdAt])
   @@index([monumentId, createdAt])
+  @@index([visibility, createdAt])
 }
 
 model Comment {
@@ -107,6 +119,71 @@ model PostLike {
   createdAt DateTime @default(now())
 
   @@unique([postId, userId])
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  follower    User     @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId, createdAt])
+  @@index([followerId, createdAt])
+}
+
+model SavedPost {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId, createdAt])
+}
+
+model Story {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaUrl  String
+  caption   String      @default("")
+  expiresAt DateTime
+  createdAt DateTime    @default(now())
+  views     StoryView[]
+
+  @@index([expiresAt, createdAt])
+  @@index([userId, expiresAt])
+}
+
+model StoryView {
+  id       String   @id @default(uuid())
+  storyId  String
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewedAt DateTime @default(now())
+
+  @@unique([storyId, userId])
+  @@index([userId, viewedAt])
+}
+
+model PostReport {
+  id         String   @id @default(uuid())
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User     @relation("postReportsByUser", fields: [reporterId], references: [id], onDelete: Cascade)
+  reason     String
+  status     String   @default("OPEN")
+  createdAt  DateTime @default(now())
+
+  @@unique([postId, reporterId])
+  @@index([status, createdAt])
 }
 
 model Discovery {

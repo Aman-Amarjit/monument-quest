@@ -4,14 +4,14 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.monumentquest.core.auth.TokenManager
+import com.monumentquest.core.utils.ImageUtils
 import com.monumentquest.data.model.DiscovererStory
 import com.monumentquest.data.model.SocialPost
+import com.monumentquest.data.remote.ApiComment
+import com.monumentquest.data.remote.ApiFeedItem
 import com.monumentquest.data.remote.CreatePostRequest
 import com.monumentquest.data.remote.MonumentApi
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,504 +20,149 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
 import javax.inject.Inject
 
-enum class FeedFilter {
-    GLOBAL, GUILD, NEARBY
-}
-
-data class PostComment(
-    val id: String,
-    val userName: String,
-    val text: String,
-    val timeAgo: String = "Just now"
-)
-
+enum class FeedFilter { GLOBAL, GUILD, NEARBY }
+data class PostComment(val id: String, val userName: String, val text: String, val timeAgo: String = "Just now")
 fun formatTimeAgo(timestampMs: Long): String {
     if (timestampMs <= 0) return "Just now"
     val diff = System.currentTimeMillis() - timestampMs
-    if (diff < 0) return "Just now"
-    val seconds = diff / 1000
-    val minutes = seconds / 60
-    val hours = minutes / 60
-    val days = hours / 24
-    val months = days / 30
-    val years = days / 365
-
-    return when {
-        seconds < 45 -> "Just now"
-        minutes < 60 -> "${minutes}m ago"
-        hours < 24 -> "${hours}h ago"
-        days < 30 -> "${days}d ago"
-        months < 12 -> "${months}mo ago"
-        else -> "${years}yr ago"
-    }
+    val seconds = diff / 1000; val minutes = seconds / 60; val hours = minutes / 60; val days = hours / 24; val months = days / 30; val years = days / 365
+    return when { diff < 0 || seconds < 45 -> "Just now"; minutes < 60 -> minutes.toString() + "m ago"; hours < 24 -> hours.toString() + "h ago"; days < 30 -> days.toString() + "d ago"; months < 12 -> months.toString() + "mo ago"; else -> years.toString() + "yr ago" }
 }
 
 @HiltViewModel
 class SocialFeedViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth,
     private val monumentApi: MonumentApi,
     private val tokenManager: TokenManager
 ) : ViewModel() {
-
     private val prefs = context.getSharedPreferences("monument_feed_cache", Context.MODE_PRIVATE)
-    private val profilePrefs = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
-
-    private val _isGuest = MutableStateFlow(false)
+    private val _isGuest = MutableStateFlow(tokenManager.isGuest())
     val isGuest: StateFlow<Boolean> = _isGuest
-
     private val _stories = MutableStateFlow<List<DiscovererStory>>(emptyList())
     val stories: StateFlow<List<DiscovererStory>> = _stories
-
     private val _posts = MutableStateFlow<List<SocialPost>>(emptyList())
     val posts: StateFlow<List<SocialPost>> = _posts
-
     private val _currentFilter = MutableStateFlow(FeedFilter.GLOBAL)
     val currentFilter: StateFlow<FeedFilter> = _currentFilter
-
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
-
     private val _followedUsers = MutableStateFlow<Set<String>>(emptySet())
     val followedUsers: StateFlow<Set<String>> = _followedUsers
-
     private val _savedPostIds = MutableStateFlow<Set<String>>(emptySet())
     val savedPostIds: StateFlow<Set<String>> = _savedPostIds
-
     private val _postComments = MutableStateFlow<Map<String, List<PostComment>>>(emptyMap())
     val postComments: StateFlow<Map<String, List<PostComment>>> = _postComments
+    val currentUserId: String get() = tokenManager.getUserId() ?: ""
+    val currentUserName: String get() = tokenManager.getUserName() ?: "Explorer"
 
-    private val userPostsList = mutableListOf<SocialPost>()
-
-    val currentUserId: String get() = auth.currentUser?.uid ?: "user_me"
-    val currentUserName: String get() = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer (You)"
-
-    private fun getMyAvatarUrl(): String? {
-        val rawEmail = tokenManager.getUserEmail()?.lowercase()?.trim()
-            ?: auth.currentUser?.email?.lowercase()?.trim()
-            ?: ""
-        val userKey = if (rawEmail.isNotEmpty()) rawEmail.replace("@", "_").replace(".", "_") else "guest"
-        return profilePrefs.getString("profile_avatar_uri_$userKey", null)
-    }
-
-    private fun loadLocalSavedPhotos(): List<SocialPost> {
-        val list = mutableListOf<SocialPost>()
-        try {
-            val myAvatar = getMyAvatarUrl()
-            val myName = currentUserName
-            val postsDir = File(context.filesDir, "post_photos")
-            if (postsDir.exists() && postsDir.isDirectory) {
-                val files = postsDir.listFiles()?.sortedByDescending { it.lastModified() } ?: emptyList()
-                for (file in files) {
-                    if (file.name.endsWith(".jpg") || file.name.endsWith(".png")) {
-                        val fileUri = Uri.fromFile(file).toString()
-                        val fileTime = file.lastModified()
-                        val savedCaption = prefs.getString("caption_" + file.name, null) ?: "Lingaraj Temple Heritage Discovery 🏛️✨"
-                        list.add(
-                            SocialPost(
-                                id = "local_photo_" + file.name,
-                                userId = currentUserId,
-                                userName = myName,
-                                userAvatarUrl = myAvatar,
-                                userRank = "Bhubaneswar Explorer",
-                                monumentName = "Lingaraj Temple",
-                                locationName = "Bhubaneswar, Odisha",
-                                imageUrl = fileUri,
-                                caption = savedCaption,
-                                postType = "CHECKIN",
-                                likesCount = 1,
-                                isLiked = true,
-                                commentsCount = 0,
-                                timestamp = fileTime,
-                                timestampFormatted = formatTimeAgo(fileTime)
-                            )
-                        )
-                    }
-                }
-            }
-        } catch (e: Exception) {}
-        return list
-    }
-
-    init {
-        restoreCache()
-        fetchPosts()
-    }
+    init { restoreCache(); fetchPosts() }
 
     private fun restoreCache() {
-        try {
-            val savedIds = prefs.getStringSet("saved_post_ids", emptySet()) ?: emptySet()
-            _savedPostIds.value = savedIds
-
-            val followed = prefs.getStringSet("followed_user_ids", emptySet()) ?: emptySet()
-            _followedUsers.value = followed
-
-            val commentsJson = prefs.getString("post_comments_json", null)
-            if (!commentsJson.isNullOrBlank()) {
-                val type = object : TypeToken<Map<String, List<PostComment>>>() {}.type
-                val map: Map<String, List<PostComment>> = gson.fromJson(commentsJson, type)
-                _postComments.value = map
-            }
-
-            val localPhotoPosts = loadLocalSavedPhotos()
-
-            val cachedPostsJson = prefs.getString("cached_posts_json", null)
-            if (!cachedPostsJson.isNullOrBlank()) {
-                val type = object : TypeToken<List<SocialPost>>() {}.type
-                val cachedList: List<SocialPost> = gson.fromJson(cachedPostsJson, type)
-                val myAvatar = getMyAvatarUrl()
-                val updatedWithAvatar = cachedList.map { p ->
-                    if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
-                }
-                val merged = (localPhotoPosts + updatedWithAvatar).distinctBy { it.id }
-                _posts.value = filterList(merged, _currentFilter.value)
-            } else if (localPhotoPosts.isNotEmpty()) {
-                _posts.value = filterList(localPhotoPosts, _currentFilter.value)
-            }
-        } catch (e: Exception) {}
+        _savedPostIds.value = prefs.getStringSet("saved_post_ids", emptySet()) ?: emptySet()
+        _followedUsers.value = prefs.getStringSet("followed_user_ids", emptySet()) ?: emptySet()
+        prefs.getString("post_comments_json", null)?.let { json -> try { val type = object : TypeToken<Map<String, List<PostComment>>>() {}.type; _postComments.value = gson.fromJson(json, type) } catch (_: Exception) {} }
     }
 
     private fun saveCache(posts: List<SocialPost>) {
         try {
-            prefs.edit().apply {
-                putStringSet("saved_post_ids", _savedPostIds.value)
-                putStringSet("followed_user_ids", _followedUsers.value)
-                putString("post_comments_json", gson.toJson(_postComments.value))
-                putString("cached_posts_json", gson.toJson(posts.take(50)))
-                apply()
-            }
-        } catch (e: Exception) {}
+            val cacheable = posts.take(50).map { post -> if (post.imageUrl?.startsWith("data:image/") == true) post.copy(imageUrl = null) else post }
+            prefs.edit().putStringSet("saved_post_ids", _savedPostIds.value).putStringSet("followed_user_ids", _followedUsers.value).putString("post_comments_json", gson.toJson(_postComments.value)).putString("cached_posts_json", gson.toJson(cacheable)).apply()
+        } catch (_: Exception) {}
     }
 
-    fun setSearchQuery(query: String) {
-        _searchQuery.value = query
-        fetchPosts()
-    }
-
-    fun setFilter(filter: FeedFilter) {
-        _currentFilter.value = filter
-        fetchPosts()
-    }
-
-    fun toggleFollow(userId: String) {
-        val current = _followedUsers.value.toMutableSet()
-        if (current.contains(userId)) current.remove(userId) else current.add(userId)
-        _followedUsers.value = current
-        saveCache(_posts.value)
-    }
-
-    fun toggleSavePost(postId: String) {
-        val current = _savedPostIds.value.toMutableSet()
-        if (current.contains(postId)) current.remove(postId) else current.add(postId)
-        _savedPostIds.value = current
-        saveCache(_posts.value)
-    }
-
-    fun addComment(postId: String, commentText: String) {
-        if (_isGuest.value) return
-        if (commentText.isBlank()) return
-        val currentMap = _postComments.value.toMutableMap()
-        val existingComments = currentMap[postId]?.toMutableList() ?: mutableListOf()
-        val myName = currentUserName
-        val newComment = PostComment(
-            id = "comment_" + System.currentTimeMillis(),
-            userName = myName,
-            text = commentText,
-            timeAgo = "Just now"
-        )
-        existingComments.add(newComment)
-        currentMap[postId] = existingComments
-        _postComments.value = currentMap
-
-        _posts.value = _posts.value.map { post ->
-            if (post.id == postId) post.copy(commentsCount = post.commentsCount + 1) else post
-        }
-        saveCache(_posts.value)
-    }
-
-    fun deletePost(postId: String) {
-        _posts.value = _posts.value.filter { it.id != postId }
-        userPostsList.removeAll { it.id == postId }
-        saveCache(_posts.value)
-
-        // Delete local photo file if it was local
-        if (postId.startsWith("local_photo_")) {
-            try {
-                val fileName = postId.removePrefix("local_photo_")
-                val file = File(File(context.filesDir, "post_photos"), fileName)
-                if (file.exists()) file.delete()
-                prefs.edit().remove("caption_$fileName").apply()
-            } catch (e: Exception) {}
-        }
-
-        // Delete from Firebase Firestore & Backend
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                firestore.collection("posts").document(postId).delete().await()
-            } catch (e: Exception) {}
-
-            try {
-                monumentApi.deletePost(postId)
-            } catch (e: Exception) {}
-        }
-    }
+    fun setSearchQuery(query: String) { _searchQuery.value = query; _posts.value = filterList(_posts.value, _currentFilter.value) }
+    fun setFilter(filter: FeedFilter) { _currentFilter.value = filter; fetchPosts() }
 
     fun fetchPosts() {
         viewModelScope.launch {
-            val myAvatar = getMyAvatarUrl()
-            val myName = currentUserName
-            val currentLocalMap = _posts.value.associate { it.id to Pair(it.isLiked, it.likesCount) }
-
-            val localSavedPhotoPosts = loadLocalSavedPhotos()
-
-            val userAvatarsMap = mutableMapOf<String, String>()
             try {
-                val userDocs = firestore.collection("users").get().await()
-                for (doc in userDocs.documents) {
-                    val uid = doc.id
-                    val avatar = doc.getString("avatarUrl")
-                    if (!avatar.isNullOrBlank()) {
-                        userAvatarsMap[uid] = avatar
-                    }
-                }
-            } catch (e: Exception) {}
-
-            val firestorePosts = mutableListOf<SocialPost>()
+                val scope = if (_currentFilter.value == FeedFilter.GUILD) "guild" else null
+                val response = withContext(Dispatchers.IO) { monumentApi.getFeed(scope = scope) }
+                val mapped = (response.data ?: response.feed ?: emptyList()).map(::toSocialPost)
+                _posts.value = filterList(mapped, _currentFilter.value)
+                saveCache(mapped)
+            } catch (_: Exception) { restoreCachedPosts() }
             try {
-                val snapshot = firestore.collection("posts")
-                    .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
-
-                for (doc in snapshot.documents) {
-                    val id = doc.id
-                    val userId = doc.getString("userId") ?: "user_fs_$id"
-                    val name = doc.getString("userName") ?: doc.getString("authorName") ?: "Heritage Explorer"
-                    val caption = doc.getString("content") ?: doc.getString("caption") ?: ""
-                    val img = doc.getString("imageUrl") ?: doc.getString("photoUrl") ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
-                    val mon = doc.getString("monumentName") ?: "Lingaraj Temple"
-                    val ts = doc.getLong("timestamp") ?: System.currentTimeMillis()
-
-                    val isMe = name.equals(myName, ignoreCase = true)
-                    val defaultAvatar = "https://ui-avatars.com/api/?name=${android.net.Uri.encode(name)}&background=1E293B&color=D4AF37&bold=true&size=200"
-
-                    val remoteAvatar = userAvatarsMap[userId] ?: doc.getString("userAvatarUrl") ?: doc.getString("avatarUrl")
-                    val avatarToUse = when {
-                        isMe && !myAvatar.isNullOrBlank() -> myAvatar
-                        !remoteAvatar.isNullOrBlank() -> remoteAvatar
-                        else -> defaultAvatar
-                    }
-
-                    val localState = currentLocalMap[id]
-                    val isLiked = localState?.first ?: false
-                    val likesCount = localState?.second ?: 1
-
-                    firestorePosts.add(
-                        SocialPost(
-                            id = id,
-                            userId = userId,
-                            userName = name,
-                            userAvatarUrl = avatarToUse,
-                            userRank = "Heritage Explorer",
-                            monumentName = mon,
-                            locationName = "Bhubaneswar, Odisha",
-                            imageUrl = img,
-                            caption = caption,
-                            postType = "CHECKIN",
-                            likesCount = likesCount,
-                            isLiked = isLiked,
-                            commentsCount = 0,
-                            timestamp = ts,
-                            timestampFormatted = formatTimeAgo(ts)
-                        )
-                    )
-                }
-            } catch (e: Exception) {}
-
-            var serverPosts = emptyList<SocialPost>()
-            try {
-                val feedRes = withContext(Dispatchers.IO) { monumentApi.getFeed() }
-                val rawItems = feedRes.data ?: feedRes.feed ?: emptyList()
-
-                serverPosts = rawItems.map { f ->
-                    val uId = f.userId ?: f.user_id ?: "user_feed_${f.id}"
-                    val name = f.userName ?: f.user_name ?: "Heritage Explorer"
-                    val mon = f.monumentName ?: f.monument_name ?: "Lingaraj Temple"
-                    val img = f.imageUrl ?: f.image_url ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
-                    val ts = if (f.timestamp > 0) f.timestamp else System.currentTimeMillis()
-
-                    val isMe = name.equals(myName, ignoreCase = true)
-                    val serverAvatar = f.userAvatarUrl ?: f.user_avatar_url ?: userAvatarsMap[uId]
-                    val defaultAvatar = "https://ui-avatars.com/api/?name=${android.net.Uri.encode(name)}&background=1E293B&color=D4AF37&bold=true&size=200"
-
-                    val avatarToUse = when {
-                        isMe && !myAvatar.isNullOrBlank() -> myAvatar
-                        !serverAvatar.isNullOrBlank() -> serverAvatar
-                        else -> defaultAvatar
-                    }
-
-                    val localState = currentLocalMap[f.id]
-                    val isLiked = localState?.first ?: f.isLiked
-                    val likesCount = localState?.second ?: (f.likesCount ?: f.likes ?: 0)
-
-                    SocialPost(
-                        id = f.id,
-                        userId = uId,
-                        userName = name,
-                        userAvatarUrl = avatarToUse,
-                        userRank = "Heritage Explorer",
-                        monumentName = mon,
-                        locationName = f.locationName ?: "Bhubaneswar, Odisha",
-                        imageUrl = img,
-                        caption = f.caption,
-                        postType = f.postType ?: "CHECKIN",
-                        likesCount = likesCount,
-                        isLiked = isLiked,
-                        commentsCount = f.commentsCount,
-                        timestamp = ts,
-                        timestampFormatted = formatTimeAgo(ts)
-                    )
-                }
-            } catch (e: Exception) {}
-
-            val userPostsWithAvatar = userPostsList.map { p ->
-                val localState = currentLocalMap[p.id]
-                val isLiked = localState?.first ?: p.isLiked
-                val likesCount = localState?.second ?: p.likesCount
-                val avatar = if (!myAvatar.isNullOrBlank()) myAvatar else p.userAvatarUrl
-                p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
-            }
-
-            val combined = (localSavedPhotoPosts + userPostsWithAvatar + firestorePosts + serverPosts).distinctBy { it.id }
-            _posts.value = filterList(combined, _currentFilter.value)
-            saveCache(_posts.value)
+                val response = withContext(Dispatchers.IO) { monumentApi.getStories() }
+                _stories.value = response.data.map { story -> DiscovererStory(story.id, story.userId, story.userName, story.avatarUrl, story.mediaUrl, story.caption, story.createdAt, story.expiresAt, story.viewsCount, story.isViewed) }
+            } catch (_: Exception) {}
         }
     }
 
+    private fun restoreCachedPosts() {
+        prefs.getString("cached_posts_json", null)?.let { json -> try { val type = object : TypeToken<List<SocialPost>>() {}.type; _posts.value = filterList(gson.fromJson(json, type), _currentFilter.value) } catch (_: Exception) {} }
+    private fun toSocialPost(item: ApiFeedItem) = SocialPost(id = item.id, userId = item.userId ?: "", userName = item.userName ?: "Heritage Explorer", userAvatarUrl = item.userAvatarUrl, userRank = item.userRank ?: "Explorer", monumentName = item.monumentName ?: item.monument_name ?: "Monument", locationName = item.locationName ?: "", imageUrl = item.imageUrl ?: item.image_url, caption = item.caption, postType = item.postType ?: "CHECKIN", likesCount = item.likesCount ?: 0, isLiked = item.isLiked, isSaved = item.isSaved, isFollowing = item.isFollowing, commentsCount = item.commentsCount, timestamp = item.timestamp, timestampFormatted = formatTimeAgo(item.timestamp))
     private fun filterList(list: List<SocialPost>, filter: FeedFilter): List<SocialPost> {
-        val filteredByTab = when (filter) {
-            FeedFilter.GLOBAL -> list
-            FeedFilter.GUILD -> list.filter { it.userRank.contains("Master") || it.postType == "DISCOVERY" }
-            FeedFilter.NEARBY -> list.filter { it.locationName.contains("Bhubaneswar") || it.locationName.contains("Odisha") }
-        }
+        val byTab = when (filter) { FeedFilter.GLOBAL, FeedFilter.GUILD -> list; FeedFilter.NEARBY -> list.filter { it.locationName.contains("Bhubaneswar", true) || it.locationName.contains("Odisha", true) } }
+        val query = _searchQuery.value.trim()
+        return if (query.isEmpty()) byTab else byTab.filter { it.caption.contains(query, true) || it.userName.contains(query, true) || it.monumentName.contains(query, true) || it.locationName.contains(query, true) }
+    }
 
-        val query = _searchQuery.value.trim().lowercase()
-        return if (query.isEmpty()) {
-            filteredByTab
-        } else {
-            filteredByTab.filter { post ->
-                post.caption.lowercase().contains(query) ||
-                        post.userName.lowercase().contains(query) ||
-                        post.monumentName.lowercase().contains(query) ||
-                        post.locationName.lowercase().contains(query)
-            }
+    fun toggleFollow(userId: String) {
+        if (_isGuest.value || userId.isBlank() || userId == currentUserId) return
+        val wasFollowing = _followedUsers.value.contains(userId)
+        val next = _followedUsers.value.toMutableSet().apply { if (wasFollowing) remove(userId) else add(userId) }
+        _followedUsers.value = next
+        _posts.value = _posts.value.map { if (it.userId == userId) it.copy(isFollowing = !wasFollowing) else it }
+        saveCache(_posts.value)
+        viewModelScope.launch(Dispatchers.IO) { try { monumentApi.toggleFollow(userId) } catch (_: Exception) { _followedUsers.value = if (wasFollowing) next + userId else next - userId; fetchPosts() } }
+    }
+
+    fun toggleSavePost(postId: String) {
+        if (_isGuest.value) return
+        val wasSaved = _savedPostIds.value.contains(postId)
+        _savedPostIds.value = _savedPostIds.value.toMutableSet().apply { if (wasSaved) remove(postId) else add(postId) }
+        _posts.value = _posts.value.map { if (it.id == postId) it.copy(isSaved = !wasSaved) else it }
+        saveCache(_posts.value)
+        viewModelScope.launch(Dispatchers.IO) { try { monumentApi.toggleSave(postId) } catch (_: Exception) { _savedPostIds.value = if (wasSaved) _savedPostIds.value + postId else _savedPostIds.value - postId; fetchPosts() } }
+    }
+
+    fun loadComments(postId: String) {
+        viewModelScope.launch(Dispatchers.IO) { try { val comments = monumentApi.getComments(postId).data.map { it.toPostComment() }; _postComments.value = _postComments.value + (postId to comments); saveCache(_posts.value) } catch (_: Exception) {} }
+    }
+
+    fun addComment(postId: String, commentText: String) {
+        if (_isGuest.value || commentText.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val response = monumentApi.addComment(postId, mapOf("body" to commentText.trim()))
+                if (response.isSuccessful) {
+                    val comment = response.body()?.data
+                    if (comment != null) { _postComments.value = _postComments.value + (postId to ((_postComments.value[postId] ?: emptyList()) + comment.toPostComment())); _posts.value = _posts.value.map { if (it.id == postId) it.copy(commentsCount = it.commentsCount + 1) else it }; saveCache(_posts.value) }
+                }
+            } catch (_: Exception) {}
         }
+    }
+
+    fun deletePost(postId: String) {
+        if (_isGuest.value) return
+        val previous = _posts.value
+        _posts.value = previous.filterNot { it.id == postId }
+        viewModelScope.launch(Dispatchers.IO) { try { monumentApi.deletePost(postId) } catch (_: Exception) { _posts.value = previous } }
     }
 
     fun toggleLike(postId: String) {
         if (_isGuest.value) return
-        _posts.value = _posts.value.map { post ->
-            if (post.id == postId) {
-                val newIsLiked = !post.isLiked
-                val newCount = if (newIsLiked) post.likesCount + 1 else Math.max(0, post.likesCount - 1)
-                post.copy(isLiked = newIsLiked, likesCount = newCount)
-            } else post
-        }
+        val previous = _posts.value
+        _posts.value = previous.map { if (it.id == postId) it.copy(isLiked = !it.isLiked, likesCount = (it.likesCount + if (it.isLiked) -1 else 1).coerceAtLeast(0)) else it }
         saveCache(_posts.value)
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                monumentApi.toggleLike(postId)
-            } catch (e: Exception) {}
-        }
+        viewModelScope.launch(Dispatchers.IO) { try { val result = monumentApi.toggleLike(postId).data; if (result != null) _posts.value = _posts.value.map { if (it.id == postId) it.copy(isLiked = result.isLiked, likesCount = result.likesCount) else it } } catch (_: Exception) { _posts.value = previous } }
     }
 
     fun createPost(caption: String, monumentName: String, photoUri: Uri? = null) {
-        if (_isGuest.value) return
+        if (_isGuest.value || caption.trim().isEmpty()) return
         viewModelScope.launch {
-            val user = auth.currentUser
-            val myName = currentUserName
-            val myAvatar = getMyAvatarUrl()
-
-            var savedPhotoUrl: String? = null
-            var fileNameCreated: String? = null
-            if (photoUri != null) {
-                try {
-                    val postsDir = File(context.filesDir, "post_photos")
-                    if (!postsDir.exists()) postsDir.mkdirs()
-                    fileNameCreated = "post_${System.currentTimeMillis()}.jpg"
-                    val destFile = File(postsDir, fileNameCreated)
-
-                    val inputStream = context.contentResolver.openInputStream(photoUri)
-                    val outputStream = FileOutputStream(destFile)
-                    inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
-                    savedPhotoUrl = Uri.fromFile(destFile).toString()
-
-                    prefs.edit().putString("caption_$fileNameCreated", caption).apply()
-                } catch (e: Exception) {
-                    savedPhotoUrl = photoUri.toString()
-                }
-            }
-
-            val photoUrlToUse = savedPhotoUrl ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
-            val nowMs = System.currentTimeMillis()
-
-            val newPost = SocialPost(
-                id = "sp_" + nowMs,
-                userId = user?.uid ?: "user_me",
-                userName = myName,
-                userAvatarUrl = myAvatar,
-                userRank = "Bhubaneswar Explorer",
-                monumentName = monumentName.ifBlank { "Bhubaneswar Monument" },
-                locationName = "Bhubaneswar, Odisha",
-                imageUrl = photoUrlToUse,
-                caption = caption,
-                postType = "CHECKIN",
-                likesCount = 1,
-                isLiked = true,
-                commentsCount = 0,
-                timestamp = nowMs,
-                timestampFormatted = "Just now"
-            )
-
-            // Save to Firebase Firestore so it's stored permanently in cloud database for everyone
             try {
-                val firestoreData = hashMapOf(
-                    "userId" to (user?.uid ?: "user_me"),
-                    "userName" to myName,
-                    "userAvatarUrl" to myAvatar,
-                    "caption" to caption,
-                    "content" to caption,
-                    "monumentName" to monumentName.ifBlank { "Bhubaneswar Monument" },
-                    "imageUrl" to photoUrlToUse,
-                    "timestamp" to nowMs
-                )
-                firestore.collection("posts").document(newPost.id).set(firestoreData)
-            } catch (e: Exception) {}
-
-            userPostsList.add(0, newPost)
-            val updatedList = (listOf(newPost) + _posts.value).distinctBy { it.id }
-            _posts.value = filterList(updatedList, _currentFilter.value)
-            saveCache(_posts.value)
-
-            withContext(Dispatchers.IO) {
-                try {
-                    monumentApi.createPost(CreatePostRequest(
-                        caption = caption,
-                        monumentId = "m1",
-                        imageUrl = photoUrlToUse
-                    ))
-                } catch (e: Exception) {}
-            }
-            fetchPosts()
+                val encodedImage = photoUri?.let { withContext(Dispatchers.IO) { ImageUtils.uriToBase64DataUrl(context, it, maxDimension = 600, quality = 75) } }
+                val response = withContext(Dispatchers.IO) { monumentApi.createPost(CreatePostRequest(caption = caption.trim(), monumentId = "m1", imageUrl = encodedImage)) }
+                response.data?.let { item -> _posts.value = filterList(listOf(toSocialPost(item)) + _posts.value, _currentFilter.value); saveCache(_posts.value) }
+            } catch (_: Exception) {}
         }
     }
+
+    private fun ApiComment.toPostComment() = PostComment(id, userName, body, formatTimeAgo(createdAt))
 }

@@ -217,7 +217,7 @@ fun SocialFeedScreen(
                         canLike            = !isGuest,
                         onFollowToggle     = { viewModel.toggleFollow(post.userId) },
                         onSaveToggle       = { viewModel.toggleSavePost(post.id) },
-                        onOpenComments     = { activeCommentsPostId = post.id },
+                        onOpenComments     = { activeCommentsPostId = post.id; viewModel.loadComments(post.id) },
                         onNavigateToNarrator = onNavigateToNarrator,
                         onUserClick        = {
                             activeExplorerProfile = ExplorerProfileData(

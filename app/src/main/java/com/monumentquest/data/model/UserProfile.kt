@@ -1,5 +1,12 @@
 package com.monumentquest.data.model
 
+data class ProfileGuild(
+    val id: String = "",
+    val name: String = "",
+    val region: String = "",
+    val description: String = ""
+)
+
 data class UserProfile(
     val id: String = "user_1",
     val name: String = "Explorer Prime",
@@ -10,5 +17,6 @@ data class UserProfile(
     val visitedCount: Int = 0,
     val totalDistanceKm: Double = 0.0,
     val areaUnlockedKm2: Double = 0.0,
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    val guild: ProfileGuild? = null
 )

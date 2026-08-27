@@ -2,8 +2,15 @@ package com.monumentquest.data.model
 
 data class DiscovererStory(
     val id: String = "",
+    val userId: String = "",
     val userName: String = "",
-    val avatarUrl: String = ""
+    val avatarUrl: String? = null,
+    val mediaUrl: String? = null,
+    val caption: String = "",
+    val createdAt: Long = 0L,
+    val expiresAt: Long = 0L,
+    val viewsCount: Int = 0,
+    val isViewed: Boolean = false
 )
 
 data class SocialPost(
@@ -16,10 +23,12 @@ data class SocialPost(
     val locationName: String = "",
     val imageUrl: String? = null,
     val caption: String = "",
-    val postType: String = "CHECKIN", // DISCOVERY, CHECKIN, TIME_CAPSULE, REFLECTION
+    val postType: String = "CHECKIN",
     val likesCount: Int = 0,
     val isLiked: Boolean = false,
+    val isSaved: Boolean = false,
+    val isFollowing: Boolean = false,
     val commentsCount: Int = 0,
-    val timestamp: Long = System.currentTimeMillis(),
+    val timestamp: Long = 0L,
     val timestampFormatted: String = "Just now"
 )

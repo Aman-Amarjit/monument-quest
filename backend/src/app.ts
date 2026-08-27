@@ -15,7 +15,7 @@ if (config.trustProxy) app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({
   origin: allowedOrigins() === '*' ? true : allowedOrigins(),
-  methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id']
 }));
 app.use(requestId);
@@ -34,7 +34,7 @@ app.get('/favicon.png', (_req, res) => res.status(204).end());
 app.get('/', (_req, res) => res.json({
   status: 'online',
   service: 'MonumentQuest Production API',
-  version: '3.0.0',
+  version: '3.1.0',
   database: 'Supabase PostgreSQL (Connected)',
   timestamp: new Date().toISOString()
 }));
