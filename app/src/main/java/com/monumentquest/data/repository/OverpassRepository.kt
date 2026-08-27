@@ -88,7 +88,7 @@ class OverpassRepository @Inject constructor() {
     }
 
     suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 15000): List<MapMonumentItem> = withContext(Dispatchers.IO) {
-        // Comprehensive Overpass query: temples, forts, museums, monuments, parks, attractions
+        // Expanded query: temples, forts, museums, public parks, town halls, squares, libraries, public landmarks
         val query = """
             [out:json][timeout:25];
             (
@@ -100,11 +100,17 @@ class OverpassRepository @Inject constructor() {
               node["tourism"="viewpoint"](around:$radiusMeters,$lat,$lon);
               node["amenity"="place_of_worship"](around:$radiusMeters,$lat,$lon);
               way["amenity"="place_of_worship"](around:$radiusMeters,$lat,$lon);
-              node["leisure"="park"]["name"](around:$radiusMeters,$lat,$lon);
+              node["amenity"="townhall"](around:$radiusMeters,$lat,$lon);
+              node["amenity"="community_centre"](around:$radiusMeters,$lat,$lon);
               node["amenity"="library"]["name"](around:$radiusMeters,$lat,$lon);
-              node["landuse"="cemetery"]["name"](around:$radiusMeters,$lat,$lon);
+              node["amenity"="public_building"](around:$radiusMeters,$lat,$lon);
+              node["amenity"="marketplace"](around:$radiusMeters,$lat,$lon);
+              node["leisure"="park"]["name"](around:$radiusMeters,$lat,$lon);
+              way["leisure"="park"]["name"](around:$radiusMeters,$lat,$lon);
+              node["leisure"="garden"]["name"](around:$radiusMeters,$lat,$lon);
+              node["leisure"="square"](around:$radiusMeters,$lat,$lon);
             );
-            out center 40;
+            out center 150;
         """.trimIndent()
 
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
@@ -153,9 +159,13 @@ class OverpassRepository @Inject constructor() {
                             val rel = tags.optString("religion", "")
                             if (rel.isNotBlank()) "${rel.uppercase()} TEMPLE" else "PLACE OF WORSHIP"
                         }
-                        tags.optString("leisure") == "park" -> "PARK"
-                        tags.optString("amenity") == "library" -> "LIBRARY"
-                        else -> "HERITAGE LANDMARK"
+                        tags.optString("amenity") == "townhall" -> "TOWN HALL"
+                        tags.optString("amenity") == "community_centre" -> "COMMUNITY HUB"
+                        tags.optString("amenity") == "marketplace" -> "PUBLIC MARKET"
+                        tags.optString("leisure") == "park" -> "PUBLIC PARK"
+                        tags.optString("leisure") == "garden" -> "BOTANICAL GARDEN"
+                        tags.optString("amenity") == "library" -> "PUBLIC LIBRARY"
+                        else -> "PUBLIC HERITAGE SITE"
                     }
 
                     // Calculate real distance from user
@@ -163,7 +173,7 @@ class OverpassRepository @Inject constructor() {
                     android.location.Location.distanceBetween(lat, lon, nodeLat, nodeLon, results)
                     val dist = results[0].toInt()
 
-                    // Point value based on historic importance
+                    // Point value based on importance
                     val points = when {
                         tags.has("historic") -> 500
                         tags.optString("tourism") == "museum" -> 400

@@ -284,7 +284,11 @@ fun MapScreen(
         val hasFine = androidx.core.content.ContextCompat.checkSelfPermission(
             context, android.Manifest.permission.ACCESS_FINE_LOCATION
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (hasFine) {
+        val hasCoarse = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (hasFine || hasCoarse) {
             viewModel.startLiveGpsTracking()
         } else {
             permissionLauncher.launch(
