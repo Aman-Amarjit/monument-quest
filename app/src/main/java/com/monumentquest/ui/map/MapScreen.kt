@@ -250,6 +250,7 @@ fun MapScreen(
 
     val searchResults    by viewModel.searchResults.collectAsState()
     val isSearching      by viewModel.isSearching.collectAsState()
+    val isLoadingMonuments by viewModel.isLoadingMonuments.collectAsState()
     val userProfile        by viewModel.userProfile.collectAsState()
 
     var selectedMonument  by remember { mutableStateOf<MapMonumentItem?>(null) }
@@ -645,6 +646,33 @@ fun MapScreen(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
+            }
+
+            if (isLoadingMonuments) {
+                Surface(
+                    modifier = Modifier.padding(top = 4.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xF00F172A),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Gold.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(13.dp),
+                            strokeWidth = 2.dp,
+                            color = Gold
+                        )
+                        Text(
+                            "Streaming real places around you…",
+                            color = Color.White,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
 
             if (searchResults.isNotEmpty()) {

@@ -57,6 +57,9 @@ class MapViewModel @Inject constructor(
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching
 
+    private val _isLoadingMonuments = MutableStateFlow(false)
+    val isLoadingMonuments: StateFlow<Boolean> = _isLoadingMonuments
+
     private val _walkPathPoints = MutableStateFlow<List<GeoPoint>>(emptyList())
     val walkPathPoints: StateFlow<List<GeoPoint>> = _walkPathPoints
 
@@ -291,6 +294,7 @@ class MapViewModel @Inject constructor(
 
     private fun fetchRealOverpassMonuments(lat: Double, lon: Double) {
         viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingMonuments.value = true
             try {
                 val backendRes = monumentApi.getNearbyMonuments(lat, lon)
                 val items = backendRes["monuments"] ?: emptyList()
@@ -307,6 +311,7 @@ class MapViewModel @Inject constructor(
                         )
                     }
                     _monuments.value = mapItems
+                    _isLoadingMonuments.value = false
                     return@launch
                 }
             } catch (e: Exception) {
@@ -314,9 +319,8 @@ class MapViewModel @Inject constructor(
             }
 
             val realMonuments = overpassRepository.fetchRealMonumentsNearby(lat, lon)
-            if (realMonuments.isNotEmpty()) {
-                _monuments.value = realMonuments
-            }
+            _monuments.value = realMonuments
+            _isLoadingMonuments.value = false
         }
     }
 

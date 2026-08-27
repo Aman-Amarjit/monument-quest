@@ -183,8 +183,7 @@ class OverpassRepository @Inject constructor() {
             return@withContext nominatimRealPlaces
         }
 
-        // Guaranteed Circular Range Fallback centered with user in the middle
-        return@withContext getFallbackPublicPlaces(lat, lon)
+        return@withContext emptyList()
     }
 
     private fun fetchNominatimRealPlaces(lat: Double, lon: Double): List<MapMonumentItem> {
@@ -235,41 +234,6 @@ class OverpassRepository @Inject constructor() {
             if (items.isNotEmpty()) return items.sortedBy { it.distanceMeters }
         } catch (_: Exception) {}
         return emptyList()
-    }
-
-    private fun getFallbackPublicPlaces(userLat: Double, userLon: Double): List<MapMonumentItem> {
-        val baseLat = if (userLat != 0.0) userLat else 20.2381
-        val baseLon = if (userLon != 0.0) userLon else 85.8338
-
-        // Circular range surrounding userLocation directly in the center (360 degrees)
-        val circularOffsets = listOf(
-            Triple(0.0022, 0.0000, Pair("Nearby Public Plaza", "PUBLIC SQUARE")),             // North (240m)
-            Triple(0.0016, 0.0016, Pair("Nearby Heritage Park", "PUBLIC PARK")),             // North-East (250m)
-            Triple(0.0000, 0.0023, Pair("Local Historic Temple", "PLACE OF WORSHIP")),         // East (240m)
-            Triple(-0.0016, 0.0016, Pair("Heritage Landmark Site", "HERITAGE LANDMARK")),     // South-East (250m)
-            Triple(-0.0022, 0.0000, Pair("Cultural History Center", "MUSEUM")),              // South (240m)
-            Triple(-0.0016, -0.0016, Pair("Community Civic Center", "TOWN HALL")),           // South-West (250m)
-            Triple(0.0000, -0.0023, Pair("Local Botanical Park", "PUBLIC PARK")),            // West (240m)
-            Triple(0.0016, -0.0016, Pair("Traditional Heritage Market", "PUBLIC MARKET")),    // North-West (250m)
-            Triple(0.0035, 0.0025, Pair("Memorial Landmark Tower", "HISTORIC MONUMENT")),    // Outer NE (420m)
-            Triple(-0.0035, -0.0025, Pair("Ancient Heritage Ruins", "ARCHAEOLOGICAL SITE"))   // Outer SW (420m)
-        )
-
-        return circularOffsets.mapIndexed { idx, (latOffset, lonOffset, meta) ->
-            val siteLat = baseLat + latOffset
-            val siteLon = baseLon + lonOffset
-            val results = FloatArray(1)
-            android.location.Location.distanceBetween(baseLat, baseLon, siteLat, siteLon, results)
-            MapMonumentItem(
-                id = "public_site_$idx",
-                name = meta.first,
-                locationName = "Nearby Public Site",
-                geoPoint = GeoPoint(siteLat, siteLon),
-                points = 500,
-                category = meta.second,
-                distanceMeters = results[0].toInt()
-            )
-        }.sortedBy { it.distanceMeters }
     }
 
     suspend fun fetchRealHotelsNearby(lat: Double, lon: Double, radiusMeters: Int = 8000): List<PartnerHotel> = withContext(Dispatchers.IO) {
