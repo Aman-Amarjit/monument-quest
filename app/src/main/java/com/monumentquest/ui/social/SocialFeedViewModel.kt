@@ -95,7 +95,10 @@ class SocialFeedViewModel @Inject constructor(
 
     private fun restoreCachedPosts() {
         prefs.getString("cached_posts_json", null)?.let { json -> try { val type = object : TypeToken<List<SocialPost>>() {}.type; _posts.value = filterList(gson.fromJson(json, type), _currentFilter.value) } catch (_: Exception) {} }
+    }
+
     private fun toSocialPost(item: ApiFeedItem) = SocialPost(id = item.id, userId = item.userId ?: "", userName = item.userName ?: "Heritage Explorer", userAvatarUrl = item.userAvatarUrl, userRank = item.userRank ?: "Explorer", monumentName = item.monumentName ?: item.monument_name ?: "Monument", locationName = item.locationName ?: "", imageUrl = item.imageUrl ?: item.image_url, caption = item.caption, postType = item.postType ?: "CHECKIN", likesCount = item.likesCount ?: 0, isLiked = item.isLiked, isSaved = item.isSaved, isFollowing = item.isFollowing, commentsCount = item.commentsCount, timestamp = item.timestamp, timestampFormatted = formatTimeAgo(item.timestamp))
+
     private fun filterList(list: List<SocialPost>, filter: FeedFilter): List<SocialPost> {
         val byTab = when (filter) { FeedFilter.GLOBAL, FeedFilter.GUILD -> list; FeedFilter.NEARBY -> list.filter { it.locationName.contains("Bhubaneswar", true) || it.locationName.contains("Odisha", true) } }
         val query = _searchQuery.value.trim()
