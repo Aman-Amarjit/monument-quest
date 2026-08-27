@@ -34,17 +34,16 @@ import { renderDashboardHtml } from './views/dashboard';
 
 // Root welcome route for browser & health monitoring
 app.get('/', (req, res) => {
-  const acceptsHtml = req.headers.accept?.includes('text/html');
-  if (acceptsHtml) {
-    return res.setHeader('Content-Type', 'text/html').send(renderDashboardHtml());
+  if (req.query.format === 'json' || req.headers['content-type'] === 'application/json') {
+    return res.json({
+      status: 'online',
+      service: 'MonumentQuest Production API',
+      version: '3.1.0',
+      database: 'Supabase PostgreSQL (Connected)',
+      timestamp: new Date().toISOString()
+    });
   }
-  return res.json({
-    status: 'online',
-    service: 'MonumentQuest Production API',
-    version: '3.1.0',
-    database: 'Supabase PostgreSQL (Connected)',
-    timestamp: new Date().toISOString()
-  });
+  return res.setHeader('Content-Type', 'text/html').send(renderDashboardHtml());
 });
 
 app.get('/health/live', (_req, res) => res.json({ status: 'ok', service: 'monument-quest-api' }));
