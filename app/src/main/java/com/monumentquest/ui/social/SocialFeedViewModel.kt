@@ -118,9 +118,14 @@ class SocialFeedViewModel @Inject constructor(
                 val files = postsDir.listFiles()?.sortedByDescending { it.lastModified() } ?: emptyList()
                 for (file in files) {
                     if (file.name.endsWith(".jpg") || file.name.endsWith(".png")) {
+                        val savedCaption = prefs.getString("caption_" + file.name, null)
+                        if (savedCaption.isNullOrBlank() || savedCaption.startsWith("Lingaraj Temple Heritage Discovery")) {
+                            // Clean up leftover stub photo file
+                            try { file.delete() } catch (_: Exception) {}
+                            continue
+                        }
                         val fileUri = Uri.fromFile(file).toString()
                         val fileTime = file.lastModified()
-                        val savedCaption = prefs.getString("caption_" + file.name, null) ?: "Lingaraj Temple Heritage Discovery 🏛️✨"
                         list.add(
                             SocialPost(
                                 id = "local_photo_" + file.name,
@@ -128,7 +133,7 @@ class SocialFeedViewModel @Inject constructor(
                                 userName = myName,
                                 userAvatarUrl = myAvatar,
                                 userRank = "Bhubaneswar Explorer",
-                                monumentName = "Lingaraj Temple",
+                                monumentName = "Heritage Site",
                                 locationName = "Bhubaneswar, Odisha",
                                 imageUrl = fileUri,
                                 caption = savedCaption,
@@ -173,8 +178,12 @@ class SocialFeedViewModel @Inject constructor(
             if (!cachedPostsJson.isNullOrBlank()) {
                 val type = object : TypeToken<List<SocialPost>>() {}.type
                 val cachedList: List<SocialPost> = gson.fromJson(cachedPostsJson, type)
+                val cleanCached = cachedList.filter { p ->
+                    val cap = p.caption ?: ""
+                    !cap.startsWith("Lingaraj Temple Heritage Discovery")
+                }
                 val myAvatar = getMyAvatarUrl()
-                val updatedWithAvatar = cachedList.map { p ->
+                val updatedWithAvatar = cleanCached.map { p ->
                     if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
                 }
                 val merged = (localPhotoPosts + updatedWithAvatar).distinctBy { it.id }
