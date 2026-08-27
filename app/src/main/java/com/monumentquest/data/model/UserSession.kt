@@ -7,5 +7,6 @@ data class UserSession(
     val userRank: String = "Novice Discoverer",
     val points: Int = 100,
     val isGuest: Boolean = true,
-    val guildName: String = "Independent Explorer"
+    val guildName: String = "Independent Explorer",
+    val avatarUrl: String? = null
 )
