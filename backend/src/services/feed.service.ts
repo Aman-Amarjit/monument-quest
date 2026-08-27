@@ -114,7 +114,7 @@ export class FeedService {
     return toFeedItem(post);
   }
 
-  static async deletePost(postId: string) {
+  static async deletePost(postId: string, userId?: string) {
     try { await prisma.post.delete({ where: { id: postId } }); } catch (_: any) {}
     return { success: true, message: 'Post deleted' };
   }
