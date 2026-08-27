@@ -132,12 +132,8 @@ class SocialFeedViewModel @Inject constructor(
                     if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
                 }
                 _posts.value = filterList(updatedWithAvatar, _currentFilter.value)
-            } else {
-                _posts.value = filterList(getSamplePosts(), _currentFilter.value)
             }
-        } catch (e: Exception) {
-            _posts.value = filterList(getSamplePosts(), _currentFilter.value)
-        }
+        } catch (e: Exception) {}
     }
 
     private fun saveCache(posts: List<SocialPost>) {
@@ -255,57 +251,17 @@ class SocialFeedViewModel @Inject constructor(
                     p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
                 }
 
-                val combined = userPostsWithAvatar + serverPosts
-                val allPosts = if (combined.isNotEmpty()) combined else getSamplePosts()
-                _posts.value = filterList(allPosts.distinctBy { it.id }, _currentFilter.value)
+                val combined = (userPostsWithAvatar + serverPosts).distinctBy { it.id }
+                _posts.value = filterList(combined, _currentFilter.value)
                 saveCache(_posts.value)
             } catch (e: Exception) {
                 val myAvatar = getMyAvatarUrl()
                 val userPostsWithAvatar = userPostsList.map { p ->
                     if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
                 }
-                val fallbackList = if (userPostsWithAvatar.isNotEmpty()) userPostsWithAvatar else getSamplePosts()
-                _posts.value = filterList(fallbackList, _currentFilter.value)
+                _posts.value = filterList(userPostsWithAvatar, _currentFilter.value)
             }
         }
-    }
-
-    private fun getSamplePosts(): List<SocialPost> {
-        val myAvatar = getMyAvatarUrl()
-        return listOf(
-            SocialPost(
-                id = "sp_101",
-                userName = "Heritage Explorer",
-                userAvatarUrl = myAvatar ?: "https://ui-avatars.com/api/?name=Heritage+Explorer&background=1E293B&color=D4AF37&bold=true",
-                userRank = "Bhubaneswar Explorer",
-                monumentName = "Lingaraj Temple",
-                locationName = "Old Town, Bhubaneswar",
-                imageUrl = "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800",
-                caption = "Standing in awe of the 11th-century Kalinga architecture at Lingaraj Temple. Truly timeless heritage! 🏛️✨",
-                postType = "CHECKIN",
-                likesCount = 12,
-                isLiked = false,
-                commentsCount = 3,
-                timestamp = System.currentTimeMillis() - 3600000,
-                timestampFormatted = "1h ago"
-            ),
-            SocialPost(
-                id = "sp_102",
-                userName = "Odisha Scout",
-                userAvatarUrl = "https://ui-avatars.com/api/?name=Odisha+Scout&background=1E293B&color=D4AF37&bold=true",
-                userRank = "Master Explorer",
-                monumentName = "Mukteshvara Temple",
-                locationName = "Bhubaneswar, Odisha",
-                imageUrl = "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=800",
-                caption = "The famous Torana archway of Mukteshvara is unmatched. Captured live during early morning quest! 🌅",
-                postType = "DISCOVERY",
-                likesCount = 24,
-                isLiked = true,
-                commentsCount = 5,
-                timestamp = System.currentTimeMillis() - 7200000,
-                timestampFormatted = "2h ago"
-            )
-        )
     }
 
     private fun filterList(list: List<SocialPost>, filter: FeedFilter): List<SocialPost> {
