@@ -13,9 +13,10 @@ data class SendOtpResponse(val success: Boolean, val message: String, val otpCod
 data class LoginWithOtpRequest(val email: String, val code: String)
 data class RegisterWithOtpRequest(val email: String, val code: String, val name: String)
 data class AuthUser(
-    val id: String, val name: String, val email: String, val avatarUrl: String? = null,
+    val id: String, val name: String, val email: String,
     val userRank: String = "Bhubaneswar Explorer", val points: Int = 0,
-    val role: String = "EXPLORER", val guildName: String? = null, val isGuest: Boolean = false
+    val role: String = "EXPLORER", val avatarUrl: String? = null,
+    val guildName: String? = null, val isGuest: Boolean = false
 )
 data class AuthData(val token: String, val user: AuthUser)
 data class AuthResponse(val success: Boolean, val data: AuthData, val needsSignup: Boolean = false, val alreadyExists: Boolean = false)
@@ -57,6 +58,34 @@ data class CreatePostResponse(val success: Boolean, val data: Map<String, Any>?)
 data class GuildItem(val id: String, val name: String, val description: String, val members_count: Int, val total_xp: Int, val rank: Int)
 data class GuildsResponse(val guilds: List<GuildItem>)
 
+// Geofenced Monument Capture
+data class CaptureRequest(
+    val monumentId: String? = null,
+    val name: String? = null,
+    val latitude: Double,
+    val longitude: Double,
+    val imageUrl: String? = null
+)
+
+data class CaptureData(
+    val success: Boolean = false,
+    val monumentId: String? = null,
+    val monumentName: String? = null,
+    val locationName: String? = null,
+    val distanceMeters: Int? = null,
+    val requiredRadiusMeters: Int? = null,
+    val pointsEarned: Int? = null,
+    val rarity: String? = null,
+    val alreadyCaptured: Boolean? = null,
+    val message: String? = null
+)
+
+data class CaptureResponse(
+    val success: Boolean = false,
+    val data: CaptureData? = null,
+    val error: String? = null
+)
+
 // Progress sync
 data class SyncProgressRequest(
     val totalDistanceKm: Double,
@@ -95,9 +124,12 @@ interface MonumentApi {
     @PATCH("user/progress")
     suspend fun syncProgress(@Body request: SyncProgressRequest): SyncProgressResponse
 
-    // Monuments
+    // Monuments & Geofenced Capture
     @GET("monuments")
     suspend fun getNearbyMonuments(@Query("lat") lat: Double, @Query("lon") lon: Double): Map<String, List<Monument>>
+
+    @POST("monuments/capture")
+    suspend fun captureMonument(@Body request: CaptureRequest): CaptureResponse
 
     @GET("hotels")
     suspend fun getPartnerHotels(@Query("lat") lat: Double, @Query("lon") lon: Double): HotelsResponse

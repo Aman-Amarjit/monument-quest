@@ -95,7 +95,7 @@ fun DiscoveryFormScreen(
                 fontSize   = 20.sp
             )
 
-            // Community Review Info Card
+            // Geofenced Verification Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape    = RoundedCornerShape(14.dp),
@@ -107,11 +107,11 @@ fun DiscoveryFormScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.HourglassTop, null, tint = Color(0xFFF0A500), modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.GpsFixed, null, tint = Color(0xFFF0A500), modifier = Modifier.size(24.dp))
                     Column {
-                        Text("Special Landmark Review System", fontWeight = FontWeight.Bold, color = Color(0xFFF0A500), fontSize = 12.5.sp)
+                        Text("Server Geofenced Verification", fontWeight = FontWeight.Bold, color = Color(0xFFF0A500), fontSize = 12.5.sp)
                         Text(
-                            "Special or beautiful discoveries submitted outside standard zones are reviewed by explorers. +250 XP will be awarded upon community approval!",
+                            "Captures are checked in real-time by the backend server. XP and leaderboard points are awarded instantly upon server distance confirmation!",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary,
                             lineHeight = 16.sp
@@ -124,7 +124,7 @@ fun DiscoveryFormScreen(
                 value       = name,
                 onValueChange = { name = it },
                 label       = { Text("Monument / Landmark Name") },
-                placeholder = { Text("e.g. Ancient Temple Archway…", color = TextSecondary) },
+                placeholder = { Text("e.g. Lingaraj Temple, Rajarani Temple…", color = TextSecondary) },
                 leadingIcon = {
                     Icon(Icons.Default.Landscape, null, tint = Gold, modifier = Modifier.size(20.dp))
                 },
@@ -153,7 +153,7 @@ fun DiscoveryFormScreen(
                         ) {
                             CircularProgressIndicator(color = Gold, strokeWidth = 2.5.dp)
                             Text(
-                                "Logging discovery & calculating XP bonus…",
+                                "Verifying location & claiming server reward…",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
@@ -179,9 +179,9 @@ fun DiscoveryFormScreen(
                             ) {
                                 Icon(Icons.Default.MilitaryTech, null, tint = Gold, modifier = Modifier.size(26.dp))
                                 Column {
-                                    Text("Special Discovery Submitted!", fontWeight = FontWeight.Bold, color = Gold, fontSize = 14.sp)
+                                    Text(result.monumentName.ifBlank { "Monument Captured!" }, fontWeight = FontWeight.Bold, color = Gold, fontSize = 14.sp)
                                     Text(
-                                        "Submitted for Community Review • +250 XP Pending",
+                                        result.rarityBadge,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = TextSecondary
                                     )
@@ -196,12 +196,12 @@ fun DiscoveryFormScreen(
                                 verticalAlignment     = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text("STATUS", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
-                                    Text("Under Review ⏳", fontWeight = FontWeight.Bold, color = Color(0xFFF0A500), fontSize = 14.sp)
+                                    Text("SERVER STATUS", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
+                                    Text("Verified ✓", fontWeight = FontWeight.Bold, color = Color(0xFF22C55E), fontSize = 14.sp)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("POTENTIAL REWARD", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
-                                    Text("+250 XP", fontWeight = FontWeight.Bold, color = Gold, fontSize = 18.sp)
+                                    Text("SERVER REWARD", style = MaterialTheme.typography.labelSmall, color = TextSecondary, fontSize = 10.sp)
+                                    Text("+${result.pointsEarned} XP", fontWeight = FontWeight.Bold, color = Gold, fontSize = 18.sp)
                                 }
                             }
 
@@ -239,7 +239,7 @@ fun DiscoveryFormScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    SubmitButton(enabled = true) { viewModel.uploadDiscovery(name, imageUri) }
+                    SubmitButton(enabled = name.isNotBlank()) { viewModel.uploadDiscovery(name, imageUri) }
                 }
 
                 else -> {
@@ -270,6 +270,6 @@ private fun SubmitButton(enabled: Boolean, onClick: () -> Unit) {
     ) {
         Icon(Icons.Default.CloudUpload, null, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(8.dp))
-        Text("Submit Special Discovery for Review", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Text("Verify & Claim Server Capture Reward", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
     }
 }
