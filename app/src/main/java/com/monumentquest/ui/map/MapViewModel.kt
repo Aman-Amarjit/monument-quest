@@ -117,6 +117,9 @@ class MapViewModel @Inject constructor(
     init {
         loadExploredZones()
         fetchUserProfile()
+        val initialLat = _userLocation.value?.latitude ?: 20.2381
+        val initialLon = _userLocation.value?.longitude ?: 85.8338
+        fetchRealOverpassMonuments(initialLat, initialLon)
         startLiveGpsTracking()
     }
 
