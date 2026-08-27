@@ -13,7 +13,7 @@ data class SendOtpResponse(val success: Boolean, val message: String, val otpCod
 data class LoginWithOtpRequest(val email: String, val code: String)
 data class RegisterWithOtpRequest(val email: String, val code: String, val name: String)
 data class AuthUser(
-    val id: String, val name: String, val email: String,
+    val id: String, val name: String, val email: String, val avatarUrl: String? = null,
     val userRank: String = "Bhubaneswar Explorer", val points: Int = 0,
     val role: String = "EXPLORER", val guildName: String? = null, val isGuest: Boolean = false
 )
