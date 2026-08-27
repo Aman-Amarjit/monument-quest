@@ -15,26 +15,28 @@ export class UserController {
       const visitedCount = user.discoveries.length;
       const xp = user.points;
       const level = Math.max(1, Math.floor(xp / 500) + 1);
+      const userRank = xp >= 5000 ? 'Legendary Pathfinder' : xp >= 2500 ? 'Master Explorer' : xp >= 1000 ? 'Temple City Historian' : 'Bhubaneswar Explorer';
 
-      return res.json({
-        success: true,
-        data: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          xp,
-          level,
-          streakDays: user.streakDays,
-          visitedCount,
-          totalDistanceKm: user.totalDistanceKm,
-          areaUnlockedKm2: user.areaUnlockedKm2,
-          walkPathJson: user.walkPathJson,
-          exploredZonesJson: user.exploredZonesJson,
-          userRank: user.userRank,
-          role: user.role,
-          guild: user.guild ? { id: user.guild.id, name: user.guild.name } : null
-        }
-      });
+      const profile = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        xp,
+        level,
+        streakDays: user.streakDays,
+        visitedCount,
+        totalDistanceKm: user.totalDistanceKm,
+        areaUnlockedKm2: user.areaUnlockedKm2,
+        walkPathJson: user.walkPathJson,
+        exploredZonesJson: user.exploredZonesJson,
+        userRank,
+        role: user.role,
+        guild: user.guild ? { id: user.guild.id, name: user.guild.name } : null
+      };
+
+      // Keep the documented envelope and expose fields at the root for the Android client.
+      return res.json({ success: true, data: profile, ...profile });
     } catch (error) { next(error); }
   }
 
