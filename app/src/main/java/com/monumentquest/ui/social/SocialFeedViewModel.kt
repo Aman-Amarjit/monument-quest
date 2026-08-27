@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.monumentquest.core.auth.TokenManager
@@ -19,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -196,15 +198,60 @@ class SocialFeedViewModel @Inject constructor(
 
     fun fetchPosts() {
         viewModelScope.launch {
+            val myAvatar = getMyAvatarUrl()
+            val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer"
+            val currentLocalMap = _posts.value.associate { it.id to Pair(it.isLiked, it.likesCount) }
+
+            val firestorePosts = mutableListOf<SocialPost>()
+            try {
+                val snapshot = firestore.collection("posts")
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .get()
+                    .await()
+
+                for (doc in snapshot.documents) {
+                    val id = doc.id
+                    val name = doc.getString("userName") ?: doc.getString("authorName") ?: "Heritage Explorer"
+                    val caption = doc.getString("content") ?: doc.getString("caption") ?: ""
+                    val img = doc.getString("imageUrl") ?: doc.getString("photoUrl") ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
+                    val mon = doc.getString("monumentName") ?: "Lingaraj Temple"
+                    val ts = doc.getLong("timestamp") ?: System.currentTimeMillis()
+
+                    val isMe = name.equals(myName, ignoreCase = true)
+                    val defaultAvatar = "https://ui-avatars.com/api/?name=${android.net.Uri.encode(name)}&background=1E293B&color=D4AF37&bold=true&size=200"
+
+                    val localState = currentLocalMap[id]
+                    val isLiked = localState?.first ?: false
+                    val likesCount = localState?.second ?: 1
+
+                    firestorePosts.add(
+                        SocialPost(
+                            id = id,
+                            userId = doc.getString("userId") ?: "user_fs_$id",
+                            userName = name,
+                            userAvatarUrl = if (isMe && !myAvatar.isNullOrBlank()) myAvatar else defaultAvatar,
+                            userRank = "Heritage Explorer",
+                            monumentName = mon,
+                            locationName = "Bhubaneswar, Odisha",
+                            imageUrl = img,
+                            caption = caption,
+                            postType = "CHECKIN",
+                            likesCount = likesCount,
+                            isLiked = isLiked,
+                            commentsCount = 0,
+                            timestamp = ts,
+                            timestampFormatted = formatTimeAgo(ts)
+                        )
+                    )
+                }
+            } catch (e: Exception) {}
+
+            var serverPosts = emptyList<SocialPost>()
             try {
                 val feedRes = withContext(Dispatchers.IO) { monumentApi.getFeed() }
                 val rawItems = feedRes.data ?: feedRes.feed ?: emptyList()
-                val myAvatar = getMyAvatarUrl()
-                val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer"
 
-                val currentLocalMap = _posts.value.associate { it.id to Pair(it.isLiked, it.likesCount) }
-
-                val serverPosts = rawItems.map { f ->
+                serverPosts = rawItems.map { f ->
                     val name = f.userName ?: f.user_name ?: "Heritage Explorer"
                     val mon = f.monumentName ?: f.monument_name ?: "Lingaraj Temple"
                     val img = f.imageUrl ?: f.image_url ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
@@ -242,25 +289,19 @@ class SocialFeedViewModel @Inject constructor(
                         timestampFormatted = formatTimeAgo(ts)
                     )
                 }
+            } catch (e: Exception) {}
 
-                val userPostsWithAvatar = userPostsList.map { p ->
-                    val localState = currentLocalMap[p.id]
-                    val isLiked = localState?.first ?: p.isLiked
-                    val likesCount = localState?.second ?: p.likesCount
-                    val avatar = if (!myAvatar.isNullOrBlank()) myAvatar else p.userAvatarUrl
-                    p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
-                }
-
-                val combined = (userPostsWithAvatar + serverPosts).distinctBy { it.id }
-                _posts.value = filterList(combined, _currentFilter.value)
-                saveCache(_posts.value)
-            } catch (e: Exception) {
-                val myAvatar = getMyAvatarUrl()
-                val userPostsWithAvatar = userPostsList.map { p ->
-                    if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
-                }
-                _posts.value = filterList(userPostsWithAvatar, _currentFilter.value)
+            val userPostsWithAvatar = userPostsList.map { p ->
+                val localState = currentLocalMap[p.id]
+                val isLiked = localState?.first ?: p.isLiked
+                val likesCount = localState?.second ?: p.likesCount
+                val avatar = if (!myAvatar.isNullOrBlank()) myAvatar else p.userAvatarUrl
+                p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
             }
+
+            val combined = (userPostsWithAvatar + firestorePosts + serverPosts).distinctBy { it.id }
+            _posts.value = filterList(combined, _currentFilter.value)
+            saveCache(_posts.value)
         }
     }
 
@@ -345,6 +386,20 @@ class SocialFeedViewModel @Inject constructor(
                 timestamp = nowMs,
                 timestampFormatted = "Just now"
             )
+
+            // Save to Firebase Firestore so it's stored permanently in cloud database
+            try {
+                val firestoreData = hashMapOf(
+                    "userId" to (user?.uid ?: "user_me"),
+                    "userName" to myName,
+                    "caption" to caption,
+                    "content" to caption,
+                    "monumentName" to monumentName.ifBlank { "Bhubaneswar Monument" },
+                    "imageUrl" to photoUrlToUse,
+                    "timestamp" to nowMs
+                )
+                firestore.collection("posts").document(newPost.id).set(firestoreData)
+            } catch (e: Exception) {}
 
             userPostsList.add(0, newPost)
             val updatedList = (listOf(newPost) + _posts.value).distinctBy { it.id }
