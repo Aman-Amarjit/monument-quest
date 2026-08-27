@@ -11,7 +11,7 @@ export class SocialService {
   }
 
   static async guilds() {
-    const guilds = await prisma.guild.findMany({ orderBy: [{ totalPoints: 'desc' }, { name: 'asc' }], include: { _count: { select: { members: true } }, members: { select: { points: true } } } });
-    return guilds.map((guild, index) => ({ id: guild.id, name: guild.name, region: guild.region, membersCount: guild._count.members, totalXp: guild.members.reduce((total, member) => total + member.points, 0), rank: index + 1 }));
+    const guilds = await prisma.guild.findMany({ orderBy: { name: 'asc' }, include: { _count: { select: { members: true } }, members: { select: { points: true } } } });
+    return guilds.map((guild) => ({ id: guild.id, name: guild.name, region: guild.region, membersCount: guild._count.members, totalXp: guild.members.reduce((total, member) => total + member.points, 0) })).sort((a, b) => b.totalXp - a.totalXp || a.name.localeCompare(b.name)).map((guild, index) => ({ ...guild, rank: index + 1 }));
   }
 }
