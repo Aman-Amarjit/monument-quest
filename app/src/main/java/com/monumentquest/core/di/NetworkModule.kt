@@ -18,6 +18,9 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
+    private const val LOCAL_WIFI_SERVER_URL = "http://192.168.1.40:3000/api/v1/"
+    private const val VERCEL_PROD_SERVER_URL = "https://monument-ten.vercel.app/api/v1/"
+
     @Provides
     @Singleton
     fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
@@ -27,7 +30,7 @@ object NetworkModule {
             .retryOnConnectionFailure(true)
             .addInterceptor(authInterceptor)          // JWT token on every request
             .addInterceptor(HttpLoggingInterceptor().apply {
-                level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
+                level = HttpLoggingInterceptor.Level.BASIC
             })
             .build()
     }
@@ -35,7 +38,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
-        val baseUrlToUse = BuildConfig.API_BASE_URL
+        val baseUrlToUse = if (BuildConfig.DEBUG) LOCAL_WIFI_SERVER_URL else VERCEL_PROD_SERVER_URL
 
         return Retrofit.Builder()
             .baseUrl(baseUrlToUse)
