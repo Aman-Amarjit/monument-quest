@@ -108,51 +108,18 @@ class SocialFeedViewModel @Inject constructor(
         return profilePrefs.getString("profile_avatar_uri_$userKey", null)
     }
 
-    private fun loadLocalSavedPhotos(): List<SocialPost> {
-        val list = mutableListOf<SocialPost>()
+    private fun purgeLocalPhotoStubs() {
         try {
-            val myAvatar = getMyAvatarUrl()
-            val myName = currentUserName
             val postsDir = File(context.filesDir, "post_photos")
-            if (postsDir.exists() && postsDir.isDirectory) {
-                val files = postsDir.listFiles()?.sortedByDescending { it.lastModified() } ?: emptyList()
-                for (file in files) {
-                    if (file.name.endsWith(".jpg") || file.name.endsWith(".png")) {
-                        val savedCaption = prefs.getString("caption_" + file.name, null)
-                        if (savedCaption.isNullOrBlank() || savedCaption.startsWith("Lingaraj Temple Heritage Discovery")) {
-                            // Clean up leftover stub photo file
-                            try { file.delete() } catch (_: Exception) {}
-                            continue
-                        }
-                        val fileUri = Uri.fromFile(file).toString()
-                        val fileTime = file.lastModified()
-                        list.add(
-                            SocialPost(
-                                id = "local_photo_" + file.name,
-                                userId = currentUserId,
-                                userName = myName,
-                                userAvatarUrl = myAvatar,
-                                userRank = "Bhubaneswar Explorer",
-                                monumentName = "Heritage Site",
-                                locationName = "Bhubaneswar, Odisha",
-                                imageUrl = fileUri,
-                                caption = savedCaption,
-                                postType = "CHECKIN",
-                                likesCount = 1,
-                                isLiked = true,
-                                commentsCount = 0,
-                                timestamp = fileTime,
-                                timestampFormatted = formatTimeAgo(fileTime)
-                            )
-                        )
-                    }
-                }
+            if (postsDir.exists()) {
+                postsDir.deleteRecursively()
             }
-        } catch (e: Exception) {}
-        return list
+            prefs.edit().remove("cached_posts_json").apply()
+        } catch (_: Exception) {}
     }
 
     init {
+        purgeLocalPhotoStubs()
         restoreCache()
         fetchPosts()
     }
@@ -170,26 +137,6 @@ class SocialFeedViewModel @Inject constructor(
                 val type = object : TypeToken<Map<String, List<PostComment>>>() {}.type
                 val map: Map<String, List<PostComment>> = gson.fromJson(commentsJson, type)
                 _postComments.value = map
-            }
-
-            val localPhotoPosts = loadLocalSavedPhotos()
-
-            val cachedPostsJson = prefs.getString("cached_posts_json", null)
-            if (!cachedPostsJson.isNullOrBlank()) {
-                val type = object : TypeToken<List<SocialPost>>() {}.type
-                val cachedList: List<SocialPost> = gson.fromJson(cachedPostsJson, type)
-                val cleanCached = cachedList.filter { p ->
-                    val cap = p.caption ?: ""
-                    !cap.startsWith("Lingaraj Temple Heritage Discovery")
-                }
-                val myAvatar = getMyAvatarUrl()
-                val updatedWithAvatar = cleanCached.map { p ->
-                    if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
-                }
-                val merged = (localPhotoPosts + updatedWithAvatar).distinctBy { it.id }
-                _posts.value = filterList(merged, _currentFilter.value)
-            } else if (localPhotoPosts.isNotEmpty()) {
-                _posts.value = filterList(localPhotoPosts, _currentFilter.value)
             }
         } catch (e: Exception) {}
     }
@@ -284,9 +231,6 @@ class SocialFeedViewModel @Inject constructor(
             val myAvatar = getMyAvatarUrl()
             val myName = currentUserName
             val currentLocalMap = _posts.value.associate { it.id to Pair(it.isLiked, it.likesCount) }
-
-            val localSavedPhotoPosts = loadLocalSavedPhotos()
-
             val userAvatarsMap = mutableMapOf<String, String>()
             try {
                 val userDocs = firestore.collection("users").get().await()
@@ -405,16 +349,8 @@ class SocialFeedViewModel @Inject constructor(
                 p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
             }
 
-            val combined = (serverPosts + firestorePosts + userPostsWithAvatar + localSavedPhotoPosts)
-                .distinctBy { post ->
-                    val cap = (post.caption ?: "").trim().lowercase()
-                    val user = (post.userName ?: "").trim().lowercase()
-                    if (cap.isNotEmpty()) {
-                        "${user}_${cap}"
-                    } else {
-                        post.id
-                    }
-                }
+            val combined = (serverPosts + firestorePosts + userPostsWithAvatar)
+                .distinctBy { it.id }
             _posts.value = filterList(combined, _currentFilter.value)
             saveCache(_posts.value)
         }
