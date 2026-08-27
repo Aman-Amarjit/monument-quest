@@ -275,6 +275,7 @@ fun MapScreen(
         val fineGranted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] ?: false
         val coarseGranted = permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
         if (fineGranted || coarseGranted) {
+            promptEnableLocationServices(context)
             viewModel.startLiveGpsTracking()
             Toast.makeText(context, "🛰️ Live GPS Tracking Activated!", Toast.LENGTH_SHORT).show()
         }
@@ -289,6 +290,7 @@ fun MapScreen(
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
         if (hasFine || hasCoarse) {
+            promptEnableLocationServices(context)
             viewModel.startLiveGpsTracking()
         } else {
             permissionLauncher.launch(
@@ -1132,5 +1134,47 @@ private fun formatDistance(meters: Int): String = when {
     meters <= 0   -> "Nearby"
     meters < 1000 -> "$meters m away"
     else          -> String.format("%.1f km away", meters / 1000.0)
+}
+
+private fun promptEnableLocationServices(context: android.content.Context) {
+    val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+    val isGpsEnabled = locationManager?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true ||
+                       locationManager?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true
+
+    if (!isGpsEnabled) {
+        val locationRequest = com.google.android.gms.location.LocationRequest.Builder(
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, 10000
+        ).build()
+
+        val builder = com.google.android.gms.location.LocationSettingsRequest.Builder()
+            .addLocationRequest(locationRequest)
+            .setAlwaysShow(true)
+
+        val client = com.google.android.gms.location.LocationServices.getSettingsClient(context)
+        val task = client.checkLocationSettings(builder.build())
+
+        task.addOnFailureListener { exception ->
+            if (exception is com.google.android.gms.common.api.ResolvableApiException) {
+                try {
+                    val activity = context as? android.app.Activity
+                    if (activity != null) {
+                        exception.startResolutionForResult(activity, 888)
+                    } else {
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    }
+                } catch (_: Exception) {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                }
+            } else {
+                val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            }
+        }
+    }
 }
 
