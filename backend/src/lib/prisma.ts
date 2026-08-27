@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
-const primaryUrl = process.env.DATABASE_URL?.trim();
-const fallbackUrl = 'postgresql://postgres.jilzmypcehdnydidjxib:yaowcedqaynotjww@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbooster=true';
-const databaseUrl = primaryUrl || fallbackUrl;
+const poolerUrl = 'postgresql://postgres.jilzmypcehdnydidjxib:yaowcedqaynotjww@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require';
+const rawEnvUrl = process.env.DATABASE_URL?.trim();
+const databaseUrl = (rawEnvUrl && rawEnvUrl.length > 10) ? rawEnvUrl : poolerUrl;
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
