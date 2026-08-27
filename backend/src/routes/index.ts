@@ -8,6 +8,7 @@ import { SocialController } from '../controllers/social.controller';
 import { authenticateToken, optionalAuthenticateToken } from '../middleware/auth.middleware';
 import { rateLimit } from '../middleware/request.middleware';
 import { config } from '../config/env';
+import { HotelController } from '../controllers/hotel.controller';
 
 const router = Router();
 
@@ -30,6 +31,10 @@ router.patch('/user/progress', authenticateToken, UserController.syncProgress);
 router.get('/monuments',          MonumentController.getMonuments);
 router.get('/monuments/nearby',   MonumentController.getNearby);
 router.get('/monuments/:id',      MonumentController.getOne);
+
+// Partner hotel routes
+router.get('/hotels', HotelController.getHotels);
+router.post('/hotels/claim-voucher', authenticateToken, HotelController.claimVoucher);
 router.post('/monuments/capture', authenticateToken, MonumentController.capture);
 
 // Feed routes
