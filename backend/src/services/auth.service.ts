@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma';
 import { config } from '../config/env';
 
 export interface UserProfile {
-  id: string; email: string; name: string; userRank: string;
+  id: string; email: string; name: string; avatarUrl: string | null; userRank: string;
   points: number; role: string; guildName: string | null; isGuest?: boolean;
 }
 
@@ -19,7 +19,7 @@ function rankFor(points: number): string {
 export class AuthService {
   private static toProfile(user: any, isGuest = false): UserProfile {
     return {
-      id: user.id, email: user.email, name: user.name,
+      id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl || null,
       userRank: rankFor(user.points), points: user.points,
       role: user.role, guildName: user.guild?.name || null,
       ...(isGuest ? { isGuest: true } : {})
