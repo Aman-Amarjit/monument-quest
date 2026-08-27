@@ -11,8 +11,8 @@ const configuredJwtSecret = process.env.JWT_SECRET?.trim();
 const jwtSecret = configuredJwtSecret || randomBytes(32).toString('hex');
 const databaseUrl = process.env.DATABASE_URL?.trim() || '';
 
-if (isProduction && !configuredJwtSecret) console.warn('[config] JWT_SECRET is not configured; authentication will use a temporary process key');
-if (isProduction && jwtSecret.length < 32) console.warn('[config] WARNING: JWT_SECRET must be at least 32 characters in production');
+if (isProduction && !configuredJwtSecret) throw new Error('[config] JWT_SECRET must be configured in production');
+if (isProduction && jwtSecret.length < 32) throw new Error('[config] JWT_SECRET must be at least 32 characters in production');
 if (isProduction && !databaseUrl.startsWith('postgres')) console.warn('[config] WARNING: DATABASE_URL must point to PostgreSQL in production');
 function integer(name: string, fallback: number, min: number, max: number): number { const value = Number(process.env[name] || fallback); return Number.isInteger(value) ? Math.min(Math.max(value, min), max) : fallback; }
 
