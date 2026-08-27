@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: MonumentQuest API
-  version: 3.0.0
+  version: 3.1.0
   description: Heritage discovery, social feed, and gamification API.
 servers:
   - url: https://{host}/api/v1
@@ -189,6 +189,88 @@ paths:
       summary: List regional guilds
       responses:
         '200': { $ref: '#/components/responses/GenericSuccess' }
+  /guilds/me:
+    get:
+      tags: [Social]
+      summary: Get the current explorer's guild
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Social]
+      summary: Leave the current guild
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /guilds/{id}/join:
+    post:
+      tags: [Social]
+      summary: Join or switch to a guild
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /guilds/{id}/leaderboard:
+    get:
+      tags: [Social]
+      summary: Read a guild leaderboard
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+  /social/stories:
+    get:
+      tags: [Social]
+      security: []
+      summary: Read active 24-hour stories
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+    post:
+      tags: [Social]
+      summary: Publish a 24-hour story
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StoryRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/GenericSuccess' }
+  /social/stories/{id}/view:
+    post:
+      tags: [Social]
+      summary: Mark a story as viewed
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+  /social/users/{id}/follow:
+    post:
+      tags: [Social]
+      summary: Toggle following an explorer
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+  /social/posts/{id}/save:
+    post:
+      tags: [Social]
+      summary: Toggle saving a post
+      parameters: [{ $ref: '#/components/parameters/PostId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+  /social/posts/{id}/report:
+    post:
+      tags: [Social]
+      summary: Report a post for moderation
+      parameters: [{ $ref: '#/components/parameters/PostId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
   /ai/narrator:
     post:
       tags: [AI]
@@ -259,7 +341,7 @@ components:
         name: { type: string }
         latitude: { type: number, minimum: -90, maximum: 90 }
         longitude: { type: number, minimum: -180, maximum: 180 }
-        imageUrl: { type: string, format: uri, maxLength: 2048 }
+        imageUrl: { type: string, maxLength: 850000, description: HTTPS URL or compressed data URL }
     PostRequest:
       type: object
       required: [monumentId, caption]

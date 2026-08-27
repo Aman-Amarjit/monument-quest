@@ -31,6 +31,7 @@ data class ToggleStateResponse(val success: Boolean = false, val data: ToggleSta
 data class ToggleState(val isFollowing: Boolean = false, val isSaved: Boolean = false)
 data class StoryResponseItem(val id: String, val userId: String = "", val userName: String = "", val avatarUrl: String? = null, val mediaUrl: String? = null, val caption: String = "", val createdAt: Long = 0L, val expiresAt: Long = 0L, val viewsCount: Int = 0, val isViewed: Boolean = false)
 data class StoriesResponse(val success: Boolean = false, val data: List<StoryResponseItem> = emptyList())
+data class StoryCreateResponse(val success: Boolean = false, val data: StoryResponseItem? = null)
 data class GuildItem(val id: String, val name: String, val region: String = "", val description: String = "", val membersCount: Int = 0, val totalXp: Int = 0, val rank: Int = 0)
 data class GuildsResponse(val success: Boolean = false, val data: List<GuildItem>? = null, val guilds: List<GuildItem>? = null)
 data class MyGuildResponse(val success: Boolean = false, val data: GuildItem? = null)
@@ -67,7 +68,7 @@ interface MonumentApi {
     @DELETE("guilds/me") suspend fun leaveGuild(): Map<String, Any>
     @GET("guilds/{id}/leaderboard") suspend fun getGuildLeaderboard(@Path("id") id: String): GuildMembersResponse
     @GET("social/stories") suspend fun getStories(): StoriesResponse
-    @POST("social/stories") suspend fun createStory(@Body request: Map<String, String>): StoryResponseItem
+    @POST("social/stories") suspend fun createStory(@Body request: Map<String, String>): StoryCreateResponse
     @POST("social/stories/{id}/view") suspend fun viewStory(@Path("id") id: String): Map<String, Any>
     @POST("social/users/{id}/follow") suspend fun toggleFollow(@Path("id") id: String): ToggleStateResponse
     @POST("social/posts/{id}/save") suspend fun toggleSave(@Path("id") id: String): ToggleStateResponse
