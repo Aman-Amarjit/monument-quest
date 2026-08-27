@@ -40,7 +40,7 @@ export class UserController {
     } catch (error) { next(error); }
   }
 
-  // PATCH /user/progress — sync walk progress from phone to database
+  // PATCH /user/progress — sync walk progress from phone to database (never accepts client XP)
   static async syncProgress(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const {
@@ -49,7 +49,6 @@ export class UserController {
         streakDays,
         walkPathJson,
         exploredZonesJson,
-        xpDelta   // extra XP earned this session (from walking, etc.)
       } = req.body ?? {};
 
       const updateData: Record<string, any> = {};
@@ -59,11 +58,7 @@ export class UserController {
       if (typeof walkPathJson === 'string')      updateData.walkPathJson      = walkPathJson;
       if (typeof exploredZonesJson === 'string') updateData.exploredZonesJson = exploredZonesJson;
 
-      // Add walking XP to existing points
-      const xpToAdd = typeof xpDelta === 'number' && Number.isFinite(xpDelta) && xpDelta > 0
-        ? Math.min(Math.floor(xpDelta), 500)
-        : 0;
-      if (xpToAdd > 0) updateData.points = { increment: xpToAdd }; // atomic cap of 500 XP per sync
+
 
       if (Object.keys(updateData).length === 0) {
         return res.json({ success: true, message: 'Nothing to update' });
