@@ -498,6 +498,12 @@ fun MapScreen(
                     setUseDataConnection(true)
                     controller.setZoom(15.0)
                     controller.setCenter(GeoPoint(20.5937, 78.9629))
+                    setOnTouchListener { _, event ->
+                        if (event.action == android.view.MotionEvent.ACTION_DOWN || event.action == android.view.MotionEvent.ACTION_MOVE) {
+                            isFollowingUser = false
+                        }
+                        false
+                    }
                     mapViewInstance = this
                     mapViewRef.value = this
                 }
