@@ -116,9 +116,8 @@ class MapViewModel @Inject constructor(
 
     init {
         loadExploredZones()
-
         fetchUserProfile()
-
+        fetchRealOverpassMonuments(20.2381, 85.8338)
         startLiveGpsTracking()
     }
 
