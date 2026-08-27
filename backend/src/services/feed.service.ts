@@ -1,6 +1,47 @@
 import { prisma } from '../lib/prisma';
 
+const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800';
+const MAX_COMMENT_LENGTH = 500;
+
 const clamp = (value: unknown, fallback: number, max: number) => Math.min(Math.max(Number(value) || fallback, 1), max);
+
+function rankFor(points: number): string {
+  if (points >= 5000) return 'Legendary Pathfinder';
+  if (points >= 2500) return 'Master Explorer';
+  if (points >= 1000) return 'Temple City Historian';
+  return 'Bhubaneswar Explorer';
+}
+
+function avatarFor(name: string, avatarUrl?: string | null): string {
+  return avatarUrl && avatarUrl.trim().length > 0
+    ? avatarUrl
+    : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=1E293B&color=D4AF37&bold=true&size=200';
+}
+
+function toFeedItem(post: any, isLiked = false) {
+  return {
+    id: post.id,
+    userId: post.user.id,
+    userName: post.user.name,
+    userAvatarUrl: avatarFor(post.user.name, post.user.avatarUrl),
+    userRank: rankFor(post.user.points),
+    monumentName: post.monument.name,
+    locationName: post.monument.locationName,
+    imageUrl: post.imageUrl || DEFAULT_IMAGE,
+    caption: post.caption,
+    postType: post.postType,
+    likesCount: post._count.likes,
+    isLiked,
+    commentsCount: post._count.comments,
+    timestamp: post.createdAt.getTime()
+  };
+}
+
+const postInclude = {
+  user: { select: { id: true, name: true, avatarUrl: true, points: true } },
+  monument: { select: { name: true, locationName: true } },
+  _count: { select: { likes: true, comments: true } }
+} as const;
 
 export class FeedService {
   static async getFeed(userId?: string, limit?: unknown, cursor?: string) {
@@ -9,16 +50,12 @@ export class FeedService {
       take: take + 1,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      include: {
-        user: { select: { name: true, avatarUrl: true } },
-        monument: { select: { name: true, locationName: true } },
-        _count: { select: { likes: true } }
-      }
+      include: postInclude
     });
 
     const hasMore = posts.length > take;
     const rows = posts.slice(0, take);
-    const postIds: string[] = rows.map((post) => post.id);
+    const postIds = rows.map((post) => post.id);
     const liked = userId && postIds.length > 0
       ? new Set((await prisma.postLike.findMany({
           where: { userId, postId: { in: postIds } },
@@ -26,86 +63,37 @@ export class FeedService {
         })).map((like) => like.postId))
       : new Set<string>();
 
-    const items = rows.map((post) => {
-      const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user.name)}&background=1E293B&color=D4AF37&bold=true&size=200`;
-      return {
-        id: post.id,
-        userName: post.user.name,
-        userAvatarUrl: post.user.avatarUrl && post.user.avatarUrl.trim().length > 0 ? post.user.avatarUrl : defaultAvatar,
-        monumentName: post.monument.name,
-        locationName: post.monument.locationName,
-        imageUrl: post.imageUrl || 'https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800',
-        caption: post.caption,
-        postType: post.postType,
-        likesCount: post._count.likes,
-        isLiked: liked.has(post.id),
-        commentsCount: 0,
-        timestamp: post.createdAt.getTime()
-      };
-    });
-
-    return { items, nextCursor: hasMore ? rows[rows.length - 1].id : null };
+    return {
+      items: rows.map((post) => toFeedItem(post, liked.has(post.id))),
+      nextCursor: hasMore ? rows[rows.length - 1].id : null
+    };
   }
 
   static async createPost(userId: string, input: { monumentId: string; caption: string; imageUrl?: string; postType?: string }) {
     const caption = input.caption.trim();
     if (!caption || caption.length > 500) throw { status: 400, message: 'Caption must be between 1 and 500 characters' };
+    const allowedTypes = new Set(['CHECKIN', 'DISCOVERY', 'TIME_CAPSULE', 'REFLECTION']);
+    const postType = input.postType?.trim().toUpperCase() || 'CHECKIN';
+    if (!allowedTypes.has(postType)) throw { status: 400, message: 'Invalid post type' };
 
-    let monumentId = input.monumentId;
-    let monument = await prisma.monument.findUnique({ where: { id: monumentId } });
-    if (!monument) {
-      const firstMonument = await prisma.monument.findFirst();
-      if (firstMonument) {
-        monument = firstMonument;
-        monumentId = firstMonument.id;
-      } else {
-        monument = await prisma.monument.create({
-          data: {
-            id: 'm1',
-            name: 'Lingaraj Temple',
-            locationName: 'Bhubaneswar, Odisha',
-            latitude: 20.2381,
-            longitude: 85.8338,
-            category: 'Temple',
-            pointsValue: 500,
-            isVerified: true
-          }
-        });
-        monumentId = monument.id;
-      }
-    }
+    // Older mobile builds used m1 for the first catalog item. Keep that alias,
+    // but never silently redirect arbitrary invalid monument IDs.
+    let monument = await prisma.monument.findUnique({ where: { id: input.monumentId } });
+    if (!monument && input.monumentId === 'm1') monument = await prisma.monument.findFirst({ orderBy: { name: 'asc' } });
+    if (!monument) throw { status: 404, message: 'Choose a valid monument from the catalog' };
 
     const post = await prisma.post.create({
       data: {
         userId,
-        monumentId,
+        monumentId: monument.id,
         caption,
-        imageUrl: input.imageUrl?.slice(0, 2048) || 'https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800',
-        postType: input.postType || 'CHECKIN'
+        imageUrl: input.imageUrl?.trim().slice(0, 2048) || DEFAULT_IMAGE,
+        postType,
       },
-      include: {
-        user: { select: { name: true, avatarUrl: true } },
-        monument: { select: { name: true, locationName: true } },
-        _count: { select: { likes: true } }
-      }
+      include: postInclude,
     });
 
-    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user.name)}&background=1E293B&color=D4AF37&bold=true&size=200`;
-
-    return {
-      id: post.id,
-      userName: post.user.name,
-      userAvatarUrl: post.user.avatarUrl && post.user.avatarUrl.trim().length > 0 ? post.user.avatarUrl : defaultAvatar,
-      monumentName: post.monument.name,
-      locationName: post.monument.locationName,
-      imageUrl: post.imageUrl,
-      caption: post.caption,
-      postType: post.postType,
-      likesCount: post._count.likes,
-      isLiked: false,
-      commentsCount: 0,
-      timestamp: post.createdAt.getTime()
-    };
+    return toFeedItem(post);
   }
 
   static async toggleLike(postId: string, userId: string) {
@@ -117,5 +105,50 @@ export class FeedService {
       else await tx.postLike.create({ data: { postId, userId } });
       return { isLiked: !existing, likesCount: await tx.postLike.count({ where: { postId } }) };
     });
+  }
+
+  static async getComments(postId: string, limit?: unknown) {
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { id: true } });
+    if (!post) throw { status: 404, message: 'Post not found' };
+
+    const comments = await prisma.comment.findMany({
+      where: { postId },
+      take: clamp(limit, 100, 100),
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+    });
+
+    return comments.map((comment) => ({
+      id: comment.id,
+      postId: comment.postId,
+      userId: comment.user.id,
+      userName: comment.user.name,
+      userAvatarUrl: avatarFor(comment.user.name, comment.user.avatarUrl),
+      body: comment.body,
+      createdAt: comment.createdAt.getTime(),
+    }));
+  }
+
+  static async addComment(postId: string, userId: string, body: string) {
+    const cleanBody = body.trim();
+    if (!cleanBody || cleanBody.length > MAX_COMMENT_LENGTH) throw { status: 400, message: 'Comment must be between 1 and 500 characters' };
+
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { id: true } });
+    if (!post) throw { status: 404, message: 'Post not found' };
+
+    const comment = await prisma.comment.create({
+      data: { postId, userId, body: cleanBody },
+      include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+    });
+
+    return {
+      id: comment.id,
+      postId: comment.postId,
+      userId: comment.user.id,
+      userName: comment.user.name,
+      userAvatarUrl: avatarFor(comment.user.name, comment.user.avatarUrl),
+      body: comment.body,
+      createdAt: comment.createdAt.getTime(),
+    };
   }
 }
