@@ -41,6 +41,8 @@ router.post('/monuments/capture', authenticateToken, MonumentController.capture)
 router.get('/feed',                           optionalAuthenticateToken, FeedController.getFeed);
 router.post('/feed/posts',                    authenticateToken, FeedController.createPost);
 router.post('/feed/posts/:id/like',           authenticateToken, requireRegisteredUser, FeedController.toggleLike);
+router.get('/feed/posts/:id/comments',          FeedController.getComments);
+router.post('/feed/posts/:id/comments',         authenticateToken, requireRegisteredUser, FeedController.addComment);
 
 // Social routes
 router.get('/leaderboard', SocialController.leaderboard);
