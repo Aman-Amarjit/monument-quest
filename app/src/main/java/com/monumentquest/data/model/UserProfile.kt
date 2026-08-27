@@ -9,5 +9,6 @@ data class UserProfile(
     val streakDays: Int = 0,
     val visitedCount: Int = 0,
     val totalDistanceKm: Double = 0.0,
-    val areaUnlockedKm2: Double = 0.0
+    val areaUnlockedKm2: Double = 0.0,
+    val avatarUrl: String? = null
 )
