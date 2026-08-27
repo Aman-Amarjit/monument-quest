@@ -53,7 +53,7 @@ class AuthViewModel @Inject constructor(
     }
 
     // Step 1: Send real 6-digit OTP email via Gmail SMTP API (No Firebase Quota limits)
-    fun sendOtp(email: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun sendOtp(email: String, onSuccess: (String?) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             val cleanEmail = email.trim().lowercase()
@@ -64,7 +64,7 @@ class AuthViewModel @Inject constructor(
                 }
                 _uiState.value = AuthUiState.Idle
                 if (res.success) {
-                    onSuccess()
+                    onSuccess(res.otpCode)
                 } else {
                     val err = res.message.ifBlank { "Could not send OTP email. Please try again." }
                     _uiState.value = AuthUiState.Error(err)

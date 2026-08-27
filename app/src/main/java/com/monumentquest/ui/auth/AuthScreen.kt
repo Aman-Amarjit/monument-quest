@@ -277,8 +277,11 @@ fun AuthScreen(
                                         isSendingOtp = true
                                         viewModel.sendOtp(
                                             email = email,
-                                            onSuccess = {
+                                            onSuccess = { code ->
                                                 isSendingOtp = false
+                                                if (!code.isNullOrBlank()) {
+                                                    otpCode = code
+                                                }
                                                 currentStep = 2
                                             },
                                             onError = { msg ->
