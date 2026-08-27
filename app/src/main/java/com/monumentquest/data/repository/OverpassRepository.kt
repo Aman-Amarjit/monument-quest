@@ -179,16 +179,16 @@ class OverpassRepository @Inject constructor() {
         val baseLon = if (userLon != 0.0) userLon else 85.8338
 
         val offsets = listOf(
-            Triple(0.0028, 0.0024, Pair("Heritage Central Plaza", "PUBLIC SQUARE")),
-            Triple(-0.0035, 0.0018, Pair("Ancient Memorial Park & Garden", "PUBLIC PARK")),
-            Triple(0.0019, -0.0032, Pair("Royal Heritage Temple & Shrine", "HISTORIC TEMPLE")),
-            Triple(-0.0024, -0.0038, Pair("Old Town Landmark Clock Tower", "HERITAGE LANDMARK")),
-            Triple(0.0048, -0.0015, Pair("National History Museum", "MUSEUM")),
-            Triple(-0.0052, 0.0042, Pair("Civic Town Hall & Library", "TOWN HALL")),
-            Triple(0.0035, -0.0049, Pair("Ekamra Botanical Eco Park", "PUBLIC PARK")),
-            Triple(-0.0015, 0.0058, Pair("Grand Cultural Market", "PUBLIC MARKET")),
-            Triple(0.0062, 0.0031, Pair("Victoria Peace Memorial", "HISTORIC MONUMENT")),
-            Triple(-0.0045, -0.0028, Pair("Parsurameswara Temple Ruins", "ARCHAEOLOGICAL SITE"))
+            Triple(0.0015, 0.0012, Pair("Heritage Central Plaza", "PUBLIC SQUARE")),
+            Triple(-0.0018, 0.0015, Pair("Ancient Memorial Park & Garden", "PUBLIC PARK")),
+            Triple(0.0012, -0.0022, Pair("Royal Heritage Temple & Shrine", "HISTORIC TEMPLE")),
+            Triple(-0.0021, -0.0019, Pair("Old Town Landmark Clock Tower", "HERITAGE LANDMARK")),
+            Triple(0.0032, -0.0008, Pair("National History Museum", "MUSEUM")),
+            Triple(-0.0035, 0.0022, Pair("Civic Town Hall & Library", "TOWN HALL")),
+            Triple(0.0025, -0.0031, Pair("Ekamra Botanical Eco Park", "PUBLIC PARK")),
+            Triple(-0.0011, 0.0038, Pair("Grand Cultural Market", "PUBLIC MARKET")),
+            Triple(0.0041, 0.0019, Pair("Victoria Peace Memorial", "HISTORIC MONUMENT")),
+            Triple(-0.0028, -0.0035, Pair("Parsurameswara Temple Ruins", "ARCHAEOLOGICAL SITE"))
         )
 
         return offsets.mapIndexed { idx, (latOffset, lonOffset, meta) ->
