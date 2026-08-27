@@ -52,6 +52,7 @@ fun SocialFeedScreen(
     val followedUsers   by viewModel.followedUsers.collectAsState()
     val savedPostIds    by viewModel.savedPostIds.collectAsState()
     val postCommentsMap by viewModel.postComments.collectAsState()
+    val isGuest         by viewModel.isGuest.collectAsState()
 
     var showCreateModal      by remember { mutableStateOf(false) }
     var activeCommentsPostId by remember { mutableStateOf<String?>(null) }
@@ -205,7 +206,8 @@ fun SocialFeedScreen(
                         post               = post,
                         isFollowed         = isFollowed,
                         isSaved            = isSaved,
-                        onLikeToggle       = { viewModel.toggleLike(post.id) },
+                        onLikeToggle       = { if (!isGuest) viewModel.toggleLike(post.id) },
+                         canLike            = !isGuest,
                         onFollowToggle     = { viewModel.toggleFollow(post.userId) },
                         onSaveToggle       = { viewModel.toggleSavePost(post.id) },
                         onOpenComments     = { activeCommentsPostId = post.id },
@@ -245,7 +247,8 @@ fun SocialFeedScreen(
             CommentsSheetModal(
                 comments     = commentsList,
                 onDismiss    = { activeCommentsPostId = null },
-                onAddComment = { text -> viewModel.addComment(postId, text) }
+                onAddComment = { text -> viewModel.addComment(postId, text) },
+                canComment  = !isGuest
             )
         }
 
@@ -351,6 +354,7 @@ private fun PostCard(
     onFollowToggle: () -> Unit,
     onSaveToggle: () -> Unit,
     onOpenComments: () -> Unit,
+    canLike: Boolean = true,
     onNavigateToNarrator: (String) -> Unit,
     onUserClick: () -> Unit
 ) {
@@ -474,7 +478,7 @@ private fun PostCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        modifier = Modifier.clickable { onLikeToggle() },
+                        modifier = Modifier.clickable(enabled = canLike) { onLikeToggle() },
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
@@ -542,7 +546,8 @@ private fun PostCard(
 private fun CommentsSheetModal(
     comments: List<PostComment>,
     onDismiss: () -> Unit,
-    onAddComment: (String) -> Unit
+    onAddComment: (String) -> Unit,
+    canComment: Boolean = true
 ) {
     var commentText by remember { mutableStateOf("") }
 
@@ -598,6 +603,10 @@ private fun CommentsSheetModal(
                     }
                 }
 
+                if (!canComment) {
+                    Text("Sign in to like or comment on expeditions.", color = TextSecondary, fontSize = 11.sp)
+                }
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -607,6 +616,7 @@ private fun CommentsSheetModal(
                         onValueChange = { commentText = it },
                         placeholder = { Text("Add a comment…", fontSize = 11.sp, color = TextSecondary) },
                         modifier = Modifier.weight(1f),
+                        enabled = canComment,
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -618,7 +628,7 @@ private fun CommentsSheetModal(
                     )
                     IconButton(
                         onClick = {
-                            if (commentText.isNotBlank()) {
+                            if (canComment && commentText.isNotBlank()) {
                                 onAddComment(commentText)
                                 commentText = ""
                             }
@@ -626,9 +636,9 @@ private fun CommentsSheetModal(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Gold)
+                            .background(if (canComment) Gold else Surface2)
                     ) {
-                        Icon(Icons.Default.Send, null, tint = Bg, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.Send, null, tint = if (canComment) Bg else TextSecondary, modifier = Modifier.size(14.dp))
                     }
                 }
             }
