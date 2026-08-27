@@ -26,6 +26,7 @@ model User {
   guild        Guild?       @relation(fields: [guildId], references: [id])
   posts        Post[]
   likes        PostLike[]
+  comments     Comment[]
   discoveries  Discovery[]
   timeCapsules TimeCapsule[]
   createdAt    DateTime     @default(now())
@@ -78,9 +79,23 @@ model Post {
   postType   String     @default("CHECKIN")
   createdAt  DateTime   @default(now())
   likes      PostLike[]
+  comments   Comment[]
 
   @@index([userId, createdAt])
   @@index([monumentId, createdAt])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model PostLike {
