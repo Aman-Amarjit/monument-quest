@@ -1,9 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
-const databaseUrl = process.env.DATABASE_URL?.trim();
-if (!databaseUrl) {
-  throw new Error('DATABASE_URL must be configured before starting MonumentQuest API');
-}
+const fallbackDatabaseUrl = 'postgres://postgres.jilzmypcehdnydidjxib:yaow%20cedqaynotjww@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres';
+const databaseUrl = process.env.DATABASE_URL?.trim() || fallbackDatabaseUrl;
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
