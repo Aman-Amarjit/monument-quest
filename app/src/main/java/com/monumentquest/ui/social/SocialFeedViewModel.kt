@@ -105,6 +105,44 @@ class SocialFeedViewModel @Inject constructor(
         return profilePrefs.getString("profile_avatar_uri_$userKey", null)
     }
 
+    private fun loadLocalSavedPhotos(): List<SocialPost> {
+        val list = mutableListOf<SocialPost>()
+        try {
+            val myAvatar = getMyAvatarUrl()
+            val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer (You)"
+            val postsDir = File(context.filesDir, "post_photos")
+            if (postsDir.exists() && postsDir.isDirectory) {
+                val files = postsDir.listFiles()?.sortedByDescending { it.lastModified() } ?: emptyList()
+                for (file in files) {
+                    if (file.name.endsWith(".jpg") || file.name.endsWith(".png")) {
+                        val fileUri = Uri.fromFile(file).toString()
+                        val fileTime = file.lastModified()
+                        list.add(
+                            SocialPost(
+                                id = "local_photo_" + file.name,
+                                userId = auth.currentUser?.uid ?: "user_me",
+                                userName = myName,
+                                userAvatarUrl = myAvatar,
+                                userRank = "Bhubaneswar Explorer",
+                                monumentName = "Lingaraj Temple",
+                                locationName = "Bhubaneswar, Odisha",
+                                imageUrl = fileUri,
+                                caption = "Captured live during heritage quest! 🏛️✨",
+                                postType = "CHECKIN",
+                                likesCount = 1,
+                                isLiked = true,
+                                commentsCount = 0,
+                                timestamp = fileTime,
+                                timestampFormatted = formatTimeAgo(fileTime)
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {}
+        return list
+    }
+
     init {
         restoreCache()
         fetchPosts()
@@ -125,15 +163,20 @@ class SocialFeedViewModel @Inject constructor(
                 _postComments.value = map
             }
 
+            val localPhotoPosts = loadLocalSavedPhotos()
+
             val cachedPostsJson = prefs.getString("cached_posts_json", null)
             if (!cachedPostsJson.isNullOrBlank()) {
                 val type = object : TypeToken<List<SocialPost>>() {}.type
-                val list: List<SocialPost> = gson.fromJson(cachedPostsJson, type)
+                val cachedList: List<SocialPost> = gson.fromJson(cachedPostsJson, type)
                 val myAvatar = getMyAvatarUrl()
-                val updatedWithAvatar = list.map { p ->
+                val updatedWithAvatar = cachedList.map { p ->
                     if (!myAvatar.isNullOrBlank()) p.copy(userAvatarUrl = myAvatar) else p
                 }
-                _posts.value = filterList(updatedWithAvatar, _currentFilter.value)
+                val merged = (localPhotoPosts + updatedWithAvatar).distinctBy { it.id }
+                _posts.value = filterList(merged, _currentFilter.value)
+            } else if (localPhotoPosts.isNotEmpty()) {
+                _posts.value = filterList(localPhotoPosts, _currentFilter.value)
             }
         } catch (e: Exception) {}
     }
@@ -201,6 +244,8 @@ class SocialFeedViewModel @Inject constructor(
             val myAvatar = getMyAvatarUrl()
             val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer"
             val currentLocalMap = _posts.value.associate { it.id to Pair(it.isLiked, it.likesCount) }
+
+            val localSavedPhotoPosts = loadLocalSavedPhotos()
 
             val firestorePosts = mutableListOf<SocialPost>()
             try {
@@ -299,7 +344,7 @@ class SocialFeedViewModel @Inject constructor(
                 p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
             }
 
-            val combined = (userPostsWithAvatar + firestorePosts + serverPosts).distinctBy { it.id }
+            val combined = (localSavedPhotoPosts + userPostsWithAvatar + firestorePosts + serverPosts).distinctBy { it.id }
             _posts.value = filterList(combined, _currentFilter.value)
             saveCache(_posts.value)
         }
