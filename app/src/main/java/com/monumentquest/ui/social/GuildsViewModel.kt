@@ -43,13 +43,9 @@ class GuildsViewModel @Inject constructor(
                     .get()
                     .await()
                 val list = snapshot.toObjects(Guild::class.java)
-                if (list.isNotEmpty()) {
-                    _guilds.value = list
-                } else {
-                    _guilds.value = getSampleGuilds()
-                }
+                _guilds.value = list
             } catch (e: Exception) {
-                _guilds.value = getSampleGuilds()
+                _guilds.value = emptyList()
             }
         }
     }
@@ -57,7 +53,11 @@ class GuildsViewModel @Inject constructor(
     private fun fetchUserGuild() {
         viewModelScope.launch {
             try {
-                val userId = auth.currentUser?.uid ?: "sample_user"
+                val userId = auth.currentUser?.uid ?: ""
+                if (userId.isBlank()) {
+                    _userGuild.value = null
+                    return@launch
+                }
                 val snapshot = firestore.collection("guilds")
                     .whereArrayContains("memberIds", userId)
                     .get()
@@ -70,19 +70,21 @@ class GuildsViewModel @Inject constructor(
                         fetchGuildLeaderboard(guild.memberIds)
                     }
                 } else {
-                    val sample = getSampleGuilds().first()
-                    _userGuild.value = sample
-                    fetchGuildLeaderboard(sample.memberIds)
+                    _userGuild.value = null
+                    _guildLeaderboard.value = emptyList()
                 }
             } catch (e: Exception) {
-                val sample = getSampleGuilds().first()
-                _userGuild.value = sample
-                fetchGuildLeaderboard(sample.memberIds)
+                _userGuild.value = null
+                _guildLeaderboard.value = emptyList()
             }
         }
     }
 
     private fun fetchGuildLeaderboard(memberIds: List<String>) {
+        if (memberIds.isEmpty()) {
+            _guildLeaderboard.value = emptyList()
+            return
+        }
         viewModelScope.launch {
             try {
                 val snapshot = firestore.collection("users")
@@ -91,13 +93,9 @@ class GuildsViewModel @Inject constructor(
                     .get()
                     .await()
                 val list = snapshot.toObjects(User::class.java)
-                if (list.isNotEmpty()) {
-                    _guildLeaderboard.value = list
-                } else {
-                    _guildLeaderboard.value = getSampleGuildMembers()
-                }
+                _guildLeaderboard.value = list
             } catch (e: Exception) {
-                _guildLeaderboard.value = getSampleGuildMembers()
+                _guildLeaderboard.value = emptyList()
             }
         }
     }
@@ -105,7 +103,7 @@ class GuildsViewModel @Inject constructor(
     fun joinGuild(guildId: String) {
         viewModelScope.launch {
             try {
-                val userId = auth.currentUser?.uid ?: "sample_user"
+                val userId = auth.currentUser?.uid ?: return@launch
                 
                 val oldGuildSnapshot = firestore.collection("guilds")
                     .whereArrayContains("memberIds", userId)
@@ -122,30 +120,7 @@ class GuildsViewModel @Inject constructor(
                 
                 fetchGuilds()
                 fetchUserGuild()
-            } catch (e: Exception) {
-                val joined = _guilds.value.find { it.id == guildId }
-                if (joined != null) {
-                    _userGuild.value = joined
-                    _guildLeaderboard.value = getSampleGuildMembers()
-                }
-            }
+            } catch (e: Exception) {}
         }
-    }
-
-    private fun getSampleGuilds(): List<Guild> {
-        return listOf(
-            Guild(id = "g1", name = "Arch-Historians of London", region = "Europe", memberIds = listOf("1", "2", "6"), totalPoints = 14200),
-            Guild(id = "g2", name = "Alpine Heritage Order", region = "Central Europe", memberIds = listOf("3", "5"), totalPoints = 11800),
-            Guild(id = "g3", name = "Pacific Landmark Watch", region = "Asia-Pacific", memberIds = listOf("4", "7"), totalPoints = 9400),
-            Guild(id = "g4", name = "Americas Discovery League", region = "Americas", memberIds = listOf("8"), totalPoints = 7600)
-        )
-    }
-
-    private fun getSampleGuildMembers(): List<User> {
-        return listOf(
-            User(id = "1", name = "Elena Rostova", points = 3420),
-            User(id = "2", name = "Arthur Pendelton", points = 2890),
-            User(id = "6", name = "Adventurer (You)", points = 850)
-        )
     }
 }

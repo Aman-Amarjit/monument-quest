@@ -60,6 +60,8 @@ class MapViewModel @Inject constructor(
     private val _isLoadingMonuments = MutableStateFlow(false)
     val isLoadingMonuments: StateFlow<Boolean> = _isLoadingMonuments
 
+    private val gson = com.google.gson.Gson()
+
     private val _walkPathPoints = MutableStateFlow<List<GeoPoint>>(emptyList())
     val walkPathPoints: StateFlow<List<GeoPoint>> = _walkPathPoints
 
