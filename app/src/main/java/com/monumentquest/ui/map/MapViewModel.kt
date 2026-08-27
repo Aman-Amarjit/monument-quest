@@ -122,6 +122,16 @@ class MapViewModel @Inject constructor(
         startLiveGpsTracking()
     }
 
+    fun setManualStartLocation(lat: Double, lon: Double, locationName: String = "Selected Heritage Site") {
+        val currentGeo = GeoPoint(lat, lon)
+        _userLocation.value = currentGeo
+        _detectedCityName.value = locationName
+        viewModelScope.launch {
+            fetchRealOverpassMonuments(lat, lon)
+            fetchTacticalBlueprint(lat, lon)
+        }
+    }
+
     @SuppressLint("MissingPermission")
     fun startLiveGpsTracking() {
         viewModelScope.launch {

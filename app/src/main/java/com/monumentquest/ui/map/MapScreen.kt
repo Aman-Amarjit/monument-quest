@@ -2,6 +2,8 @@ package com.monumentquest.ui.map
 
 import android.annotation.SuppressLint
 import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
@@ -266,6 +268,20 @@ fun MapScreen(
     var searchQuery      by remember { mutableStateOf("") }
     var isSheetExpanded  by remember { mutableStateOf(false) }
     var hasZoomedToUser  by remember { mutableStateOf(false) }
+    var showStartLocationDialog by remember { mutableStateOf(true) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseGranted = permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        if (fineGranted || coarseGranted) {
+            viewModel.startLiveGpsTracking()
+            Toast.makeText(context, "🛰️ Live GPS Location Activated!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "📍 Set start location manually from the menu", Toast.LENGTH_LONG).show()
+        }
+    }
 
 
     val collapsedSheetH = 195.dp
@@ -676,6 +692,12 @@ fun MapScreen(
                 Icon(Icons.Default.Remove, null, tint = TextPrimary, modifier = Modifier.size(22.dp))
             }
             MapControlFab(
+                onClick = { showStartLocationDialog = true },
+                bgColor = Gold
+            ) {
+                Icon(Icons.Default.Place, null, tint = Color.Black, modifier = Modifier.size(22.dp))
+            }
+            MapControlFab(
                 onClick = {
                     isFollowingUser = true
                     userLocation?.let { mapViewInstance?.controller?.animateTo(it) }
@@ -684,6 +706,26 @@ fun MapScreen(
             ) {
                 Icon(Icons.Default.MyLocation, null, tint = Color.White, modifier = Modifier.size(22.dp))
             }
+        }
+
+        if (showStartLocationDialog) {
+            StartLocationDialog(
+                onDismiss = { showStartLocationDialog = false },
+                onRequestGps = {
+                    permissionLauncher.launch(
+                        arrayOf(
+                            android.Manifest.permission.ACCESS_FINE_LOCATION,
+                            android.Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                },
+                onSelectSite = { lat, lon, name ->
+                    viewModel.setManualStartLocation(lat, lon, name)
+                    mapViewInstance?.controller?.animateTo(GeoPoint(lat, lon))
+                    mapViewInstance?.controller?.setZoom(17.0)
+                    Toast.makeText(context, "📍 Expedition Start Location: $name", Toast.LENGTH_LONG).show()
+                }
+            )
         }
 
         AnimatedVisibility(
@@ -1081,3 +1123,89 @@ private fun formatDistance(meters: Int): String = when {
     meters < 1000 -> "$meters m away"
     else          -> String.format("%.1f km away", meters / 1000.0)
 }
+
+@Composable
+fun StartLocationDialog(
+    onDismiss: () -> Unit,
+    onRequestGps: () -> Unit,
+    onSelectSite: (Double, Double, String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF0F172A),
+        shape = RoundedCornerShape(24.dp),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Default.MyLocation, null, tint = Gold, modifier = Modifier.size(24.dp))
+                Text("Select Start Location 📍", fontSize = 17.5.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Choose your starting point or enable live GPS for exploration:",
+                    fontSize = 12.5.sp,
+                    color = TextSecondary
+                )
+
+                Button(
+                    onClick = {
+                        onRequestGps()
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold)
+                ) {
+                    Icon(Icons.Default.GpsFixed, null, tint = Color.Black, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Use My Live GPS Location", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+
+                HorizontalDivider(color = BorderSubtle, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+
+                Text("Or pick a featured heritage site to start:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Gold)
+
+                val presetSites = listOf(
+                    Triple(20.2381, 85.8338, "Lingaraj Temple, Old Town"),
+                    Triple(20.1924, 85.8394, "Dhauli Peace Pagoda"),
+                    Triple(20.2631, 85.7864, "Khandagiri & Udayagiri Caves"),
+                    Triple(20.2514, 85.8436, "Raja Rani Temple"),
+                    Triple(20.2435, 85.8327, "Mukteshvara Temple")
+                )
+
+                presetSites.forEach { (lat, lon, name) ->
+                    OutlinedButton(
+                        onClick = {
+                            onSelectSite(lat, lon, name)
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Place, null, tint = Gold, modifier = Modifier.size(15.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss", color = TextSecondary)
+            }
+        }
+    )
+}
+
