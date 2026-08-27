@@ -292,23 +292,53 @@ class MapViewModel @Inject constructor(
         }
     }
 
+    private fun saveCachedMonuments(list: List<MapMonumentItem>) {
+        try {
+            val json = gson.toJson(list)
+            prefs.edit().putString("offline_cached_monuments_json", json).apply()
+        } catch (_: Exception) {}
+    }
+
+    private fun restoreCachedMonuments(userLat: Double, userLon: Double): List<MapMonumentItem> {
+        try {
+            val json = prefs.getString("offline_cached_monuments_json", null)
+            if (!json.isNullOrBlank()) {
+                val type = object : com.google.gson.reflect.TypeToken<List<MapMonumentItem>>() {}.type
+                val cached: List<MapMonumentItem> = gson.fromJson(json, type)
+                return cached.map { item ->
+                    val distArray = FloatArray(1)
+                    Location.distanceBetween(userLat, userLon, item.geoPoint.latitude, item.geoPoint.longitude, distArray)
+                    item.copy(distanceMeters = distArray[0].toInt())
+                }.sortedBy { it.distanceMeters }
+            }
+        } catch (_: Exception) {}
+        return emptyList()
+    }
+
     private fun fetchRealOverpassMonuments(lat: Double, lon: Double) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoadingMonuments.value = true
 
-            // Fetch ONLY 100% real live OpenStreetMap monuments & places around user's exact physical coordinates via internet
             val realMonuments = overpassRepository.fetchRealMonumentsNearby(lat, lon, radiusMeters = 5000)
 
-            val updatedWithLiveDistance = realMonuments
-                .map { item ->
-                    val distArray = FloatArray(1)
-                    android.location.Location.distanceBetween(lat, lon, item.geoPoint.latitude, item.geoPoint.longitude, distArray)
-                    item.copy(distanceMeters = distArray[0].toInt())
-                }
-                .distinctBy { it.name.trim().lowercase() }
-                .sortedBy { it.distanceMeters }
+            if (realMonuments.isNotEmpty()) {
+                val updatedWithLiveDistance = realMonuments
+                    .map { item ->
+                        val distArray = FloatArray(1)
+                        Location.distanceBetween(lat, lon, item.geoPoint.latitude, item.geoPoint.longitude, distArray)
+                        item.copy(distanceMeters = distArray[0].toInt())
+                    }
+                    .distinctBy { it.name.trim().lowercase() }
+                    .sortedBy { it.distanceMeters }
 
-            _monuments.value = updatedWithLiveDistance
+                saveCachedMonuments(updatedWithLiveDistance)
+                _monuments.value = updatedWithLiveDistance
+            } else {
+                val offlineCached = restoreCachedMonuments(lat, lon)
+                if (offlineCached.isNotEmpty()) {
+                    _monuments.value = offlineCached
+                }
+            }
             _isLoadingMonuments.value = false
         }
     }

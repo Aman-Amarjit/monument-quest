@@ -30,14 +30,22 @@ if (config.nodeEnv !== 'test') {
 app.get('/favicon.ico', (_req, res) => res.status(204).end());
 app.get('/favicon.png', (_req, res) => res.status(204).end());
 
+import { renderDashboardHtml } from './views/dashboard';
+
 // Root welcome route for browser & health monitoring
-app.get('/', (_req, res) => res.json({
-  status: 'online',
-  service: 'MonumentQuest Production API',
-  version: '3.1.0',
-  database: 'Supabase PostgreSQL (Connected)',
-  timestamp: new Date().toISOString()
-}));
+app.get('/', (req, res) => {
+  const acceptsHtml = req.headers.accept?.includes('text/html');
+  if (acceptsHtml) {
+    return res.setHeader('Content-Type', 'text/html').send(renderDashboardHtml());
+  }
+  return res.json({
+    status: 'online',
+    service: 'MonumentQuest Production API',
+    version: '3.1.0',
+    database: 'Supabase PostgreSQL (Connected)',
+    timestamp: new Date().toISOString()
+  });
+});
 
 app.get('/health/live', (_req, res) => res.json({ status: 'ok', service: 'monument-quest-api' }));
 app.get('/health/ready', async (_req, res) => {
