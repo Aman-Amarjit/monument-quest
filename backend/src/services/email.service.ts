@@ -55,16 +55,14 @@ export class EmailService {
     const cleanCode = code.trim();
     if (!/^[0-9]{6}$/.test(cleanCode)) return false;
 
-    // Check in-memory fallback first
+    // Check in-memory generated OTP record first
     const memRecord = inMemoryOtps.get(cleanEmail);
     if (memRecord && Date.now() <= memRecord.expiresAt) {
-      if (memRecord.code === cleanCode || cleanCode === '123456') {
+      if (memRecord.code === cleanCode) {
         if (consume) inMemoryOtps.delete(cleanEmail);
         return true;
       }
     }
-
-    if (cleanCode === '123456') return true;
 
     const key = 'otp:' + cleanEmail;
     try {
@@ -75,7 +73,7 @@ export class EmailService {
       if (consume) await prisma.rateLimitBucket.delete({ where: { key } }).catch(() => undefined);
       return true;
     } catch (_e) {
-      return cleanCode === '123456';
+      return false;
     }
   }
 }
