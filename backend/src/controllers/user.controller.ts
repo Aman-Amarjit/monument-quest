@@ -96,7 +96,14 @@ export class UserController {
         if (duplicate) return res.status(409).json({ success: false, error: 'That explorer name is already taken' });
         updateData.name = cleanName;
       }
-      if (typeof avatarUrl === 'string') updateData.avatarUrl = avatarUrl;
+      if (typeof avatarUrl === 'string') {
+        const cleanAvatarUrl = avatarUrl.trim();
+        const isDataImage = /^data:image\/(?:jpeg|png|webp|gif);base64,[a-z0-9+/]+={0,2}$/i.test(cleanAvatarUrl);
+        const isRemoteImage = /^https?:\/\//i.test(cleanAvatarUrl);
+        if (cleanAvatarUrl.length > 900_000) return res.status(413).json({ success: false, error: 'Profile photo is too large' });
+        if (cleanAvatarUrl && !isDataImage && !isRemoteImage) return res.status(400).json({ success: false, error: 'Profile photo must be an https URL or an encoded image' });
+        updateData.avatarUrl = cleanAvatarUrl || null;
+      }
 
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({ success: false, error: 'Nothing to update' });
