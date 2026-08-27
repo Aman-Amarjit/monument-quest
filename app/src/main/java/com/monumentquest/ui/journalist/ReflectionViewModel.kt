@@ -46,7 +46,8 @@ class ReflectionViewModel @Inject constructor(
                         messages = listOf(GroqMessage("user", prompt))
                     )
 
-                    val response = groqApi.getChatCompletion(apiKey, request)
+                    val tokenHeader = if (apiKey.startsWith("Bearer ")) apiKey else "Bearer $apiKey"
+                    val response = groqApi.getChatCompletion(tokenHeader, request)
                     val responseText = response.choices.firstOrNull()?.message?.content ?: ""
 
                     if (responseText.contains("VALID", ignoreCase = true)) {
