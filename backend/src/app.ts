@@ -26,6 +26,10 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 }
 
+// Favicon handlers for clean browser & Vercel log metrics
+app.get('/favicon.ico', (_req, res) => res.status(204).end());
+app.get('/favicon.png', (_req, res) => res.status(204).end());
+
 // Root welcome route for browser & health monitoring
 app.get('/', (_req, res) => res.json({
   status: 'online',
