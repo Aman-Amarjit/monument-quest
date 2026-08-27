@@ -295,31 +295,40 @@ class MapViewModel @Inject constructor(
     private fun fetchRealOverpassMonuments(lat: Double, lon: Double) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoadingMonuments.value = true
+
+            // 1. Primary Live Source: Fetch OpenStreetMap real places around user's exact physical coordinates
+            val realMonuments = overpassRepository.fetchRealMonumentsNearby(lat, lon, radiusMeters = 5000)
+
+            // 2. Fetch catalog monuments if any exist nearby
+            val catalogItems = mutableListOf<MapMonumentItem>()
             try {
                 val backendRes = monumentApi.getNearbyMonuments(lat, lon)
                 val items = backendRes["monuments"] ?: emptyList()
-                if (items.isNotEmpty()) {
-                    val mapItems = items.map { m ->
-                        MapMonumentItem(
-                            id = m.id,
-                            name = m.name,
-                            locationName = _detectedCityName.value,
-                            geoPoint = GeoPoint(m.latitude, m.longitude),
-                            points = m.points,
-                            category = m.category,
-                            distanceMeters = m.distanceMeters
-                        )
-                    }
-                    _monuments.value = mapItems
-                    _isLoadingMonuments.value = false
-                    return@launch
-                }
-            } catch (e: Exception) {
-                // Fallback to Overpass
-            }
+                catalogItems.addAll(items.map { m ->
+                    val distArray = FloatArray(1)
+                    android.location.Location.distanceBetween(lat, lon, m.latitude, m.longitude, distArray)
+                    MapMonumentItem(
+                        id = m.id,
+                        name = m.name,
+                        locationName = _detectedCityName.value,
+                        geoPoint = GeoPoint(m.latitude, m.longitude),
+                        points = m.points,
+                        category = m.category,
+                        distanceMeters = distArray[0].toInt()
+                    )
+                })
+            } catch (_: Exception) {}
 
-            val realMonuments = overpassRepository.fetchRealMonumentsNearby(lat, lon)
-            _monuments.value = realMonuments
+            val combined = (realMonuments + catalogItems)
+                .map { item ->
+                    val distArray = FloatArray(1)
+                    android.location.Location.distanceBetween(lat, lon, item.geoPoint.latitude, item.geoPoint.longitude, distArray)
+                    item.copy(distanceMeters = distArray[0].toInt())
+                }
+                .distinctBy { it.name.trim().lowercase() }
+                .sortedBy { it.distanceMeters }
+
+            _monuments.value = combined
             _isLoadingMonuments.value = false
         }
     }
