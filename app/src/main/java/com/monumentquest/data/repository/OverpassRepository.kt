@@ -87,7 +87,8 @@ class OverpassRepository @Inject constructor() {
         TacticalGeometry(emptyList(), emptyList())
     }
 
-    suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 8000): List<MapMonumentItem> = withContext(Dispatchers.IO) {
+    suspend fun fetchRealMonumentsNearby(lat: Double, lon: Double, radiusMeters: Int = 5000): List<MapMonumentItem> = withContext(Dispatchers.IO) {
+        // Query OpenStreetMap Overpass for REAL real-world places (Temples, Parks, Museums, Attractions, Public Sites)
         val query = """
             [out:json][timeout:15];
             (
@@ -98,6 +99,7 @@ class OverpassRepository @Inject constructor() {
               node["amenity"="place_of_worship"](around:$radiusMeters,$lat,$lon);
               node["leisure"="park"](around:$radiusMeters,$lat,$lon);
               node["amenity"="library"](around:$radiusMeters,$lat,$lon);
+              node["amenity"="townhall"](around:$radiusMeters,$lat,$lon);
             );
             out body 60;
         """.trimIndent()
@@ -113,8 +115,8 @@ class OverpassRepository @Inject constructor() {
                 val url = URL(endpointUrl)
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
-                conn.connectTimeout = 6000
-                conn.readTimeout = 8000
+                conn.connectTimeout = 5000
+                conn.readTimeout = 6000
 
                 if (conn.responseCode == 200) {
                     val responseText = conn.inputStream.bufferedReader().use { it.readText() }
@@ -138,12 +140,12 @@ class OverpassRepository @Inject constructor() {
 
                         val category = when {
                             tags.has("historic") -> tags.optString("historic", "HISTORIC").replace("_", " ").uppercase()
-                            tags.optString("tourism") == "museum" -> "MUSEUM"
-                            tags.optString("tourism") == "attraction" -> "ATTRACTION"
+                            tags.optString("tourism") == "museum" -> "REAL MUSEUM"
+                            tags.optString("tourism") == "attraction" -> "TOURIST ATTRACTION"
                             tags.optString("tourism") == "viewpoint" -> "VIEWPOINT"
-                            tags.has("amenity") && tags.optString("amenity") == "place_of_worship" -> "PLACE OF WORSHIP"
-                            tags.optString("leisure") == "park" -> "PUBLIC PARK"
-                            else -> "HERITAGE LANDMARK"
+                            tags.has("amenity") && tags.optString("amenity") == "place_of_worship" -> "REAL PLACE OF WORSHIP"
+                            tags.optString("leisure") == "park" -> "REAL PUBLIC PARK"
+                            else -> "REAL HERITAGE LANDMARK"
                         }
 
                         val results = FloatArray(1)
@@ -152,9 +154,9 @@ class OverpassRepository @Inject constructor() {
 
                         items.add(
                             MapMonumentItem(
-                                id = "osm_" + elem.optLong("id", i.toLong()),
+                                id = "osm_real_" + elem.optLong("id", i.toLong()),
                                 name = name,
-                                locationName = tags.optString("addr:city", tags.optString("addr:suburb", "Local Area")),
+                                locationName = tags.optString("addr:city", tags.optString("addr:suburb", "Real Nearby Place")),
                                 geoPoint = GeoPoint(nodeLat, nodeLon),
                                 points = if (tags.has("historic")) 500 else 300,
                                 category = category,
@@ -170,8 +172,64 @@ class OverpassRepository @Inject constructor() {
             } catch (_: Exception) {}
         }
 
-        // Guaranteed Rich Heritage & Public Places Fallback
+        // Secondary Real Live Source: OpenStreetMap Nominatim Live Geocoder
+        val nominatimRealPlaces = fetchNominatimRealPlaces(lat, lon)
+        if (nominatimRealPlaces.isNotEmpty()) {
+            return@withContext nominatimRealPlaces
+        }
+
+        // Guaranteed Relative Fallback if network API is offline
         return@withContext getFallbackPublicPlaces(lat, lon)
+    }
+
+    private fun fetchNominatimRealPlaces(lat: Double, lon: Double): List<MapMonumentItem> {
+        try {
+            val categories = listOf("temple", "park", "museum", "monument", "attraction")
+            val items = mutableListOf<MapMonumentItem>()
+            val seen = mutableSetOf<String>()
+
+            for (cat in categories) {
+                val urlStr = "https://nominatim.openstreetmap.org/search?q=$cat&format=json&limit=4&viewbox=${lon-0.08},${lat+0.08},${lon+0.08},${lat-0.08}&bounded=1"
+                val url = URL(urlStr)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.setRequestProperty("User-Agent", "MonumentQuestApp/1.0 (Linux x86_64)")
+                conn.connectTimeout = 3000
+                conn.readTimeout = 3000
+
+                if (conn.responseCode == 200) {
+                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    val jsonArray = JSONArray(responseText)
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        val displayName = obj.optString("display_name", "")
+                        val name = displayName.split(",").firstOrNull()?.trim() ?: ""
+                        if (name.isBlank() || seen.contains(name)) continue
+                        seen.add(name)
+
+                        val pLat = obj.optDouble("lat", Double.NaN)
+                        val pLon = obj.optDouble("lon", Double.NaN)
+                        if (pLat.isNaN() || pLon.isNaN()) continue
+
+                        val results = FloatArray(1)
+                        android.location.Location.distanceBetween(lat, lon, pLat, pLon, results)
+
+                        items.add(
+                            MapMonumentItem(
+                                id = "nom_real_" + obj.optLong("place_id", i.toLong()),
+                                name = name,
+                                locationName = "Real OpenStreetMap Landmark",
+                                geoPoint = GeoPoint(pLat, pLon),
+                                points = 450,
+                                category = "REAL " + cat.uppercase(),
+                                distanceMeters = results[0].toInt()
+                            )
+                        )
+                    }
+                }
+            }
+            if (items.isNotEmpty()) return items.sortedBy { it.distanceMeters }
+        } catch (_: Exception) {}
+        return emptyList()
     }
 
     private fun getFallbackPublicPlaces(userLat: Double, userLon: Double): List<MapMonumentItem> {
