@@ -1,17 +1,20 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
     id("com.google.gms.google-services")
 }
 
 val monumentQuestApiBaseUrl = project.providers.gradleProperty("MONUMENTQUEST_API_BASE_URL")
-    .orElse("https://monument-quest-mocha.vercel.app/api/v1/")
+    .orElse("http://192.168.1.40:3000/api/v1/")
     .get()
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")
+
+kapt {
+    correctErrorTypes = true
+}
 
 android {
     namespace = "com.monumentquest"
@@ -50,10 +53,17 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += listOf(
+            "-P",
+            "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true"
+        )
     }
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
     packaging {
         resources {
