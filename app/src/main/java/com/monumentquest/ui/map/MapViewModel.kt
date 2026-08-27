@@ -296,30 +296,10 @@ class MapViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             _isLoadingMonuments.value = true
 
-            // 1. Primary Live Source: Fetch OpenStreetMap real places around user's exact physical coordinates
+            // Fetch ONLY 100% real live OpenStreetMap monuments & places around user's exact physical coordinates via internet
             val realMonuments = overpassRepository.fetchRealMonumentsNearby(lat, lon, radiusMeters = 5000)
 
-            // 2. Fetch catalog monuments if any exist nearby
-            val catalogItems = mutableListOf<MapMonumentItem>()
-            try {
-                val backendRes = monumentApi.getNearbyMonuments(lat, lon)
-                val items = backendRes["monuments"] ?: emptyList()
-                catalogItems.addAll(items.map { m ->
-                    val distArray = FloatArray(1)
-                    android.location.Location.distanceBetween(lat, lon, m.latitude, m.longitude, distArray)
-                    MapMonumentItem(
-                        id = m.id,
-                        name = m.name,
-                        locationName = _detectedCityName.value,
-                        geoPoint = GeoPoint(m.latitude, m.longitude),
-                        points = m.points,
-                        category = m.category,
-                        distanceMeters = distArray[0].toInt()
-                    )
-                })
-            } catch (_: Exception) {}
-
-            val combined = (realMonuments + catalogItems)
+            val updatedWithLiveDistance = realMonuments
                 .map { item ->
                     val distArray = FloatArray(1)
                     android.location.Location.distanceBetween(lat, lon, item.geoPoint.latitude, item.geoPoint.longitude, distArray)
@@ -328,7 +308,7 @@ class MapViewModel @Inject constructor(
                 .distinctBy { it.name.trim().lowercase() }
                 .sortedBy { it.distanceMeters }
 
-            _monuments.value = combined
+            _monuments.value = updatedWithLiveDistance
             _isLoadingMonuments.value = false
         }
     }
