@@ -14,10 +14,11 @@ const router = Router();
 router.get('/health', (_req, res) => res.json({ status: 'online', version: '3.0.0', service: 'MonumentQuest API', timestamp: new Date().toISOString() }));
 
 // Auth routes (OTP-only — no passwords)
-router.post('/auth/send-otp',          AuthController.sendOtp);
-router.post('/auth/login-with-otp',    AuthController.loginWithOtp);
-router.post('/auth/register-with-otp', AuthController.registerWithOtp);
-router.post('/auth/guest',             AuthController.guest);
+const authLimit = rateLimit({ max: config.authRateLimitMax, key: 'auth' });
+router.post('/auth/send-otp',          authLimit, AuthController.sendOtp);
+router.post('/auth/login-with-otp',    authLimit, AuthController.loginWithOtp);
+router.post('/auth/register-with-otp', authLimit, AuthController.registerWithOtp);
+router.post('/auth/guest',              authLimit, AuthController.guest);
 router.get('/auth/me',                 authenticateToken, AuthController.me);
 
 // User profile & progress routes

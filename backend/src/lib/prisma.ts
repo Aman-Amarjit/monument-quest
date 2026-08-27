@@ -1,19 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 
-const POOLER_URL = 'postgresql://postgres.jilzmypcehdnydidjxib:Promethium%4014561@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true';
-
-if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('supabase.co:5432')) {
-  process.env.DATABASE_URL = POOLER_URL;
+const databaseUrl = process.env.DATABASE_URL?.trim();
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL must be configured before starting MonumentQuest API');
 }
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL || POOLER_URL
-    }
-  },
+  datasources: { db: { url: databaseUrl } },
   log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error']
 });
 

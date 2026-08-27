@@ -16,6 +16,11 @@ model User {
   avatarUrl    String?
   userRank     String       @default("Bhubaneswar Explorer")
   points       Int          @default(0)
+  streakDays   Int          @default(0)
+  totalDistanceKm Float      @default(0)
+  areaUnlockedKm2 Float     @default(0)
+  walkPathJson String        @default("[]")
+  exploredZonesJson String   @default("[]")
   role         String       @default("EXPLORER")
   guildId      String?
   guild        Guild?       @relation(fields: [guildId], references: [id])

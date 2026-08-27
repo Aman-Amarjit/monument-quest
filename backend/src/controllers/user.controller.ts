@@ -24,12 +24,12 @@ export class UserController {
           email: user.email,
           xp,
           level,
-          streakDays: (user as any).streakDays ?? 0,
+          streakDays: user.streakDays,
           visitedCount,
-          totalDistanceKm: (user as any).totalDistanceKm ?? 0,
-          areaUnlockedKm2: (user as any).areaUnlockedKm2 ?? 0,
-          walkPathJson: (user as any).walkPathJson ?? '[]',
-          exploredZonesJson: (user as any).exploredZonesJson ?? '[]',
+          totalDistanceKm: user.totalDistanceKm,
+          areaUnlockedKm2: user.areaUnlockedKm2,
+          walkPathJson: user.walkPathJson,
+          exploredZonesJson: user.exploredZonesJson,
           userRank: user.userRank,
           role: user.role,
           guild: user.guild ? { id: user.guild.id, name: user.guild.name } : null
@@ -51,17 +51,17 @@ export class UserController {
       } = req.body ?? {};
 
       const updateData: Record<string, any> = {};
-      if (typeof totalDistanceKm === 'number') updateData.totalDistanceKm = totalDistanceKm;
-      if (typeof areaUnlockedKm2 === 'number')  updateData.areaUnlockedKm2  = areaUnlockedKm2;
-      if (typeof streakDays === 'number')        updateData.streakDays        = streakDays;
+      if (typeof totalDistanceKm === 'number' && Number.isFinite(totalDistanceKm) && totalDistanceKm >= 0) updateData.totalDistanceKm = totalDistanceKm;
+      if (typeof areaUnlockedKm2 === 'number' && Number.isFinite(areaUnlockedKm2) && areaUnlockedKm2 >= 0) updateData.areaUnlockedKm2 = areaUnlockedKm2;
+      if (typeof streakDays === 'number' && Number.isInteger(streakDays) && streakDays >= 0) updateData.streakDays = streakDays;
       if (typeof walkPathJson === 'string')      updateData.walkPathJson      = walkPathJson;
       if (typeof exploredZonesJson === 'string') updateData.exploredZonesJson = exploredZonesJson;
 
       // Add walking XP to existing points
-      if (typeof xpDelta === 'number' && xpDelta > 0) {
-        const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { points: true } });
-        if (user) updateData.points = user.points + Math.min(xpDelta, 500); // cap 500 XP per sync
-      }
+      const xpToAdd = typeof xpDelta === 'number' && Number.isFinite(xpDelta) && xpDelta > 0
+        ? Math.min(Math.floor(xpDelta), 500)
+        : 0;
+      if (xpToAdd > 0) updateData.points = { increment: xpToAdd }; // atomic cap of 500 XP per sync
 
       if (Object.keys(updateData).length === 0) {
         return res.json({ success: true, message: 'Nothing to update' });
@@ -82,7 +82,18 @@ export class UserController {
     try {
       const { name, avatarUrl } = req.body ?? {};
       const updateData: Record<string, any> = {};
-      if (typeof name === 'string' && name.trim().length > 0) updateData.name = name.trim();
+      if (typeof name === 'string') {
+        const cleanName = name.trim();
+        if (cleanName.length < 2 || cleanName.length > 80) {
+          return res.status(400).json({ success: false, error: 'Name must be between 2 and 80 characters' });
+        }
+        const duplicate = await prisma.user.findFirst({
+          where: { name: { equals: cleanName, mode: 'insensitive' }, NOT: { id: req.user!.id } },
+          select: { id: true }
+        });
+        if (duplicate) return res.status(409).json({ success: false, error: 'That explorer name is already taken' });
+        updateData.name = cleanName;
+      }
       if (typeof avatarUrl === 'string') updateData.avatarUrl = avatarUrl;
 
       if (Object.keys(updateData).length === 0) {

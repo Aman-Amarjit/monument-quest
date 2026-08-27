@@ -10,8 +10,9 @@ export class AuthController {
       const { email } = req.body ?? {};
       if (typeof email !== 'string' || !email.includes('@'))
         return res.status(400).json({ success: false, error: 'Valid email required' });
-      const otpCode = await EmailService.sendOtp(email.trim().toLowerCase());
-      return res.json({ success: true, message: 'OTP sent to ' + email, otpCode });
+      const cleanEmail = email.trim().toLowerCase();
+      const otpCode = await EmailService.sendOtp(cleanEmail);
+      return res.json({ success: true, message: 'OTP sent to ' + cleanEmail, ...(otpCode ? { otpCode } : {}) });
     } catch (error) { next(error); }
   }
 
@@ -19,8 +20,8 @@ export class AuthController {
   static async loginWithOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, code } = req.body ?? {};
-      if (typeof email !== 'string' || typeof code !== 'string')
-        return res.status(400).json({ success: false, error: 'Email and OTP code required' });
+      if (typeof email !== 'string' || typeof code !== 'string' || !/^[0-9]{6}$/.test(code.trim()))
+        return res.status(400).json({ success: false, error: 'Email and a 6-digit OTP code are required' });
 
       const valid = await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim(), false);
       if (!valid)
@@ -47,8 +48,8 @@ export class AuthController {
   static async registerWithOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, code, name } = req.body ?? {};
-      if (typeof email !== 'string' || typeof code !== 'string' || typeof name !== 'string')
-        return res.status(400).json({ success: false, error: 'Email, OTP code, and name required' });
+      if (typeof email !== 'string' || typeof code !== 'string' || typeof name !== 'string' || !/^[0-9]{6}$/.test(code.trim()))
+        return res.status(400).json({ success: false, error: 'Email, a 6-digit OTP code, and name are required' });
 
       const valid = await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim(), true);
       if (!valid)
@@ -58,7 +59,7 @@ export class AuthController {
         const data = await AuthService.registerWithOtp(email, name);
         return res.status(201).json({ success: true, data });
       } catch (error: any) {
-        if (error?.status === 409) {
+        if (error?.status === 409 && error?.code === 'EMAIL_EXISTS') {
           // Account already exists — fallback to instant login
           const data = await AuthService.loginWithOtp(email);
           return res.status(200).json({ success: true, data });

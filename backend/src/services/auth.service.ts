@@ -63,7 +63,7 @@ export class AuthService {
       where: { name: { equals: cleanName, mode: 'insensitive' } }
     });
     if (existingNameUser && existingNameUser.email !== normalizedEmail) {
-      throw { status: 409, message: `Username "${cleanName}" is already taken by another explorer. Please choose a different username.` };
+      throw { status: 409, code: 'USERNAME_TAKEN', message: `Username "${cleanName}" is already taken by another explorer. Please choose a different username.` };
     }
 
     // Auto-generate internal password hash
@@ -75,7 +75,7 @@ export class AuthService {
       });
       return this.result(this.toProfile(user));
     } catch (error: any) {
-      if (error?.code === 'P2002') throw { status: 409, message: 'Email already registered. Please log in instead.' };
+      if (error?.code === 'P2002') throw { status: 409, code: 'EMAIL_EXISTS', message: 'Email already registered. Please log in instead.' };
       throw error;
     }
   }
