@@ -1,14 +1,15 @@
 {
   "version": 2,
+  "buildCommand": "prisma generate --schema=backend/prisma/schema.prisma",
   "builds": [
     {
-      "src": "backend/api/index.ts",
+      "src": "api/index.ts",
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
           "backend/prisma/**",
-          "backend/node_modules/.prisma/**",
-          "backend/node_modules/@prisma/client/**"
+          "node_modules/.prisma/**",
+          "node_modules/@prisma/client/**"
         ]
       }
     }
@@ -16,7 +17,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "backend/api/index.ts"
+      "dest": "api/index.ts"
     }
   ]
 }
