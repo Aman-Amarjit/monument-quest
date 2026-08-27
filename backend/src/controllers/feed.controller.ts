@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { FeedService } from '../services/feed.service';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { sanitizeText } from '../utils/sanitize';
 
 export class FeedController {
   static async getFeed(req: AuthRequest, res: Response, next: NextFunction) {
@@ -14,7 +15,8 @@ export class FeedController {
     try {
       const { monumentId, caption, imageUrl, postType } = req.body || {};
       if (typeof monumentId !== 'string' || typeof caption !== 'string') return res.status(400).json({ success: false, error: 'monumentId and caption are required' });
-      res.status(201).json({ success: true, data: await FeedService.createPost(req.user!.id, { monumentId, caption, imageUrl: typeof imageUrl === 'string' ? imageUrl : undefined, postType: typeof postType === 'string' ? postType : undefined }) });
+      const cleanCaption = sanitizeText(caption, 2000);
+      res.status(201).json({ success: true, data: await FeedService.createPost(req.user!.id, { monumentId, caption: cleanCaption, imageUrl: typeof imageUrl === 'string' ? imageUrl : undefined, postType: typeof postType === 'string' ? postType : undefined }) });
     } catch (error) { next(error); }
   }
 
@@ -35,7 +37,8 @@ export class FeedController {
       const { body, text } = req.body || {};
       const comment = typeof body === 'string' ? body : text;
       if (typeof comment !== 'string') return res.status(400).json({ success: false, error: 'Comment body is required' });
-      res.status(201).json({ success: true, data: await FeedService.addComment(req.params.id, req.user!.id, comment) });
+      const cleanComment = sanitizeText(comment, 1000);
+      res.status(201).json({ success: true, data: await FeedService.addComment(req.params.id, req.user!.id, cleanComment) });
     } catch (error) { next(error); }
   }
 }
