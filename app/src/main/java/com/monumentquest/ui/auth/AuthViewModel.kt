@@ -45,7 +45,7 @@ class AuthViewModel @Inject constructor(
                 uid = tokenManager.getUserId() ?: "",
                 name = tokenManager.getUserName() ?: "Explorer",
                 email = tokenManager.getUserEmail() ?: "",
-                userRank = "Explorer", points = 0, isGuest = false, guildName = ""
+                userRank = "Explorer", points = 0, isGuest = tokenManager.isGuest(), guildName = "", avatarUrl = tokenManager.getUserAvatarUrl()
             )
             _currentSession.value = session
             _uiState.value = AuthUiState.Authenticated(session)
@@ -91,7 +91,7 @@ class AuthViewModel @Inject constructor(
                     monumentApi.loginWithOtp(LoginWithOtpRequest(cleanEmail, cleanCode))
                 }
                 if (res.success) {
-                    saveSession(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, false)
+                    saveSession(res.data.token, res.data.user.id, res.data.user.name, res.data.user.email, false, res.data.user.avatarUrl)
                 } else if (res.needsSignup) {
                     _uiState.value = AuthUiState.Idle
                     onNeedsSignup()
@@ -138,7 +138,7 @@ class AuthViewModel @Inject constructor(
                     monumentApi.registerWithOtp(RegisterWithOtpRequest(cleanEmail, cleanCode, cleanName))
                 }
                 if (backendRes.success) {
-                    saveSession(backendRes.data.token, backendRes.data.user.id, cleanName, cleanEmail, false)
+                    saveSession(backendRes.data.token, backendRes.data.user.id, cleanName, cleanEmail, false, backendRes.data.user.avatarUrl)
                 } else if (backendRes.alreadyExists) {
                     val err = "Username \"$cleanName\" is already taken. Please choose another username."
                     _uiState.value = AuthUiState.Error(err)
@@ -176,7 +176,7 @@ class AuthViewModel @Inject constructor(
             try {
                 val res = withContext(Dispatchers.IO) { monumentApi.loginAsGuest() }
                 if (res.success) {
-                    saveSession(res.data.token, res.data.user.id, "Guest Explorer", res.data.user.email, true)
+                    saveSession(res.data.token, res.data.user.id, "Guest Explorer", res.data.user.email, true, res.data.user.avatarUrl)
                 } else offlineGuest()
             } catch (e: Exception) { offlineGuest() }
         }
@@ -194,18 +194,22 @@ class AuthViewModel @Inject constructor(
     fun registerUserSecurely(name: String, username: String, email: String, pass: String, role: String) {}
 
     private fun offlineGuest() {
-        val session = UserSession("guest_local", "Guest Explorer", "guest@local", "Wanderer", 0, true, "")
+        tokenManager.saveGuestStatus(true)
+        tokenManager.saveUserAvatarUrl(null)
+        val session = UserSession("guest_local", "Guest Explorer", "guest@local", "Wanderer", 0, true, "", null)
         _currentSession.value = session
         _uiState.value = AuthUiState.Authenticated(session)
     }
 
-    private fun saveSession(token: String, id: String, name: String, email: String, isGuest: Boolean) {
+    private fun saveSession(token: String, id: String, name: String, email: String, isGuest: Boolean, avatarUrl: String? = null) {
         tokenManager.saveToken(token)
         tokenManager.saveUserId(id)
         tokenManager.saveUserName(name)
         tokenManager.saveUserEmail(email)
+        tokenManager.saveUserAvatarUrl(avatarUrl)
+        tokenManager.saveGuestStatus(isGuest)
         val session = UserSession(uid = id, name = name, email = email,
-            userRank = "Explorer", points = 0, isGuest = isGuest, guildName = "")
+            userRank = "Explorer", points = 0, isGuest = isGuest, guildName = "", avatarUrl = avatarUrl)
         _currentSession.value = session
         _uiState.value = AuthUiState.Authenticated(session)
     }
