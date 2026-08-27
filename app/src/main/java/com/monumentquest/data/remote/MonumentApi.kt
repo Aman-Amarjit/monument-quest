@@ -29,6 +29,8 @@ data class LeaderboardResponse(val success: Boolean = true, val data: List<Leade
 
 data class ApiFeedItem(
     val id: String,
+    val userId: String? = null,
+    val user_id: String? = null,
     val userName: String? = null,
     val user_name: String? = null,
     val userAvatarUrl: String? = null,

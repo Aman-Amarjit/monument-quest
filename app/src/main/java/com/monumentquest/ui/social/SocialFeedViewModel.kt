@@ -117,6 +117,7 @@ class SocialFeedViewModel @Inject constructor(
                     if (file.name.endsWith(".jpg") || file.name.endsWith(".png")) {
                         val fileUri = Uri.fromFile(file).toString()
                         val fileTime = file.lastModified()
+                        val savedCaption = prefs.getString("caption_" + file.name, null) ?: "Lingaraj Temple Heritage Discovery 🏛️✨"
                         list.add(
                             SocialPost(
                                 id = "local_photo_" + file.name,
@@ -127,7 +128,7 @@ class SocialFeedViewModel @Inject constructor(
                                 monumentName = "Lingaraj Temple",
                                 locationName = "Bhubaneswar, Odisha",
                                 imageUrl = fileUri,
-                                caption = "Captured live during heritage quest! 🏛️✨",
+                                caption = savedCaption,
                                 postType = "CHECKIN",
                                 likesCount = 1,
                                 isLiked = true,
@@ -247,6 +248,19 @@ class SocialFeedViewModel @Inject constructor(
 
             val localSavedPhotoPosts = loadLocalSavedPhotos()
 
+            // Fetch user profile avatars from Firestore so everyone's custom photo renders
+            val userAvatarsMap = mutableMapOf<String, String>()
+            try {
+                val userDocs = firestore.collection("users").get().await()
+                for (doc in userDocs.documents) {
+                    val uid = doc.id
+                    val avatar = doc.getString("avatarUrl")
+                    if (!avatar.isNullOrBlank()) {
+                        userAvatarsMap[uid] = avatar
+                    }
+                }
+            } catch (e: Exception) {}
+
             val firestorePosts = mutableListOf<SocialPost>()
             try {
                 val snapshot = firestore.collection("posts")
@@ -256,6 +270,7 @@ class SocialFeedViewModel @Inject constructor(
 
                 for (doc in snapshot.documents) {
                     val id = doc.id
+                    val userId = doc.getString("userId") ?: "user_fs_$id"
                     val name = doc.getString("userName") ?: doc.getString("authorName") ?: "Heritage Explorer"
                     val caption = doc.getString("content") ?: doc.getString("caption") ?: ""
                     val img = doc.getString("imageUrl") ?: doc.getString("photoUrl") ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
@@ -265,6 +280,13 @@ class SocialFeedViewModel @Inject constructor(
                     val isMe = name.equals(myName, ignoreCase = true)
                     val defaultAvatar = "https://ui-avatars.com/api/?name=${android.net.Uri.encode(name)}&background=1E293B&color=D4AF37&bold=true&size=200"
 
+                    val remoteAvatar = userAvatarsMap[userId] ?: doc.getString("userAvatarUrl") ?: doc.getString("avatarUrl")
+                    val avatarToUse = when {
+                        isMe && !myAvatar.isNullOrBlank() -> myAvatar
+                        !remoteAvatar.isNullOrBlank() -> remoteAvatar
+                        else -> defaultAvatar
+                    }
+
                     val localState = currentLocalMap[id]
                     val isLiked = localState?.first ?: false
                     val likesCount = localState?.second ?: 1
@@ -272,9 +294,9 @@ class SocialFeedViewModel @Inject constructor(
                     firestorePosts.add(
                         SocialPost(
                             id = id,
-                            userId = doc.getString("userId") ?: "user_fs_$id",
+                            userId = userId,
                             userName = name,
-                            userAvatarUrl = if (isMe && !myAvatar.isNullOrBlank()) myAvatar else defaultAvatar,
+                            userAvatarUrl = avatarToUse,
                             userRank = "Heritage Explorer",
                             monumentName = mon,
                             locationName = "Bhubaneswar, Odisha",
@@ -297,13 +319,14 @@ class SocialFeedViewModel @Inject constructor(
                 val rawItems = feedRes.data ?: feedRes.feed ?: emptyList()
 
                 serverPosts = rawItems.map { f ->
+                    val uId = f.userId ?: f.user_id ?: "user_feed_${f.id}"
                     val name = f.userName ?: f.user_name ?: "Heritage Explorer"
                     val mon = f.monumentName ?: f.monument_name ?: "Lingaraj Temple"
                     val img = f.imageUrl ?: f.image_url ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
                     val ts = if (f.timestamp > 0) f.timestamp else System.currentTimeMillis()
 
                     val isMe = name.equals(myName, ignoreCase = true)
-                    val serverAvatar = f.userAvatarUrl ?: f.user_avatar_url
+                    val serverAvatar = f.userAvatarUrl ?: f.user_avatar_url ?: userAvatarsMap[uId]
                     val defaultAvatar = "https://ui-avatars.com/api/?name=${android.net.Uri.encode(name)}&background=1E293B&color=D4AF37&bold=true&size=200"
 
                     val avatarToUse = when {
@@ -318,7 +341,7 @@ class SocialFeedViewModel @Inject constructor(
 
                     SocialPost(
                         id = f.id,
-                        userId = "user_feed_" + f.id,
+                        userId = uId,
                         userName = name,
                         userAvatarUrl = avatarToUse,
                         userRank = "Heritage Explorer",
@@ -396,16 +419,20 @@ class SocialFeedViewModel @Inject constructor(
             val myAvatar = getMyAvatarUrl()
 
             var savedPhotoUrl: String? = null
+            var fileNameCreated: String? = null
             if (photoUri != null) {
                 try {
                     val postsDir = File(context.filesDir, "post_photos")
                     if (!postsDir.exists()) postsDir.mkdirs()
-                    val destFile = File(postsDir, "post_${System.currentTimeMillis()}.jpg")
+                    fileNameCreated = "post_${System.currentTimeMillis()}.jpg"
+                    val destFile = File(postsDir, fileNameCreated)
 
                     val inputStream = context.contentResolver.openInputStream(photoUri)
                     val outputStream = FileOutputStream(destFile)
                     inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
                     savedPhotoUrl = Uri.fromFile(destFile).toString()
+
+                    prefs.edit().putString("caption_$fileNameCreated", caption).apply()
                 } catch (e: Exception) {
                     savedPhotoUrl = photoUri.toString()
                 }
@@ -432,11 +459,12 @@ class SocialFeedViewModel @Inject constructor(
                 timestampFormatted = "Just now"
             )
 
-            // Save to Firebase Firestore so it's stored permanently in cloud database
+            // Save to Firebase Firestore so it's stored permanently in cloud database for everyone
             try {
                 val firestoreData = hashMapOf(
                     "userId" to (user?.uid ?: "user_me"),
                     "userName" to myName,
+                    "userAvatarUrl" to myAvatar,
                     "caption" to caption,
                     "content" to caption,
                     "monumentName" to monumentName.ifBlank { "Bhubaneswar Monument" },
