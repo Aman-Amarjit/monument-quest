@@ -204,10 +204,8 @@ fun SocialFeedScreen(
                 items(posts, key = { it.id }) { post ->
                     val isFollowed = followedUsers.contains(post.userId)
                     val isSaved    = savedPostIds.contains(post.id)
-                    val isMyPost   = !isGuest && (
-                                     (viewModel.currentUserId.isNotBlank() && post.userId == viewModel.currentUserId) ||
-                                     (viewModel.currentUserName.isNotBlank() && post.userName.equals(viewModel.currentUserName, ignoreCase = true))
-                                 )
+                    val myId       = viewModel.currentUserId.trim()
+                    val isMyPost   = !isGuest && myId.isNotEmpty() && post.userId.trim() == myId
 
                     PostCard(
                         post               = post,
