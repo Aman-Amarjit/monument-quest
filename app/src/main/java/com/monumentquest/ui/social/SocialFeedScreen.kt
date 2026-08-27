@@ -151,14 +151,16 @@ fun SocialFeedScreen(
                         onClick = { viewModel.setFilter(FeedFilter.GLOBAL) }
                     )
                     FeedTabItem(
-                        text = "My Guild",
+                        text = "Guild Squad",
                         selected = currentFilter == FeedFilter.GUILD,
                         onClick = { viewModel.setFilter(FeedFilter.GUILD) }
                     )
+                    FeedTabItem(
+                        text = "Nearby Discoveries",
+                        selected = currentFilter == FeedFilter.NEARBY,
+                        onClick = { viewModel.setFilter(FeedFilter.NEARBY) }
+                    )
                 }
-
-                // Bottom border
-                HorizontalDivider(color = BorderSubtle)
             }
         }
     ) { innerPadding ->
@@ -166,17 +168,18 @@ fun SocialFeedScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 140.dp),
+            contentPadding = PaddingValues(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Horizontal story avatars row
             item {
-                StoriesBar(
+                StoriesRow(
                     stories = stories,
-                    onAddStory = { showCreateModal = true },
                     onStoryClick = { story ->
                         activeExplorerProfile = ExplorerProfileData(
                             userId = story.id,
                             name = story.userName,
+                            avatarUrl = story.avatarUrl,
                             username = "@${story.userName.lowercase().replace(" ", "_")}",
                             rank = "Grand Master Explorer",
                             xp = 3450,
@@ -201,13 +204,17 @@ fun SocialFeedScreen(
                 items(posts, key = { it.id }) { post ->
                     val isFollowed = followedUsers.contains(post.userId)
                     val isSaved    = savedPostIds.contains(post.id)
+                    val isMyPost   = post.userName.equals(viewModel.currentUserName, ignoreCase = true) ||
+                                     post.userId == viewModel.currentUserId ||
+                                     post.id.startsWith("local_photo_") ||
+                                     post.id.startsWith("sp_")
 
                     PostCard(
                         post               = post,
                         isFollowed         = isFollowed,
                         isSaved            = isSaved,
                         onLikeToggle       = { if (!isGuest) viewModel.toggleLike(post.id) },
-                         canLike            = !isGuest,
+                        canLike            = !isGuest,
                         onFollowToggle     = { viewModel.toggleFollow(post.userId) },
                         onSaveToggle       = { viewModel.toggleSavePost(post.id) },
                         onOpenComments     = { activeCommentsPostId = post.id },
@@ -225,117 +232,113 @@ fun SocialFeedScreen(
                                 guildName = "Kalinga Keepers",
                                 bio = "Active explorer sharing discoveries and time capsules at historic landmarks."
                             )
-                        }
+                        },
+                        onDeletePost       = if (isMyPost) { { viewModel.deletePost(post.id) } } else null
                     )
                 }
             }
         }
+    }
 
-        // Modals & Dialogs
-        if (showCreateModal) {
-            CreatePostModal(
-                onDismiss = { showCreateModal = false },
-                onSubmit  = { caption, monument, photoUri ->
-                    viewModel.createPost(caption, monument, photoUri)
-                    showCreateModal = false
-                }
-            )
-        }
+    // Modal Sheet for creating a new post
+    if (showCreateModal) {
+        CreatePostBottomSheet(
+            onDismiss = { showCreateModal = false },
+            onSubmit  = { caption, monumentName, photoUri ->
+                viewModel.createPost(caption, monumentName, photoUri)
+                showCreateModal = false
+            }
+        )
+    }
 
-        activeCommentsPostId?.let { postId ->
-            val commentsList = postCommentsMap[postId] ?: emptyList()
-            CommentsSheetModal(
-                comments     = commentsList,
-                onDismiss    = { activeCommentsPostId = null },
-                onAddComment = { text -> viewModel.addComment(postId, text) },
-                canComment  = !isGuest
-            )
-        }
+    // Modal Sheet for post comments
+    activeCommentsPostId?.let { postId ->
+        val comments = postCommentsMap[postId] ?: emptyList()
+        PostCommentsBottomSheet(
+            postId     = postId,
+            comments   = comments,
+            isGuest    = isGuest,
+            onDismiss  = { activeCommentsPostId = null },
+            onAddComment = { text -> viewModel.addComment(postId, text) }
+        )
+    }
 
-        activeExplorerProfile?.let { prof ->
-            PublicProfileDialog(
-                profile = prof,
-                isFollowed = followedUsers.contains(prof.userId),
-                onFollowToggle = { viewModel.toggleFollow(prof.userId) },
-                onDismiss = { activeExplorerProfile = null }
-            )
-        }
+    // Public Explorer Profile Modal
+    activeExplorerProfile?.let { profile ->
+        PublicProfileDialog(
+            profile = profile,
+            isFollowed = followedUsers.contains(profile.userId),
+            onFollowToggle = { viewModel.toggleFollow(profile.userId) },
+            onDismiss = { activeExplorerProfile = null }
+        )
     }
 }
 
 @Composable
-private fun FeedTabItem(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun FeedTabItem(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
     Column(
-        horizontalAlignment = Alignment.Start,
         modifier = Modifier
-            .width(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(4.dp))
             .clickable { onClick() }
-            .padding(bottom = 2.dp)
+            .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = text,
-            color = if (selected) TextPrimary else TextSecondary,
+            fontSize = 13.5.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            fontSize = 13.5.sp
+            color = if (selected) Gold else TextSecondary
         )
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(2.5.dp)
-                .background(
-                    color = if (selected) Gold else Color.Transparent,
-                    shape = RoundedCornerShape(2.dp)
-                )
+                .height(2.dp)
+                .width(if (selected) 24.dp else 0.dp)
+                .background(Gold, shape = RoundedCornerShape(1.dp))
         )
     }
 }
 
 @Composable
-private fun StoriesBar(
+private fun StoriesRow(
     stories: List<DiscovererStory>,
-    onAddStory: () -> Unit,
     onStoryClick: (DiscovererStory) -> Unit
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
+        items(stories, key = { it.id }) { story ->
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.clickable { onAddStory() }
+                modifier = Modifier
+                    .width(68.dp)
+                    .clickable { onStoryClick(story) }
             ) {
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(62.dp)
                         .clip(CircleShape)
-                        .background(Surface2)
-                        .border(1.5.dp, Gold, CircleShape),
-                    contentAlignment = Alignment.Center
+                        .border(
+                            width = 2.dp,
+                            color = Gold,
+                            shape = CircleShape
+                        )
+                        .padding(3.dp)
                 ) {
-                    Icon(
-                        Icons.Default.AddAPhoto,
-                        contentDescription = "Add",
-                        tint = Gold,
-                        modifier = Modifier.size(22.dp)
+                    UserAvatar(
+                        name = story.userName,
+                        avatarUrl = story.avatarUrl,
+                        size = 54.dp
                     )
                 }
-                Text("Your Story", style = MaterialTheme.typography.labelSmall, color = TextPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        items(stories) { story ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.clickable { onStoryClick(story) }
-            ) {
-                UserAvatar(name = story.userName, size = 56.dp, borderColor = Gold)
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    story.userName.split(" ")[0],
-                    style = MaterialTheme.typography.labelSmall,
+                    text = story.userName.take(9),
                     color = TextPrimary,
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium
@@ -356,7 +359,8 @@ private fun PostCard(
     onOpenComments: () -> Unit,
     canLike: Boolean = true,
     onNavigateToNarrator: (String) -> Unit,
-    onUserClick: () -> Unit
+    onUserClick: () -> Unit,
+    onDeletePost: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -367,7 +371,7 @@ private fun PostCard(
         border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: User avatar + info + tag chip
+            // Header: User avatar + info + tag chip + Delete option
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -403,21 +407,41 @@ private fun PostCard(
                     }
                 }
 
-                val (tagBg, tagFg, tagLabel) = when (post.postType) {
-                    "DISCOVERY"    -> Triple(Color(0xFF2A1C00), Gold,              "🏛️ Discovery")
-                    "TIME_CAPSULE" -> Triple(Color(0xFF160A24), Color(0xFFC084FC), "🔮 Time Capsule")
-                    "REFLECTION"   -> Triple(Color(0xFF1A0A00), Color(0xFFFF8C42), "📜 Reflection")
-                    else           -> Triple(Surface2,          TextSecondary,     "📍 Check-in")
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(tagBg)
-                        .border(1.dp, tagFg.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(tagLabel, color = tagFg, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                    val (tagBg, tagFg, tagLabel) = when (post.postType) {
+                        "DISCOVERY"    -> Triple(Color(0xFF2A1C00), Gold,              "🏛️ Discovery")
+                        "TIME_CAPSULE" -> Triple(Color(0xFF160A24), Color(0xFFC084FC), "🔮 Time Capsule")
+                        "REFLECTION"   -> Triple(Color(0xFF1A0A00), Color(0xFFFF8C42), "📜 Reflection")
+                        else           -> Triple(Surface2,          TextSecondary,     "📍 Check-in")
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(tagBg)
+                            .border(1.dp, tagFg.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(tagLabel, color = tagFg, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Delete post option button for user's own posts
+                    if (onDeletePost != null) {
+                        IconButton(
+                            onClick = onDeletePost,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.DeleteOutline,
+                                contentDescription = "Delete Post",
+                                tint = RedAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -518,238 +542,271 @@ private fun PostCard(
                     IconButton(onClick = onSaveToggle, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            contentDescription = "Save",
+                            contentDescription = "Bookmark",
                             tint = if (isSaved) Gold else TextSecondary,
                             modifier = Modifier.size(19.dp)
                         )
                     }
                 }
 
+                // AI Narrator shortcut button
                 Button(
                     onClick = { onNavigateToNarrator(post.monumentName) },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                    modifier = Modifier.height(32.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Surface2, contentColor = Gold),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Gold.copy(alpha = 0.3f))
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold.copy(alpha = 0.15f))
                 ) {
-                    Icon(Icons.Default.Explore, null, tint = Gold, modifier = Modifier.size(13.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("AI Narrator", color = Gold, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, null, tint = Gold, modifier = Modifier.size(14.dp))
+                        Text("AI Spirit", color = Gold, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CommentsSheetModal(
-    comments: List<PostComment>,
+private fun CreatePostBottomSheet(
     onDismiss: () -> Unit,
-    onAddComment: (String) -> Unit,
-    canComment: Boolean = true
+    onSubmit: (caption: String, monumentName: String, photoUri: Uri?) -> Unit
 ) {
-    var commentText by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Surface1,
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Expedition Comments", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
-                IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Close, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
-                }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 280.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (comments.isEmpty()) {
-                        item {
-                            Text("No comments yet. Be the first explorer to comment!", color = TextSecondary, fontSize = 12.sp)
-                        }
-                    } else {
-                        items(comments) { comment ->
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                UserAvatar(name = comment.userName, size = 28.dp)
-                                Column {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(comment.userName, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 12.sp)
-                                        Text(comment.timeAgo, color = TextSecondary, fontSize = 10.sp)
-                                    }
-                                    Text(comment.text, color = TextPrimary, fontSize = 11.5.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (!canComment) {
-                    Text("Sign in to like or comment on expeditions.", color = TextSecondary, fontSize = 11.sp)
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    OutlinedTextField(
-                        value = commentText,
-                        onValueChange = { commentText = it },
-                        placeholder = { Text("Add a comment…", fontSize = 11.sp, color = TextSecondary) },
-                        modifier = Modifier.weight(1f),
-                        enabled = canComment,
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor   = Gold,
-                            unfocusedBorderColor = Border,
-                            focusedTextColor     = TextPrimary,
-                            unfocusedTextColor   = TextPrimary
-                        )
-                    )
-                    IconButton(
-                        onClick = {
-                            if (canComment && commentText.isNotBlank()) {
-                                onAddComment(commentText)
-                                commentText = ""
-                            }
-                        },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(if (canComment) Gold else Surface2)
-                    ) {
-                        Icon(Icons.Default.Send, null, tint = if (canComment) Bg else TextSecondary, modifier = Modifier.size(14.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = {}
-    )
-}
-
-@Composable
-private fun CreatePostModal(
-    onDismiss: () -> Unit,
-    onSubmit: (String, String, Uri?) -> Unit
-) {
-    var caption      by remember { mutableStateOf("") }
-    var monumentName by remember { mutableStateOf("") }
+    var caption by remember { mutableStateOf("") }
+    var monumentName by remember { mutableStateOf("Lingaraj Temple") }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if (uri != null) {
-            selectedPhotoUri = uri
-        }
+        if (uri != null) selectedPhotoUri = uri
     }
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = Surface1,
-        title = {
-            Text("Create Expedition Log", fontWeight = FontWeight.Bold, color = TextPrimary)
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = monumentName,
-                    onValueChange = { monumentName = it },
-                    label = { Text("Monument or Site Name") },
-                    placeholder = { Text("e.g. Rajarani Temple, Mukteshwar", fontSize = 12.sp, color = TextSecondary) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = Gold,
-                        unfocusedBorderColor = Border,
-                        focusedTextColor     = TextPrimary,
-                        unfocusedTextColor   = TextPrimary,
-                        focusedLabelColor    = TextSecondary,
-                        unfocusedLabelColor  = TextSecondary
-                    )
-                )
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Border) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Log New Expedition",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                fontSize = 18.sp
+            )
 
-                OutlinedTextField(
-                    value = caption,
-                    onValueChange = { caption = it },
-                    label = { Text("Share your discovery…") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(90.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = Gold,
-                        unfocusedBorderColor = Border,
-                        focusedTextColor     = TextPrimary,
-                        unfocusedTextColor   = TextPrimary,
-                        focusedLabelColor    = TextSecondary,
-                        unfocusedLabelColor  = TextSecondary
-                    )
+            OutlinedTextField(
+                value = monumentName,
+                onValueChange = { monumentName = it },
+                label = { Text("Monument / Site Name", color = TextSecondary) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Gold,
+                    unfocusedBorderColor = Border,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
                 )
+            )
 
-                // Image upload selector card
-                Box(
+            OutlinedTextField(
+                value = caption,
+                onValueChange = { caption = it },
+                label = { Text("Share your discovery chronicle…", color = TextSecondary) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Gold,
+                    unfocusedBorderColor = Border,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                )
+            )
+
+            // Photo picker section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(110.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(Surface2)
-                        .border(1.dp, Border, RoundedCornerShape(12.dp))
-                        .clickable { photoPickerLauncher.launch("image/*") },
-                    contentAlignment = Alignment.Center
+                        .clickable { photoPickerLauncher.launch("image/*") }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (selectedPhotoUri != null) {
-                        Image(
-                            painter = rememberAsyncImagePainter(selectedPhotoUri),
-                            contentDescription = "Selected Photo",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                    Icon(Icons.Default.AddPhotoAlternate, null, tint = Gold, modifier = Modifier.size(20.dp))
+                    Text(
+                        if (selectedPhotoUri != null) "Photo Selected ✓" else "Attach Expedition Photo",
+                        color = TextPrimary,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                if (selectedPhotoUri != null) {
+                    IconButton(onClick = { selectedPhotoUri = null }) {
+                        Icon(Icons.Default.Close, null, tint = RedAccent, modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+
+            selectedPhotoUri?.let { uri ->
+                AsyncImage(
+                    model = uri,
+                    contentDescription = "Selected Photo",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Button(
+                onClick = {
+                    if (caption.isNotBlank()) {
+                        onSubmit(caption.trim(), monumentName.trim(), selectedPhotoUri)
+                    }
+                },
+                enabled = caption.isNotBlank(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Gold,
+                    disabledContainerColor = Surface2
+                )
+            ) {
+                Text("Publish Expedition Log", color = Bg, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PostCommentsBottomSheet(
+    postId: String,
+    comments: List<PostComment>,
+    isGuest: Boolean,
+    onDismiss: () -> Unit,
+    onAddComment: (String) -> Unit
+) {
+    var newCommentText by remember { mutableStateOf("") }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Surface1,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Border) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = "Explorer Discussions (${comments.size})",
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                fontSize = 17.sp
+            )
+
+            if (comments.isEmpty()) {
+                Text(
+                    "No discussions yet. Be the first explorer to comment!",
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 280.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(comments, key = { it.id }) { comment ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top
                         ) {
-                            Icon(Icons.Default.AddAPhoto, null, tint = Gold, modifier = Modifier.size(24.dp))
-                            Text("Tap to Attach Monument Photo", fontSize = 12.sp, color = TextSecondary, fontWeight = FontWeight.SemiBold)
+                            UserAvatar(name = comment.userName, size = 32.dp)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(comment.userName, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 12.5.sp)
+                                    Text(comment.timeAgo, color = TextSecondary, fontSize = 10.5.sp)
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(comment.text, color = TextPrimary, fontSize = 12.sp, lineHeight = 17.sp)
+                            }
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onSubmit(caption, monumentName, selectedPhotoUri) },
-                colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Bg),
-                enabled = caption.isNotBlank()
-            ) {
-                Text("Publish Log", fontWeight = FontWeight.Bold)
+
+            if (!isGuest) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = newCommentText,
+                        onValueChange = { newCommentText = it },
+                        placeholder = { Text("Add to discussion…", color = TextSecondary, fontSize = 12.5.sp) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Gold,
+                            unfocusedBorderColor = Border,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        singleLine = true
+                    )
+
+                    IconButton(
+                        onClick = {
+                            if (newCommentText.isNotBlank()) {
+                                onAddComment(newCommentText.trim())
+                                newCommentText = ""
+                            }
+                        },
+                        enabled = newCommentText.isNotBlank(),
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(if (newCommentText.isNotBlank()) Gold else Surface2)
+                    ) {
+                        Icon(Icons.Default.Send, null, tint = Bg, modifier = Modifier.size(18.dp))
+                    }
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextSecondary)
-            }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
-    )
+    }
 }

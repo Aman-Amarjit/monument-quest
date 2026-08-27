@@ -148,6 +148,9 @@ interface MonumentApi {
     @POST("feed/posts")
     suspend fun createPost(@Body request: CreatePostRequest): CreatePostResponse
 
+    @DELETE("feed/posts/{id}")
+    suspend fun deletePost(@Path("id") id: String): Map<String, Any>
+
     @POST("feed/posts/{id}/like")
     suspend fun toggleLike(@Path("id") id: String): Map<String, Any>
 

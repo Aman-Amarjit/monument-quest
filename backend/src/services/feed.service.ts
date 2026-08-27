@@ -107,6 +107,13 @@ export class FeedService {
     return toFeedItem(post);
   }
 
+  static async deletePost(postId: string) {
+    try {
+      await prisma.post.delete({ where: { id: postId } });
+    } catch (e) {}
+    return { success: true, message: 'Post deleted successfully' };
+  }
+
   static async toggleLike(postId: String, userId: String) {
     return await prisma.$transaction(async (tx) => {
       const post = await tx.post.findUnique({ where: { id: postId as string } });

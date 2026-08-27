@@ -97,6 +97,9 @@ class SocialFeedViewModel @Inject constructor(
 
     private val userPostsList = mutableListOf<SocialPost>()
 
+    val currentUserId: String get() = auth.currentUser?.uid ?: "user_me"
+    val currentUserName: String get() = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer (You)"
+
     private fun getMyAvatarUrl(): String? {
         val rawEmail = tokenManager.getUserEmail()?.lowercase()?.trim()
             ?: auth.currentUser?.email?.lowercase()?.trim()
@@ -109,7 +112,7 @@ class SocialFeedViewModel @Inject constructor(
         val list = mutableListOf<SocialPost>()
         try {
             val myAvatar = getMyAvatarUrl()
-            val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer (You)"
+            val myName = currentUserName
             val postsDir = File(context.filesDir, "post_photos")
             if (postsDir.exists() && postsDir.isDirectory) {
                 val files = postsDir.listFiles()?.sortedByDescending { it.lastModified() } ?: emptyList()
@@ -121,7 +124,7 @@ class SocialFeedViewModel @Inject constructor(
                         list.add(
                             SocialPost(
                                 id = "local_photo_" + file.name,
-                                userId = auth.currentUser?.uid ?: "user_me",
+                                userId = currentUserId,
                                 userName = myName,
                                 userAvatarUrl = myAvatar,
                                 userRank = "Bhubaneswar Explorer",
@@ -223,7 +226,7 @@ class SocialFeedViewModel @Inject constructor(
         if (commentText.isBlank()) return
         val currentMap = _postComments.value.toMutableMap()
         val existingComments = currentMap[postId]?.toMutableList() ?: mutableListOf()
-        val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer (You)"
+        val myName = currentUserName
         val newComment = PostComment(
             id = "comment_" + System.currentTimeMillis(),
             userName = myName,
@@ -240,15 +243,41 @@ class SocialFeedViewModel @Inject constructor(
         saveCache(_posts.value)
     }
 
+    fun deletePost(postId: String) {
+        _posts.value = _posts.value.filter { it.id != postId }
+        userPostsList.removeAll { it.id == postId }
+        saveCache(_posts.value)
+
+        // Delete local photo file if it was local
+        if (postId.startsWith("local_photo_")) {
+            try {
+                val fileName = postId.removePrefix("local_photo_")
+                val file = File(File(context.filesDir, "post_photos"), fileName)
+                if (file.exists()) file.delete()
+                prefs.edit().remove("caption_$fileName").apply()
+            } catch (e: Exception) {}
+        }
+
+        // Delete from Firebase Firestore & Backend
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                firestore.collection("posts").document(postId).delete().await()
+            } catch (e: Exception) {}
+
+            try {
+                monumentApi.deletePost(postId)
+            } catch (e: Exception) {}
+        }
+    }
+
     fun fetchPosts() {
         viewModelScope.launch {
             val myAvatar = getMyAvatarUrl()
-            val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer"
+            val myName = currentUserName
             val currentLocalMap = _posts.value.associate { it.id to Pair(it.isLiked, it.likesCount) }
 
             val localSavedPhotoPosts = loadLocalSavedPhotos()
 
-            // Fetch user profile avatars from Firestore so everyone's custom photo renders
             val userAvatarsMap = mutableMapOf<String, String>()
             try {
                 val userDocs = firestore.collection("users").get().await()
@@ -415,7 +444,7 @@ class SocialFeedViewModel @Inject constructor(
         if (_isGuest.value) return
         viewModelScope.launch {
             val user = auth.currentUser
-            val myName = tokenManager.getUserName() ?: user?.displayName ?: "Explorer (You)"
+            val myName = currentUserName
             val myAvatar = getMyAvatarUrl()
 
             var savedPhotoUrl: String? = null

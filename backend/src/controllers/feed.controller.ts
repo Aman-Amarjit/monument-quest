@@ -26,6 +26,12 @@ export class FeedController {
     } catch (error) { next(error); }
   }
 
+  static async deletePost(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      res.json(await FeedService.deletePost(req.params.id));
+    } catch (error) { next(error); }
+  }
+
   static async toggleLike(req: AuthRequest, res: Response, next: NextFunction) {
     try { res.json({ success: true, data: await FeedService.toggleLike(req.params.id, req.user!.id) }); }
     catch (error) { next(error); }
