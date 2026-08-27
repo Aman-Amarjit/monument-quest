@@ -147,6 +147,33 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/GenericSuccess' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /feed/posts/{id}/comments:
+    get:
+      tags: [Feed]
+      security: []
+      summary: Read comments for a post
+      parameters: [{ $ref: '#/components/parameters/PostId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Feed]
+      summary: Add a comment to a post
+      parameters: [{ $ref: '#/components/parameters/PostId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '201': { $ref: '#/components/responses/GenericSuccess' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /leaderboard:
     get:
       tags: [Social]
@@ -238,7 +265,7 @@ components:
       required: [monumentId, caption]
       properties:
         monumentId: { type: string }
-        caption: { type: string, minLength: 1, maxLength: 2000 }
+        caption: { type: string, minLength: 1, maxLength: 500 }
         imageUrl: { type: string, format: uri, maxLength: 2048 }
         postType: { type: string, maxLength: 40 }
     SuccessResponse:
