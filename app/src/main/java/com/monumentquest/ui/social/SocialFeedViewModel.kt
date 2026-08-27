@@ -88,6 +88,9 @@ class SocialFeedViewModel @Inject constructor(
     val savedPostIds: StateFlow<Set<String>> = _savedPostIds
 
     private val _postComments = MutableStateFlow<Map<String, List<PostComment>>>(emptyMap())
+
+    private val _isGuest = MutableStateFlow(tokenManager.isGuest())
+    val isGuest: StateFlow<Boolean> = _isGuest
     val postComments: StateFlow<Map<String, List<PostComment>>> = _postComments
 
     private val userPostsList = mutableListOf<SocialPost>()
@@ -98,6 +101,7 @@ class SocialFeedViewModel @Inject constructor(
             ?: ""
         val userKey = if (rawEmail.isNotEmpty()) rawEmail.replace("@", "_").replace(".", "_") else "guest"
         return profilePrefs.getString("profile_avatar_uri_$userKey", null)
+            ?: tokenManager.getUserAvatarUrl()
     }
 
     init {
@@ -170,7 +174,7 @@ class SocialFeedViewModel @Inject constructor(
     }
 
     fun addComment(postId: String, commentText: String) {
-        if (commentText.isBlank()) return
+        if (_isGuest.value || commentText.isBlank()) return
         val currentMap = _postComments.value.toMutableMap()
         val existingComments = currentMap[postId]?.toMutableList() ?: mutableListOf()
         val myName = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer (You)"
@@ -281,6 +285,7 @@ class SocialFeedViewModel @Inject constructor(
     }
 
     fun toggleLike(postId: String) {
+        if (_isGuest.value) return
         _posts.value = _posts.value.map { post ->
             if (post.id == postId) {
                 val newIsLiked = !post.isLiked
