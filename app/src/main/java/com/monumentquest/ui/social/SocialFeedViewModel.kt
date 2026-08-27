@@ -399,10 +399,9 @@ class SocialFeedViewModel @Inject constructor(
             val combined = (serverPosts + firestorePosts + userPostsWithAvatar + localSavedPhotoPosts)
                 .distinctBy { post ->
                     val cap = (post.caption ?: "").trim().lowercase()
-                    val img = (post.imageUrl ?: "").trim().lowercase()
                     val user = (post.userName ?: "").trim().lowercase()
-                    if (cap.isNotEmpty() && img.isNotEmpty()) {
-                        "${user}_${cap}_${img}"
+                    if (cap.isNotEmpty()) {
+                        "${user}_${cap}"
                     } else {
                         post.id
                     }

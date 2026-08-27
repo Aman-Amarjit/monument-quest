@@ -42,7 +42,7 @@ class ReflectionViewModel @Inject constructor(
                     val prompt = "Review this historical reflection about $monumentName: '$content'. Verify if it is historically accurate and high quality. Respond with 'VALID - [Score]' or 'INVALID - [Reason]'."
                     
                     val request = GroqRequest(
-                        model = "llama-3.3-70b-versatile",
+                        model = "openai/gpt-oss-20b",
                         messages = listOf(GroqMessage("user", prompt))
                     )
 
