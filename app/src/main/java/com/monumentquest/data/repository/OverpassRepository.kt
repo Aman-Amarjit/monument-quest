@@ -140,12 +140,12 @@ class OverpassRepository @Inject constructor() {
 
                         val category = when {
                             tags.has("historic") -> tags.optString("historic", "HISTORIC").replace("_", " ").uppercase()
-                            tags.optString("tourism") == "museum" -> "REAL MUSEUM"
+                            tags.optString("tourism") == "museum" -> "MUSEUM"
                             tags.optString("tourism") == "attraction" -> "TOURIST ATTRACTION"
                             tags.optString("tourism") == "viewpoint" -> "VIEWPOINT"
-                            tags.has("amenity") && tags.optString("amenity") == "place_of_worship" -> "REAL PLACE OF WORSHIP"
-                            tags.optString("leisure") == "park" -> "REAL PUBLIC PARK"
-                            else -> "REAL HERITAGE LANDMARK"
+                            tags.has("amenity") && tags.optString("amenity") == "place_of_worship" -> "PLACE OF WORSHIP"
+                            tags.optString("leisure") == "park" -> "PUBLIC PARK"
+                            else -> "HERITAGE LANDMARK"
                         }
 
                         val results = FloatArray(1)
@@ -156,7 +156,7 @@ class OverpassRepository @Inject constructor() {
                             MapMonumentItem(
                                 id = "osm_real_" + elem.optLong("id", i.toLong()),
                                 name = name,
-                                locationName = tags.optString("addr:city", tags.optString("addr:suburb", "Real Nearby Place")),
+                                locationName = tags.optString("addr:city", tags.optString("addr:suburb", "Local Area")),
                                 geoPoint = GeoPoint(nodeLat, nodeLon),
                                 points = if (tags.has("historic")) 500 else 300,
                                 category = category,
@@ -217,10 +217,10 @@ class OverpassRepository @Inject constructor() {
                             MapMonumentItem(
                                 id = "nom_real_" + obj.optLong("place_id", i.toLong()),
                                 name = name,
-                                locationName = "Real OpenStreetMap Landmark",
+                                locationName = "OpenStreetMap Landmark",
                                 geoPoint = GeoPoint(pLat, pLon),
                                 points = 450,
-                                category = "REAL " + cat.uppercase(),
+                                category = cat.uppercase(),
                                 distanceMeters = results[0].toInt()
                             )
                         )

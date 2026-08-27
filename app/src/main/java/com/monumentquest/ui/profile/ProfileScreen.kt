@@ -82,8 +82,11 @@ fun ProfileScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             try {
-                val inputStream = context.contentResolver.openInputStream(uri)
                 val destFile = File(context.filesDir, "user_avatar_$userKey.jpg")
+                if (destFile.exists()) {
+                    try { destFile.delete() } catch (_: Exception) {}
+                }
+                val inputStream = context.contentResolver.openInputStream(uri)
                 val outputStream = FileOutputStream(destFile)
                 inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
                 val base64DataUrl = com.monumentquest.core.utils.ImageUtils.uriToBase64DataUrl(context, uri)

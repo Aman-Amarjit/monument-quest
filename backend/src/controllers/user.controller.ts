@@ -97,6 +97,28 @@ export class UserController {
         const isRemoteImage = /^https?:\/\//i.test(cleanAvatarUrl);
         if (cleanAvatarUrl.length > 900_000) return res.status(413).json({ success: false, error: 'Profile photo is too large' });
         if (cleanAvatarUrl && !isDataImage && !isRemoteImage) return res.status(400).json({ success: false, error: 'Profile photo must be an https URL or an encoded image' });
+
+        const currentUser = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { avatarUrl: true }
+        });
+
+        if (currentUser?.avatarUrl && currentUser.avatarUrl !== cleanAvatarUrl) {
+          try {
+            const fs = require('fs');
+            const path = require('path');
+            if (currentUser.avatarUrl.includes('/uploads/avatars/')) {
+              const filename = currentUser.avatarUrl.split('/uploads/avatars/').pop();
+              if (filename) {
+                const oldFilePath = path.join(process.cwd(), 'public', 'uploads', 'avatars', filename);
+                if (fs.existsSync(oldFilePath)) {
+                  fs.unlinkSync(oldFilePath);
+                }
+              }
+            }
+          } catch (_e) {}
+        }
+
         updateData.avatarUrl = cleanAvatarUrl || null;
       }
 
