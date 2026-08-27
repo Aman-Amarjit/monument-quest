@@ -179,61 +179,51 @@ export function renderDashboardHtml(): string {
     }
 
     async function runDiagnostics() {
-      log('Starting automated endpoint & database audit...', 'info');
+      log('Starting instant parallel endpoint & database audit...', 'info');
       document.getElementById('last-updated').innerText = 'Updated: ' + new Date().toLocaleTimeString();
 
-      // 1. Health check
-      const hRes = await testEndpoint('/api/v1/health');
+      const [hRes, aRes, fRes, mRes] = await Promise.all([
+        testEndpoint('/api/v1/health'),
+        testEndpoint('/api/v1/auth/guest', { method: 'POST', headers: {'Content-Type':'application/json'} }),
+        testEndpoint('/api/v1/feed'),
+        testEndpoint('/api/v1/monuments')
+      ]);
+
       if (hRes.ok) {
-        document.getElementById('status-health').innerText = \`200 OK (\${hRes.duration}ms)\`;
+        document.getElementById('status-health').innerText = '200 OK (' + hRes.duration + 'ms)';
         document.getElementById('status-health').className = 'service-badge badge-ok';
-        log(\`GET /api/v1/health responded cleanly in \${hRes.duration}ms\`, 'info');
       } else {
-        document.getElementById('status-health').innerText = \`ERR \${hRes.status}\`;
+        document.getElementById('status-health').innerText = 'ERR ' + hRes.status;
         document.getElementById('status-health').className = 'service-badge badge-err';
-        log(\`GET /api/v1/health FAILED with status \${hRes.status}\`, 'err');
       }
 
-      // 2. Auth Check
-      const aRes = await testEndpoint('/api/v1/auth/guest', { method: 'POST', headers: {'Content-Type':'application/json'} });
       if (aRes.ok) {
-        document.getElementById('status-auth').innerText = \`201 CREATED (\${aRes.duration}ms)\`;
+        document.getElementById('status-auth').innerText = '201 CREATED (' + aRes.duration + 'ms)';
         document.getElementById('status-auth').className = 'service-badge badge-ok';
-        log(\`POST /api/v1/auth/guest authentication service OK in \${aRes.duration}ms\`, 'info');
       } else {
-        document.getElementById('status-auth').innerText = \`ERR \${aRes.status}\`;
+        document.getElementById('status-auth').innerText = 'ERR ' + aRes.status;
         document.getElementById('status-auth').className = 'service-badge badge-err';
-        log(\`POST /api/v1/auth/guest authentication service FAILED with status \${aRes.status}\`, 'err');
       }
 
-      // 3. Feed Check
-      const fRes = await testEndpoint('/api/v1/feed');
       if (fRes.ok) {
-        document.getElementById('status-feed').innerText = \`200 OK (\${fRes.duration}ms)\`;
+        document.getElementById('status-feed').innerText = '200 OK (' + fRes.duration + 'ms)';
         document.getElementById('status-feed').className = 'service-badge badge-ok';
-        log(\`GET /api/v1/feed social stream OK in \${fRes.duration}ms\`, 'info');
       } else {
-        document.getElementById('status-feed').innerText = \`ERR \${fRes.status}\`;
+        document.getElementById('status-feed').innerText = 'ERR ' + fRes.status;
         document.getElementById('status-feed').className = 'service-badge badge-err';
-        log(\`GET /api/v1/feed social stream FAILED with status \${fRes.status}\`, 'err');
       }
 
-      // 4. Monuments Check
-      const mRes = await testEndpoint('/api/v1/monuments');
       if (mRes.ok) {
-        document.getElementById('status-monuments').innerText = \`200 OK (\${mRes.duration}ms)\`;
+        document.getElementById('status-monuments').innerText = '200 OK (' + mRes.duration + 'ms)';
         document.getElementById('status-monuments').className = 'service-badge badge-ok';
-        log(\`GET /api/v1/monuments catalog OK in \${mRes.duration}ms\`, 'info');
       } else {
-        document.getElementById('status-monuments').innerText = \`ERR \${mRes.status}\`;
+        document.getElementById('status-monuments').innerText = 'ERR ' + mRes.status;
         document.getElementById('status-monuments').className = 'service-badge badge-err';
-        log(\`GET /api/v1/monuments catalog FAILED with status \${mRes.status}\`, 'err');
       }
 
-      // 5. Calculate metrics & set banner
-      const avgLatency = Math.round((hRes.duration + aRes.duration + fRes.duration + mRes.duration) / 4);
-      document.getElementById('api-latency').innerText = avgLatency + ' ms';
-      document.getElementById('db-sub').innerText = \`Supabase PostgreSQL • Query Latency: \${hRes.duration}ms\`;
+      const maxDuration = Math.max(hRes.duration, aRes.duration, fRes.duration, mRes.duration);
+      document.getElementById('api-latency').innerText = maxDuration + ' ms';
+      document.getElementById('db-sub').innerText = 'Supabase PostgreSQL • Query Latency: ' + hRes.duration + 'ms';
 
       const allOk = hRes.ok && aRes.ok && fRes.ok && mRes.ok;
       const banner = document.getElementById('banner');
@@ -248,12 +238,12 @@ export function renderDashboardHtml(): string {
         bSub.innerText = 'All backend API endpoints and database services are online with 0 errors.';
         bDot.style.background = 'var(--green)';
         document.getElementById('health-score').innerText = '100%';
-        log('Diagnostic Audit Completed: System healthy with 0 problems detected.', 'info');
+        log('Diagnostic Audit Completed in ' + maxDuration + 'ms: System healthy with 0 problems detected.', 'info');
       } else {
         banner.className = 'status-banner degraded';
         bTitle.innerText = 'SYSTEM DEGRADATION DETECTED';
         bTitle.style.color = 'var(--yellow)';
-        bSub.innerText = 'One or more API services returned non-200 responses. Inspect console log for details.';
+        bSub.innerText = 'One or more API services returned non-200 responses.';
         bDot.style.background = 'var(--yellow)';
         document.getElementById('health-score').innerText = '75%';
         log('Diagnostic Audit Alert: One or more services require attention.', 'warn');
