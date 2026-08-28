@@ -84,21 +84,7 @@ export class FeedService {
     if (!allowedTypes.has(postType)) throw { status: 400, message: 'Invalid post type' };
 
     let monument = await prisma.monument.findUnique({ where: { id: input.monumentId } });
-    if (!monument && input.monumentId === 'm1') monument = await prisma.monument.findFirst({ orderBy: { name: 'asc' } });
-    if (!monument) {
-      monument = await prisma.monument.create({
-        data: {
-          id: 'm1',
-          name: 'Lingaraj Temple',
-          locationName: 'Bhubaneswar, Odisha',
-          latitude: 20.2381,
-          longitude: 85.8338,
-          category: 'Temple',
-          pointsValue: 500,
-          isVerified: true
-        }
-      });
-    }
+    if (!monument) throw { status: 404, message: 'Monument not found. Use a valid monument ID.' };
 
     const post = await prisma.post.create({
       data: {
