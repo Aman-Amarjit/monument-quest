@@ -49,6 +49,7 @@ fun CameraScreen(onImageCaptured: (Uri) -> Unit) {
 
     DisposableEffect(Unit) {
         onDispose {
+            // Allow any in-flight capture to finish before shutting down
             cameraExecutor.shutdown()
         }
     }
@@ -212,6 +213,7 @@ private fun takePhotoAndSaveToGallery(
     executor: ExecutorService,
     onImageCaptured: (Uri) -> Unit
 ) {
+    if (executor.isShutdown) return
     val filename = "monument_quest_${System.currentTimeMillis()}.jpg"
 
     val contentValues = ContentValues().apply {

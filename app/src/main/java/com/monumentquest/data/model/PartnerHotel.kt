@@ -16,13 +16,9 @@ data class PartnerHotel(
 )
 
 data class ClaimVoucherResponse(
-    val success: Boolean,
-    val voucherId: String,
-    val hotelName: String,
-    val discountPercent: Int,
-    val perkTitle: String,
-    val qrPayload: String,
-    val message: String
+    val success: Boolean = false,
+    val voucherCode: String = "",
+    val message: String = ""
 )
 
 data class HotelsResponse(

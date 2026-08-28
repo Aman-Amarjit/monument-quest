@@ -1,7 +1,5 @@
 package com.monumentquest.data.model
 
-import java.util.Date
-
 data class TimeCapsule(
     val id: String = "",
     val monumentId: String = "",
