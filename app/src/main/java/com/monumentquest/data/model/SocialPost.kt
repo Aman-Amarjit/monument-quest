@@ -19,6 +19,8 @@ data class SocialPost(
     val postType: String = "CHECKIN", // DISCOVERY, CHECKIN, TIME_CAPSULE, REFLECTION
     val likesCount: Int = 0,
     val isLiked: Boolean = false,
+    val isSaved: Boolean = false,
+    val isFollowing: Boolean = false,
     val commentsCount: Int = 0,
     val timestamp: Long = System.currentTimeMillis(),
     val timestampFormatted: String = "Just now"
