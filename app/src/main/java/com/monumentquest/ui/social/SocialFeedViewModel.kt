@@ -359,7 +359,7 @@ class SocialFeedViewModel @Inject constructor(
     private fun filterList(list: List<SocialPost>, filter: FeedFilter): List<SocialPost> {
         val filteredByTab = when (filter) {
             FeedFilter.GLOBAL -> list
-            FeedFilter.GUILD -> list.filter { it.userRank.contains("Master") || it.postType == "DISCOVERY" }
+            FeedFilter.GUILD -> list.filter { it.isFollowing || it.userId == currentUserId }
             FeedFilter.NEARBY -> list.filter { it.locationName.contains("Bhubaneswar") || it.locationName.contains("Odisha") }
         }
 
