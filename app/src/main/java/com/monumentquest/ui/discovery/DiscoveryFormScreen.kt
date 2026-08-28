@@ -37,6 +37,8 @@ fun DiscoveryFormScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Bg)
+            .statusBarsPadding()
+            .imePadding()
             .verticalScroll(rememberScrollState())
     ) {
         // ── Photo preview ─────────────────────────────────────────────────────

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,7 +52,7 @@ fun MonumentDetailScreen(
     val monument = MapMonumentItem(
         id            = monumentId,
         name          = decodedName,
-        locationName  = "Bhubaneswar, Odisha",
+        locationName  = "India",
         points        = 500,
         category      = "Heritage Monument",
         distanceMeters = 0
@@ -74,6 +75,7 @@ fun MonumentDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
         ) {
             // ── 1. Hero Image & Top Navigation Bar ───────────────────────────
             Box(

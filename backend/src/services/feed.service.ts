@@ -9,7 +9,7 @@ function rankFor(points: number): string {
   if (points >= 5000) return 'Legendary Pathfinder';
   if (points >= 2500) return 'Master Explorer';
   if (points >= 1000) return 'Temple City Historian';
-  return 'Bhubaneswar Explorer';
+  return 'Heritage Explorer';
 }
 
 function avatarFor(name: string, avatarUrl?: string | null): string {
@@ -26,7 +26,7 @@ function toFeedItem(post: any, isLiked = false, isSaved = false, isFollowing = f
     userAvatarUrl: avatarFor(post.user?.name || 'Explorer', post.user?.avatarUrl),
     userRank: rankFor(post.user?.points || 0),
     monumentName: post.monument?.name || 'Lingaraj Temple',
-    locationName: post.monument?.locationName || 'Bhubaneswar, Odisha',
+    locationName: post.monument?.locationName || 'India',
     imageUrl: post.imageUrl || DEFAULT_IMAGE,
     caption: post.caption,
     postType: post.postType || 'CHECKIN',

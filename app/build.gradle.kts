@@ -22,8 +22,8 @@ android {
         applicationId = "com.monumentquest"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "3.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -97,7 +97,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:32.7.2"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-storage-ktx")
+    // firebase-storage-ktx removed — photo uploads go through Cloudinary (free tier, no Blaze plan needed)
 
     // CameraX
     val cameraxVersion = "1.3.1"

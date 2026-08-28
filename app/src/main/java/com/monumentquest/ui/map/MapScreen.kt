@@ -816,6 +816,7 @@ fun MapScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
                 .padding(start = 14.dp, end = 14.dp, bottom = 4.dp)
         ) {
             Surface(

@@ -22,3 +22,5 @@ backend/.env
 *.log
 .vercel
 .env*
+
+node_modules/

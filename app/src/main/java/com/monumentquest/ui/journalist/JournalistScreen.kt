@@ -65,6 +65,8 @@ fun JournalistScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(ObsidianBlack)
+            .imePadding()
+            .navigationBarsPadding()
     ) {
         // ── Top Bar ──────────────────────────────────────────────────────────
         Box(

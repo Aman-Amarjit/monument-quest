@@ -34,6 +34,7 @@ import com.monumentquest.data.model.SocialPost
 import com.monumentquest.ui.common.EmptyStateView
 import com.monumentquest.ui.common.ExplorerProfileData
 import com.monumentquest.ui.common.PublicProfileDialog
+import com.monumentquest.ui.common.SmartAsyncImage
 import com.monumentquest.ui.common.UserAvatar
 import com.monumentquest.ui.theme.*
 
@@ -205,7 +206,12 @@ fun SocialFeedScreen(
                     val isFollowed = followedUsers.contains(post.userId)
                     val isSaved    = savedPostIds.contains(post.id)
                     val myId       = viewModel.currentUserId.trim()
-                    val isMyPost   = !isGuest && myId.isNotEmpty() && post.userId.trim() == myId
+                    val myFirebaseUid = viewModel.currentFirebaseUid.trim()
+                    // Match on either backend JWT ID or Firebase UID — Firestore posts store Firebase UID
+                    val isMyPost   = !isGuest && (
+                        (myId.isNotEmpty() && post.userId.trim() == myId) ||
+                        (myFirebaseUid.isNotEmpty() && post.userId.trim() == myFirebaseUid)
+                    )
 
                     PostCard(
                         post               = post,
@@ -289,7 +295,9 @@ private fun FeedTabItem(
             text = text,
             fontSize = 13.5.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) Gold else TextSecondary
+            color = if (selected) Gold else TextSecondary,
+            maxLines = 1,
+            softWrap = false
         )
         Spacer(modifier = Modifier.height(4.dp))
         Box(
@@ -459,7 +467,7 @@ private fun PostCard(
             post.imageUrl?.let { url ->
                 Spacer(modifier = Modifier.height(12.dp))
                 Box(contentAlignment = Alignment.BottomStart) {
-                    AsyncImage(
+                    SmartAsyncImage(
                         model = url,
                         contentDescription = null,
                         modifier = Modifier

@@ -29,11 +29,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.monumentquest.core.auth.TokenManager
+import com.monumentquest.core.utils.ImageUtils
 import com.monumentquest.ui.auth.AuthViewModel
 import com.monumentquest.ui.common.UserAvatar
 import com.monumentquest.ui.theme.*
-import java.io.File
-import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,31 +78,32 @@ fun ProfileScreen(
     }
 
     var showEditDialog by remember { mutableStateOf(false) }
+    var isUploadingAvatar by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                val destFile = File(context.filesDir, "user_avatar_$userKey.jpg")
-                if (destFile.exists()) {
-                    try { destFile.delete() } catch (_: Exception) {}
-                }
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val outputStream = FileOutputStream(destFile)
-                inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
-                val base64DataUrl = com.monumentquest.core.utils.ImageUtils.uriToBase64DataUrl(context, uri)
-                val urlToSave = base64DataUrl ?: return@rememberLauncherForActivityResult
+            coroutineScope.launch {
+                isUploadingAvatar = true
+                try {
+                    // Upload to Cloudinary — returns a public HTTPS URL visible on all devices
+                    val cloudUrl = withContext(Dispatchers.IO) {
+                        ImageUtils.uploadToCloudinary(context, uri)
+                    }
+                    val urlToSave = cloudUrl
+                        ?: ImageUtils.uriToBase64DataUrl(context, uri)  // local-only fallback
+                        ?: return@launch
 
-                customAvatarUriString = urlToSave
-                prefs.edit().putString("profile_avatar_uri_$userKey", urlToSave).apply()
-                profileViewModel.updateProfile(avatarUrl = urlToSave)
-            } catch (e: Exception) {
-                val base64DataUrl = com.monumentquest.core.utils.ImageUtils.uriToBase64DataUrl(context, uri)
-                val urlToSave = base64DataUrl ?: return@rememberLauncherForActivityResult
-                customAvatarUriString = urlToSave
-                prefs.edit().putString("profile_avatar_uri_$userKey", urlToSave).apply()
-                profileViewModel.updateProfile(avatarUrl = urlToSave)
+                    customAvatarUriString = urlToSave
+                    prefs.edit().putString("profile_avatar_uri_$userKey", urlToSave).apply()
+                    profileViewModel.updateProfile(avatarUrl = urlToSave)
+                } catch (e: Exception) {
+                    // Silent fail — avatar stays unchanged
+                } finally {
+                    isUploadingAvatar = false
+                }
             }
         }
     }
@@ -206,12 +209,20 @@ fun ProfileScreen(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .clip(CircleShape)
-                                    .background(Gold)
+                                    .background(if (isUploadingAvatar) Surface2 else Gold)
                                     .border(2.dp, Surface1, CircleShape)
-                                    .clickable { imagePickerLauncher.launch("image/*") },
+                                    .clickable(enabled = !isUploadingAvatar) { imagePickerLauncher.launch("image/*") },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.CameraAlt, null, tint = Bg, modifier = Modifier.size(18.dp))
+                                if (isUploadingAvatar) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Gold,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(Icons.Default.CameraAlt, null, tint = Bg, modifier = Modifier.size(18.dp))
+                                }
                             }
                         }
 

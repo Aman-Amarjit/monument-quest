@@ -1,21 +1,21 @@
 package com.monumentquest.ui.discovery
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
+import com.monumentquest.core.utils.ImageUtils
 import com.monumentquest.data.remote.CaptureRequest
 import com.monumentquest.data.remote.MonumentApi
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.util.UUID
 import javax.inject.Inject
 
 data class DiscoveryResult(
@@ -36,8 +36,8 @@ sealed class DiscoveryState {
 
 @HiltViewModel
 class DiscoveryViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage,
     private val auth: FirebaseAuth,
     private val monumentApi: MonumentApi
 ) : ViewModel() {
@@ -55,13 +55,13 @@ class DiscoveryViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = DiscoveryState.Loading
 
-            var photoUrl: String? = null
-            try {
-                val imageRef = storage.reference.child("discoveries/${UUID.randomUUID()}.jpg")
-                imageRef.putFile(imageUri).await()
-                photoUrl = imageRef.downloadUrl.await().toString()
-            } catch (e: Exception) {
-                photoUrl = imageUri.toString()
+            // Upload photo to Cloudinary (free, no Firebase Storage / Blaze plan needed)
+            val photoUrl: String? = withContext(Dispatchers.IO) {
+                try {
+                    ImageUtils.uploadToCloudinary(context, imageUri)
+                } catch (e: Exception) {
+                    null
+                }
             }
 
             // Call backend server's geofenced capture endpoint
@@ -84,9 +84,9 @@ class DiscoveryViewModel @Inject constructor(
                     val rarity = captureData.rarity ?: "COMMON"
                     val badge = when (rarity.uppercase()) {
                         "LEGENDARY" -> "✦ FIRST DISCOVERER (+1000 XP)"
-                        "RARE" -> "🛡️ EARLY PIONEER (+600 XP)"
-                        "UNCOMMON" -> "📍 ACTIVE EXPLORER (+300 XP)"
-                        else -> "🏛️ POPULAR LANDMARK (+100 XP)"
+                        "RARE"      -> "🛡️ EARLY PIONEER (+600 XP)"
+                        "UNCOMMON"  -> "📍 ACTIVE EXPLORER (+300 XP)"
+                        else        -> "🏛️ POPULAR LANDMARK (+100 XP)"
                     }
 
                     val result = DiscoveryResult(
@@ -101,10 +101,10 @@ class DiscoveryViewModel @Inject constructor(
                     // Write audit discovery record to Firestore if online
                     try {
                         val discovery = hashMapOf(
-                            "name" to name,
-                            "imageUrl" to photoUrl,
-                            "timestamp" to System.currentTimeMillis(),
-                            "userId" to (auth.currentUser?.uid ?: "anonymous"),
+                            "name"        to name,
+                            "imageUrl"    to photoUrl,
+                            "timestamp"   to System.currentTimeMillis(),
+                            "userId"      to (auth.currentUser?.uid ?: "anonymous"),
                             "pointsEarned" to points,
                             "rarityBadge" to badge
                         )

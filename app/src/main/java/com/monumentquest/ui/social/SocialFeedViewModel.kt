@@ -97,6 +97,8 @@ class SocialFeedViewModel @Inject constructor(
     private val userPostsList = mutableListOf<SocialPost>()
 
     val currentUserId: String get() = tokenManager.getUserId() ?: auth.currentUser?.uid ?: "user_me"
+    // Firebase UID — used when posts are saved to Firestore (auth.currentUser?.uid)
+    val currentFirebaseUid: String get() = auth.currentUser?.uid ?: ""
     val currentUserName: String get() = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer (You)"
 
     private fun getMyAvatarUrl(): String? {
@@ -304,7 +306,7 @@ class SocialFeedViewModel @Inject constructor(
                         SocialPost(
                             id = id, userId = userId, userName = name,
                             userAvatarUrl = avatarToUse, userRank = "Heritage Explorer",
-                            monumentName = mon, locationName = "Bhubaneswar, Odisha",
+                            monumentName = mon, locationName = doc.getString("locationName") ?: "India",
                             imageUrl = img, caption = caption, postType = "CHECKIN",
                             likesCount = likesCount, isLiked = isLiked, commentsCount = 0,
                             timestamp = ts, timestampFormatted = formatTimeAgo(ts)
@@ -439,23 +441,18 @@ class SocialFeedViewModel @Inject constructor(
             val myName = currentUserName
             val myAvatar = getMyAvatarUrl()
 
-            // Upload photo to Firebase Storage to get a public HTTPS URL visible to all users
+            // Upload photo to Cloudinary (free, no billing upgrade required).
+            // Falls back to placeholder URL if upload fails or Cloudinary is not yet configured.
+            // Do NOT use base64 here — Firestore has a 1MB document limit and other devices
+            // cannot render base64 URLs via Coil's AsyncImage.
             var publicPhotoUrl: String? = null
             if (photoUri != null) {
                 try {
-                    val storageRef = com.google.firebase.storage.FirebaseStorage.getInstance()
-                        .reference.child("post_photos/${System.currentTimeMillis()}.jpg")
-                    storageRef.putFile(photoUri).await()
-                    publicPhotoUrl = storageRef.downloadUrl.await().toString()
+                    publicPhotoUrl = withContext(Dispatchers.IO) {
+                        com.monumentquest.core.utils.ImageUtils.uploadToCloudinary(context, photoUri)
+                    }
                 } catch (e: Exception) {
-                    // Firebase Storage upload failed — use compressed base64 as fallback
-                    try {
-                        publicPhotoUrl = withContext(Dispatchers.IO) {
-                            com.monumentquest.core.utils.ImageUtils.uriToBase64DataUrl(
-                                context, photoUri, maxDimension = 400, quality = 60
-                            )
-                        }
-                    } catch (_: Exception) {}
+                    android.util.Log.e("SocialFeed", "Cloudinary upload failed: ${e.message}")
                 }
             }
 
@@ -464,12 +461,12 @@ class SocialFeedViewModel @Inject constructor(
 
             val newPost = SocialPost(
                 id = "sp_" + nowMs,
-                userId = tokenManager.getUserId() ?: user?.uid ?: "user_me",
+                userId = user?.uid ?: tokenManager.getUserId() ?: "user_me",  // Firebase UID — matches Firestore
                 userName = myName,
                 userAvatarUrl = myAvatar,
-                userRank = "Bhubaneswar Explorer",
-                monumentName = monumentName.ifBlank { "Bhubaneswar Monument" },
-                locationName = "Bhubaneswar, Odisha",
+                userRank = "Heritage Explorer",
+                monumentName = monumentName.ifBlank { "Monument" },
+                locationName = "India",
                 imageUrl = photoUrlToUse,
                 caption = caption,
                 postType = "CHECKIN",
@@ -480,7 +477,8 @@ class SocialFeedViewModel @Inject constructor(
                 timestampFormatted = "Just now"
             )
 
-            // Save to Firebase Firestore so it's stored permanently in cloud database for everyone
+            // Save to Firebase Firestore so it's stored permanently in cloud database for everyone.
+            // NOTE: We await() this so a network failure is caught and logged — not silently dropped.
             try {
                 val firestoreData = hashMapOf(
                     "userId" to (user?.uid ?: "user_me"),
@@ -488,12 +486,16 @@ class SocialFeedViewModel @Inject constructor(
                     "userAvatarUrl" to myAvatar,
                     "caption" to caption,
                     "content" to caption,
-                    "monumentName" to monumentName.ifBlank { "Bhubaneswar Monument" },
+                    "monumentName" to monumentName.ifBlank { "Monument" },
+                    "locationName" to "India",
                     "imageUrl" to photoUrlToUse,
                     "timestamp" to nowMs
                 )
-                firestore.collection("posts").document(newPost.id).set(firestoreData)
-            } catch (e: Exception) {}
+                firestore.collection("posts").document(newPost.id).set(firestoreData).await()
+            } catch (e: Exception) {
+                // Log failure — post is still shown locally but may not sync to other devices
+                android.util.Log.e("SocialFeed", "Firestore save failed: ${e.message}")
+            }
 
             userPostsList.add(0, newPost)
             val updatedList = (listOf(newPost) + _posts.value).distinctBy { it.id }
