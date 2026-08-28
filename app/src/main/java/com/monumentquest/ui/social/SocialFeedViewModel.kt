@@ -466,7 +466,7 @@ class SocialFeedViewModel @Inject constructor(
                 try {
                     monumentApi.createPost(CreatePostRequest(
                         caption = caption,
-                        monumentId = "m1",
+                        monumentId = monumentName.ifBlank { "Bhubaneswar Monument" },
                         imageUrl = photoUrlToUse
                     ))
                 } catch (e: Exception) {}
