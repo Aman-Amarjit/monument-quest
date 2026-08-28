@@ -107,7 +107,9 @@ fun ProfileScreen(
 
     LaunchedEffect(liveProfile.avatarUrl, userKey) {
         val serverAvatar = liveProfile.avatarUrl
-        if (!serverAvatar.isNullOrBlank()) {
+        // Only apply server avatar if user has not picked a local one
+        val localAvatar = prefs.getString("profile_avatar_uri_$userKey", null)
+        if (!serverAvatar.isNullOrBlank() && localAvatar.isNullOrBlank()) {
             customAvatarUriString = serverAvatar
             prefs.edit().putString("profile_avatar_uri_$userKey", serverAvatar).apply()
         }
@@ -119,9 +121,13 @@ fun ProfileScreen(
             ?: tokenManager.getUserName()
             ?: "Explorer"
         customBio = prefs.getString("profile_bio_$userKey", "Odisha Heritage Explorer & Monument Discoverer")!!
-        customAvatarUriString = prefs.getString("profile_avatar_uri_$userKey", null)
-             ?: liveProfile.avatarUrl
-             ?: tokenManager.getUserAvatarUrl()
+        // Only use server/token avatar as fallback if no local avatar saved
+        val localAvatar = prefs.getString("profile_avatar_uri_$userKey", null)
+        if (customAvatarUriString.isNullOrBlank() && !localAvatar.isNullOrBlank()) {
+            customAvatarUriString = localAvatar
+        } else if (customAvatarUriString.isNullOrBlank()) {
+            customAvatarUriString = liveProfile.avatarUrl ?: tokenManager.getUserAvatarUrl()
+        }
 
         if (currentSession != null && !currentSession!!.isGuest) {
             if (prefs.getString("profile_name_$userKey", null) == null) {
@@ -129,7 +135,6 @@ fun ProfileScreen(
                 prefs.edit().putString("profile_name_$userKey", currentSession!!.name).apply()
             }
         }
-        profileViewModel.loadProfile()
     }
 
     Scaffold(

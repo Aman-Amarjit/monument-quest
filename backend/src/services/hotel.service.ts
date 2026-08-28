@@ -1,6 +1,6 @@
 export interface GeoLocation {
-  latitude: DoubleRange | number;
-  longitude: DoubleRange | number;
+  latitude: number;
+  longitude: number;
 }
 
 export class HotelService {
@@ -44,7 +44,7 @@ export class HotelService {
     return this.partners;
   }
 
-  static claim(hotelId: String) {
+  static claim(hotelId: string) {
     const target = this.partners.find((h) => h.id === hotelId) || this.partners[0];
     return {
       success: true,
