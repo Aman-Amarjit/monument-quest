@@ -16,7 +16,8 @@ function getTransporter() {
   return nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
 }
 
-const inMemoryOtps = new Map<string, { code: string; expiresAt: number }>();
+const inMemoryOtps = new Map<string, { code: string; expiresAt: number; attempts: number }>();
+const MAX_OTP_ATTEMPTS = 5;
 
 export class EmailService {
   static async sendOtp(email: string): Promise<string> {
@@ -25,8 +26,8 @@ export class EmailService {
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
     const key = 'otp:' + cleanEmail;
 
-    // Save in memory fallback
-    inMemoryOtps.set(cleanEmail, { code, expiresAt: Date.now() + OTP_TTL_MS });
+    // Save in memory with attempt counter reset
+    inMemoryOtps.set(cleanEmail, { code, expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
 
     try {
       await prisma.rateLimitBucket.upsert({
@@ -56,13 +57,17 @@ export class EmailService {
     const cleanCode = code.trim();
     if (!/^[0-9]{6}$/.test(cleanCode)) return false;
 
-    // Check in-memory generated OTP record first
+    // Check in-memory generated OTP record first with brute-force protection
     const memRecord = inMemoryOtps.get(cleanEmail);
     if (memRecord && Date.now() <= memRecord.expiresAt) {
+      if (memRecord.attempts >= MAX_OTP_ATTEMPTS) return false; // Too many attempts
       if (memRecord.code === cleanCode) {
         if (consume) inMemoryOtps.delete(cleanEmail);
         return true;
       }
+      // Increment failed attempt counter
+      memRecord.attempts += 1;
+      inMemoryOtps.set(cleanEmail, memRecord);
     }
 
     const key = 'otp:' + cleanEmail;
