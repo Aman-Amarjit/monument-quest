@@ -6,13 +6,13 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import java.io.ByteArrayOutputStream
-import java.io.InputStream
 
 object ImageUtils {
     fun uriToBase64DataUrl(context: Context, uri: Uri, maxDimension: Int = 300, quality: Int = 75): String? {
         return try {
-            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-            val originalBitmap = BitmapFactory.decodeStream(inputStream) ?: return null
+            val originalBitmap = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream)
+            } ?: return null
 
             val width = originalBitmap.width
             val height = originalBitmap.height
