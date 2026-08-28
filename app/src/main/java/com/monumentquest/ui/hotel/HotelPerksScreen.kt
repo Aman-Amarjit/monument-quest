@@ -30,7 +30,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.monumentquest.core.di.NetworkModule
 import com.monumentquest.data.model.PartnerHotel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -61,8 +60,12 @@ fun HotelPerksScreen() {
                     .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
                     .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
                     .build()
-                val retro = NetworkModule.provideRetrofit(okHttp)
-                val api = NetworkModule.provideMonumentApi(retro)
+                val retro = retrofit2.Retrofit.Builder()
+                    .baseUrl("https://monument-quest-mocha.vercel.app/api/v1/")
+                    .client(okHttp)
+                    .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
+                    .build()
+                val api = retro.create(com.monumentquest.data.remote.MonumentApi::class.java)
                 val res = api.getPartnerHotels(20.2381, 85.8338)
                 val list = res.hotels ?: emptyList()
                 withContext(Dispatchers.Main) {

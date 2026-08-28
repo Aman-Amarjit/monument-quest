@@ -53,7 +53,12 @@ fun JournalistScreen(
     var specialty by remember { mutableStateOf(profilePrefs.getString("specialty", "Living heritage") ?: "Living heritage") }
     var bio by remember { mutableStateOf(profilePrefs.getString("bio", "Documenting the stories behind India's living heritage.") ?: "Documenting the stories behind India's living heritage.") }
 
-    val monuments = listOf("Big Ben", "Eiffel Tower", "Colosseum", "Taj Mahal", "Statue of Liberty")
+    val monuments = listOf(
+        "Lingaraj Temple", "Mukteshvara Temple", "Rajarani Temple",
+        "Parasuramesvara Temple", "Brahmeshvara Temple", "Dhauli Peace Pagoda",
+        "Udayagiri Caves", "Khandagiri Caves", "Konark Sun Temple",
+        "Puri Jagannath Temple", "Chilika Lake", "Nandankanan Zoo"
+    )
     val state by viewModel.state.collectAsState()
 
     Column(

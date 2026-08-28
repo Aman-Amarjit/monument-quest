@@ -43,13 +43,18 @@ fun MonumentDetailScreen(
     onNavigateToNarrator: (String) -> Unit,
     onNavigateToCamera: () -> Unit
 ) {
+    // Use the actual monument name decoded from the nav argument
+    val decodedName = remember(monumentId) {
+        try { java.net.URLDecoder.decode(monumentId, "UTF-8") } catch (_: Exception) { monumentId }
+    }
+
     val monument = MapMonumentItem(
-        id = monumentId,
-        name = if (monumentId == "b2") "Mukteshvara Temple" else "Lingaraj Temple",
-        locationName = "Old Town, Bhubaneswar, Odisha",
-        points = 500,
-        category = "11th-Century Kalinga Temple",
-        distanceMeters = 350
+        id            = monumentId,
+        name          = decodedName,
+        locationName  = "Bhubaneswar, Odisha",
+        points        = 500,
+        category      = "Heritage Monument",
+        distanceMeters = 0
     )
 
     val samplePhotos = listOf(

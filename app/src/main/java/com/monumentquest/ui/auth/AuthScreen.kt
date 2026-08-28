@@ -359,7 +359,7 @@ fun AuthScreen(
                         }
                     }
 
-                    Divider(color = Border, thickness = 0.5.dp)
+                    HorizontalDivider(color = Border, thickness = 0.5.dp)
 
                     // Guest Login Option
                     OutlinedButton(
