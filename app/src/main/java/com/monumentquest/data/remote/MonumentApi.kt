@@ -45,6 +45,8 @@ data class ApiFeedItem(
     val likesCount: Int? = 0,
     val likes: Int? = 0,
     val isLiked: Boolean = false,
+    val isSaved: Boolean = false,
+    val isFollowing: Boolean = false,
     val commentsCount: Int = 0,
     val timestamp: Long = System.currentTimeMillis()
 )
@@ -98,6 +100,8 @@ data class SyncProgressRequest(
     val xpDelta: Int = 0
 )
 data class SyncProgressResponse(val success: Boolean, val data: Map<String, Any>?)
+
+data class AddCommentRequest(val body: String)
 
 interface MonumentApi {
     // Auth (OTP-only — no passwords)
@@ -153,6 +157,18 @@ interface MonumentApi {
 
     @POST("feed/posts/{id}/like")
     suspend fun toggleLike(@Path("id") id: String): Map<String, Any>
+
+    @GET("feed/posts/{id}/comments")
+    suspend fun getComments(@Path("id") id: String): Map<String, Any>
+
+    @POST("feed/posts/{id}/comments")
+    suspend fun addComment(@Path("id") id: String, @Body request: AddCommentRequest): Map<String, Any>
+
+    @POST("social/posts/{id}/save")
+    suspend fun toggleSave(@Path("id") id: String): Map<String, Any>
+
+    @POST("social/users/{id}/follow")
+    suspend fun toggleFollow(@Path("id") id: String): Map<String, Any>
 
     @GET("guilds")
     suspend fun getGuilds(): GuildsResponse

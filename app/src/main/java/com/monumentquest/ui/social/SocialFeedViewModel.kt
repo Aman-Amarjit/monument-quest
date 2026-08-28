@@ -119,6 +119,7 @@ class SocialFeedViewModel @Inject constructor(
     }
 
     init {
+        _isGuest.value = tokenManager.isGuest()
         purgeLocalPhotoStubs()
         restoreCache()
         fetchPosts()
@@ -168,6 +169,10 @@ class SocialFeedViewModel @Inject constructor(
         if (current.contains(userId)) current.remove(userId) else current.add(userId)
         _followedUsers.value = current
         saveCache(_posts.value)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try { monumentApi.toggleFollow(userId) } catch (e: Exception) {}
+        }
     }
 
     fun toggleSavePost(postId: String) {
@@ -197,6 +202,10 @@ class SocialFeedViewModel @Inject constructor(
             if (post.id == postId) post.copy(commentsCount = post.commentsCount + 1) else post
         }
         saveCache(_posts.value)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try { monumentApi.addComment(postId, com.monumentquest.data.remote.AddCommentRequest(commentText)) } catch (e: Exception) {}
+        }
     }
 
     fun deletePost(postId: String) {
@@ -231,17 +240,6 @@ class SocialFeedViewModel @Inject constructor(
             val myAvatar = getMyAvatarUrl()
             val myName = currentUserName
             val currentLocalMap = _posts.value.associate { it.id to Pair(it.isLiked, it.likesCount) }
-            val userAvatarsMap = mutableMapOf<String, String>()
-            try {
-                val userDocs = firestore.collection("users").get().await()
-                for (doc in userDocs.documents) {
-                    val uid = doc.id
-                    val avatar = doc.getString("avatarUrl")
-                    if (!avatar.isNullOrBlank()) {
-                        userAvatarsMap[uid] = avatar
-                    }
-                }
-            } catch (e: Exception) {}
 
             val firestorePosts = mutableListOf<SocialPost>()
             try {
@@ -261,13 +259,10 @@ class SocialFeedViewModel @Inject constructor(
 
                     val isMe = name.equals(myName, ignoreCase = true)
                     val defaultAvatar = "https://ui-avatars.com/api/?name=${android.net.Uri.encode(name)}&background=1E293B&color=D4AF37&bold=true&size=200"
-
-                    val remoteAvatar = userAvatarsMap[userId] ?: doc.getString("userAvatarUrl") ?: doc.getString("avatarUrl")
-                    val avatarToUse = when {
-                        isMe && !myAvatar.isNullOrBlank() -> myAvatar
-                        !remoteAvatar.isNullOrBlank() -> remoteAvatar
-                        else -> defaultAvatar
-                    }
+                    val remoteAvatar = doc.getString("userAvatarUrl") ?: doc.getString("avatarUrl")
+                    val avatarToUse = if (isMe && !myAvatar.isNullOrBlank()) myAvatar
+                                      else if (!remoteAvatar.isNullOrBlank()) remoteAvatar
+                                      else defaultAvatar
 
                     val localState = currentLocalMap[id]
                     val isLiked = localState?.first ?: false
@@ -275,21 +270,12 @@ class SocialFeedViewModel @Inject constructor(
 
                     firestorePosts.add(
                         SocialPost(
-                            id = id,
-                            userId = userId,
-                            userName = name,
-                            userAvatarUrl = avatarToUse,
-                            userRank = "Heritage Explorer",
-                            monumentName = mon,
-                            locationName = "Bhubaneswar, Odisha",
-                            imageUrl = img,
-                            caption = caption,
-                            postType = "CHECKIN",
-                            likesCount = likesCount,
-                            isLiked = isLiked,
-                            commentsCount = 0,
-                            timestamp = ts,
-                            timestampFormatted = formatTimeAgo(ts)
+                            id = id, userId = userId, userName = name,
+                            userAvatarUrl = avatarToUse, userRank = "Heritage Explorer",
+                            monumentName = mon, locationName = "Bhubaneswar, Odisha",
+                            imageUrl = img, caption = caption, postType = "CHECKIN",
+                            likesCount = likesCount, isLiked = isLiked, commentsCount = 0,
+                            timestamp = ts, timestampFormatted = formatTimeAgo(ts)
                         )
                     )
                 }
@@ -308,34 +294,24 @@ class SocialFeedViewModel @Inject constructor(
                     val ts = if (f.timestamp > 0) f.timestamp else System.currentTimeMillis()
 
                     val isMe = name.equals(myName, ignoreCase = true)
-                    val serverAvatar = f.userAvatarUrl ?: f.user_avatar_url ?: userAvatarsMap[uId]
+                    val serverAvatar = f.userAvatarUrl ?: f.user_avatar_url
                     val defaultAvatar = "https://ui-avatars.com/api/?name=${android.net.Uri.encode(name)}&background=1E293B&color=D4AF37&bold=true&size=200"
-
-                    val avatarToUse = when {
-                        isMe && !myAvatar.isNullOrBlank() -> myAvatar
-                        !serverAvatar.isNullOrBlank() -> serverAvatar
-                        else -> defaultAvatar
-                    }
+                    val avatarToUse = if (isMe && !myAvatar.isNullOrBlank()) myAvatar
+                                      else if (!serverAvatar.isNullOrBlank()) serverAvatar
+                                      else defaultAvatar
 
                     val localState = currentLocalMap[f.id]
                     val isLiked = localState?.first ?: f.isLiked
                     val likesCount = localState?.second ?: (f.likesCount ?: f.likes ?: 0)
 
                     SocialPost(
-                        id = f.id,
-                        userId = uId,
-                        userName = name,
-                        userAvatarUrl = avatarToUse,
-                        userRank = "Heritage Explorer",
-                        monumentName = mon,
-                        locationName = f.locationName ?: "Bhubaneswar, Odisha",
-                        imageUrl = img,
-                        caption = f.caption,
-                        postType = f.postType ?: "CHECKIN",
-                        likesCount = likesCount,
-                        isLiked = isLiked,
-                        commentsCount = f.commentsCount,
-                        timestamp = ts,
+                        id = f.id, userId = uId, userName = name,
+                        userAvatarUrl = avatarToUse, userRank = "Heritage Explorer",
+                        monumentName = mon, locationName = f.locationName ?: "Bhubaneswar, Odisha",
+                        imageUrl = img, caption = f.caption, postType = f.postType ?: "CHECKIN",
+                        likesCount = likesCount, isLiked = isLiked,
+                        isSaved = f.isSaved, isFollowing = f.isFollowing,
+                        commentsCount = f.commentsCount, timestamp = ts,
                         timestampFormatted = formatTimeAgo(ts)
                     )
                 }
@@ -349,8 +325,10 @@ class SocialFeedViewModel @Inject constructor(
                 p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
             }
 
-            val combined = (serverPosts + firestorePosts + userPostsWithAvatar)
+            // Merge: user's new posts first, then deduplicate, then sort newest-first
+            val combined = (userPostsWithAvatar + serverPosts + firestorePosts)
                 .distinctBy { it.id }
+                .sortedByDescending { it.timestamp }
             _posts.value = filterList(combined, _currentFilter.value)
             saveCache(_posts.value)
         }
