@@ -28,7 +28,7 @@ export class AuthController {
         return res.status(400).json({ success: false, error: 'Invalid or expired OTP code' });
 
       try {
-        const data = await AuthService.loginWithOtp(email);
+        const data = await AuthService.loginWithOtp(email.trim().toLowerCase());
         // Login succeeded — now consume the OTP code
         await EmailService.verifyOtpAsync(email.trim().toLowerCase(), code.trim(), true);
         return res.json({ success: true, data });
@@ -61,7 +61,7 @@ export class AuthController {
       } catch (error: any) {
         if (error?.status === 409 && error?.code === 'EMAIL_EXISTS') {
           // Account already exists — fallback to instant login
-          const data = await AuthService.loginWithOtp(email);
+          const data = await AuthService.loginWithOtp(email.trim().toLowerCase());
           return res.status(200).json({ success: true, data });
         }
         throw error;
