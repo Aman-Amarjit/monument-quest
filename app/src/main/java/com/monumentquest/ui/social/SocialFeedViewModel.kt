@@ -23,7 +23,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 import javax.inject.Inject
 
 enum class FeedFilter {
@@ -401,27 +400,27 @@ class SocialFeedViewModel @Inject constructor(
             val myName = currentUserName
             val myAvatar = getMyAvatarUrl()
 
-            var savedPhotoUrl: String? = null
-            var fileNameCreated: String? = null
+            // Upload photo to Firebase Storage to get a public HTTPS URL visible to all users
+            var publicPhotoUrl: String? = null
             if (photoUri != null) {
                 try {
-                    val postsDir = File(context.filesDir, "post_photos")
-                    if (!postsDir.exists()) postsDir.mkdirs()
-                    fileNameCreated = "post_${System.currentTimeMillis()}.jpg"
-                    val destFile = File(postsDir, fileNameCreated)
-
-                    val inputStream = context.contentResolver.openInputStream(photoUri)
-                    val outputStream = FileOutputStream(destFile)
-                    inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
-                    savedPhotoUrl = Uri.fromFile(destFile).toString()
-
-                    prefs.edit().putString("caption_$fileNameCreated", caption).apply()
+                    val storageRef = com.google.firebase.storage.FirebaseStorage.getInstance()
+                        .reference.child("post_photos/${System.currentTimeMillis()}.jpg")
+                    storageRef.putFile(photoUri).await()
+                    publicPhotoUrl = storageRef.downloadUrl.await().toString()
                 } catch (e: Exception) {
-                    savedPhotoUrl = photoUri.toString()
+                    // Firebase Storage upload failed — use compressed base64 as fallback
+                    try {
+                        publicPhotoUrl = withContext(Dispatchers.IO) {
+                            com.monumentquest.core.utils.ImageUtils.uriToBase64DataUrl(
+                                context, photoUri, maxDimension = 400, quality = 60
+                            )
+                        }
+                    } catch (_: Exception) {}
                 }
             }
 
-            val photoUrlToUse = savedPhotoUrl ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
+            val photoUrlToUse = publicPhotoUrl ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
             val nowMs = System.currentTimeMillis()
 
             val newPost = SocialPost(
