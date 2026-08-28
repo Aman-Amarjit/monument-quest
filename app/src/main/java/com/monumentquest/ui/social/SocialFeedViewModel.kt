@@ -266,7 +266,7 @@ class SocialFeedViewModel @Inject constructor(
 
                     val localState = currentLocalMap[id]
                     val isLiked = localState?.first ?: false
-                    val likesCount = localState?.second ?: 1
+                    val likesCount = localState?.second ?: 0
 
                     firestorePosts.add(
                         SocialPost(
@@ -356,19 +356,41 @@ class SocialFeedViewModel @Inject constructor(
 
     fun toggleLike(postId: String) {
         if (_isGuest.value) return
+        // Optimistic update — toggle locally immediately
         _posts.value = _posts.value.map { post ->
             if (post.id == postId) {
                 val newIsLiked = !post.isLiked
-                val newCount = if (newIsLiked) post.likesCount + 1 else Math.max(0, post.likesCount - 1)
+                val newCount = if (newIsLiked) post.likesCount + 1 else maxOf(0, post.likesCount - 1)
                 post.copy(isLiked = newIsLiked, likesCount = newCount)
             } else post
         }
         saveCache(_posts.value)
 
+        // Sync to backend — do NOT call fetchPosts() after this to avoid resetting like state
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                monumentApi.toggleLike(postId)
-            } catch (e: Exception) {}
+                val res = monumentApi.toggleLike(postId)
+                // Update with server-confirmed like count
+                val serverLiked = res["isLiked"] as? Boolean
+                val serverCount = (res["likesCount"] as? Double)?.toInt()
+                if (serverLiked != null && serverCount != null) {
+                    _posts.value = _posts.value.map { post ->
+                        if (post.id == postId) post.copy(isLiked = serverLiked, likesCount = serverCount)
+                        else post
+                    }
+                    saveCache(_posts.value)
+                }
+            } catch (e: Exception) {
+                // Revert optimistic update on failure
+                _posts.value = _posts.value.map { post ->
+                    if (post.id == postId) {
+                        val revertLiked = !post.isLiked
+                        val revertCount = if (revertLiked) post.likesCount + 1 else maxOf(0, post.likesCount - 1)
+                        post.copy(isLiked = revertLiked, likesCount = revertCount)
+                    } else post
+                }
+                saveCache(_posts.value)
+            }
         }
     }
 
@@ -413,8 +435,8 @@ class SocialFeedViewModel @Inject constructor(
                 imageUrl = photoUrlToUse,
                 caption = caption,
                 postType = "CHECKIN",
-                likesCount = 1,
-                isLiked = true,
+                likesCount = 0,
+                isLiked = false,
                 commentsCount = 0,
                 timestamp = nowMs,
                 timestampFormatted = "Just now"
