@@ -26,7 +26,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.monumentquest.data.model.Guild
 import com.monumentquest.ui.common.UserAvatar
 import com.monumentquest.ui.theme.*
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuildsScreen(
@@ -149,8 +148,12 @@ fun GuildsScreen(
 
             // Create guild button
             item {
+                var showCreateDialog by remember { mutableStateOf(false) }
+                var guildName by remember { mutableStateOf("") }
+                var guildRegion by remember { mutableStateOf("") }
+
                 OutlinedButton(
-                    onClick = { /* Create Guild */ },
+                    onClick = { showCreateDialog = true },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
@@ -165,6 +168,64 @@ fun GuildsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Create Your Own Guild", fontWeight = FontWeight.Medium, fontSize = 13.sp)
                 }
+
+                if (showCreateDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showCreateDialog = false },
+                        containerColor = Surface1,
+                        title = { Text("Create a Guild", color = TextPrimary, fontWeight = FontWeight.Bold) },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                OutlinedTextField(
+                                    value = guildName,
+                                    onValueChange = { guildName = it },
+                                    label = { Text("Guild Name") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Gold,
+                                        unfocusedBorderColor = Border,
+                                        focusedTextColor = TextPrimary,
+                                        unfocusedTextColor = TextPrimary
+                                    )
+                                )
+                                OutlinedTextField(
+                                    value = guildRegion,
+                                    onValueChange = { guildRegion = it },
+                                    label = { Text("Region (e.g. Odisha, India)") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Gold,
+                                        unfocusedBorderColor = Border,
+                                        focusedTextColor = TextPrimary,
+                                        unfocusedTextColor = TextPrimary
+                                    )
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    if (guildName.isNotBlank() && guildRegion.isNotBlank()) {
+                                        viewModel.createGuild(guildName.trim(), guildRegion.trim())
+                                        showCreateDialog = false
+                                        guildName = ""
+                                        guildRegion = ""
+                                    }
+                                },
+                                enabled = guildName.isNotBlank() && guildRegion.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Bg)
+                            ) { Text("Create Guild", fontWeight = FontWeight.Bold) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showCreateDialog = false }) {
+                                Text("Cancel", color = TextSecondary)
+                            }
+                        }
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }

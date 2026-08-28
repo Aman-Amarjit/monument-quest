@@ -123,4 +123,23 @@ class GuildsViewModel @Inject constructor(
             } catch (e: Exception) {}
         }
     }
+
+    fun createGuild(name: String, region: String) {
+        viewModelScope.launch {
+            try {
+                val userId = auth.currentUser?.uid ?: return@launch
+                val guildData = hashMapOf(
+                    "name" to name,
+                    "region" to region,
+                    "description" to "A guild of heritage explorers from $region",
+                    "totalPoints" to 0,
+                    "memberIds" to listOf(userId),
+                    "createdAt" to System.currentTimeMillis()
+                )
+                val ref = firestore.collection("guilds").add(guildData).await()
+                // Auto-join the creator
+                joinGuild(ref.id)
+            } catch (e: Exception) {}
+        }
+    }
 }

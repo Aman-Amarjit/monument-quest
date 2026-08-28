@@ -97,7 +97,7 @@ class SocialFeedViewModel @Inject constructor(
 
     private val userPostsList = mutableListOf<SocialPost>()
 
-    val currentUserId: String get() = auth.currentUser?.uid ?: "user_me"
+    val currentUserId: String get() = tokenManager.getUserId() ?: auth.currentUser?.uid ?: "user_me"
     val currentUserName: String get() = tokenManager.getUserName() ?: auth.currentUser?.displayName ?: "Explorer (You)"
 
     private fun getMyAvatarUrl(): String? {
@@ -404,7 +404,7 @@ class SocialFeedViewModel @Inject constructor(
 
             val newPost = SocialPost(
                 id = "sp_" + nowMs,
-                userId = user?.uid ?: "user_me",
+                userId = tokenManager.getUserId() ?: user?.uid ?: "user_me",
                 userName = myName,
                 userAvatarUrl = myAvatar,
                 userRank = "Bhubaneswar Explorer",

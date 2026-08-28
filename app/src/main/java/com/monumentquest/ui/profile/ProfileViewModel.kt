@@ -63,10 +63,12 @@ class ProfileViewModel @Inject constructor(
 
     fun updateProfile(name: String? = null, avatarUrl: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
+            // Always update backend first — this is the source of truth
             try {
                 monumentApi.updateProfile(UpdateProfileRequest(name = name, avatarUrl = avatarUrl))
             } catch (e: Exception) {}
 
+            // Also update Firestore if Firebase user is available (optional secondary store)
             try {
                 val uid = auth.currentUser?.uid
                 if (uid != null) {
