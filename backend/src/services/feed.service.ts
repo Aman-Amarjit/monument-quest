@@ -116,15 +116,10 @@ export class FeedService {
 
   static async deletePost(postId: string, userId?: string) {
     if (!userId) throw { status: 401, message: 'Authentication required' };
-    try {
-      const post = await prisma.post.findUnique({ where: { id: postId }, select: { userId: true } });
-      if (post && post.userId !== userId) {
-        throw { status: 403, message: 'Forbidden. You can only delete your own posts.' };
-      }
-      await prisma.post.delete({ where: { id: postId } });
-    } catch (e: any) {
-      if (e?.status === 403) throw e;
-    }
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { userId: true } });
+    if (!post) throw { status: 404, message: 'Post not found' };
+    if (post.userId !== userId) throw { status: 403, message: 'Forbidden. You can only delete your own posts.' };
+    await prisma.post.delete({ where: { id: postId } });
     return { success: true, message: 'Post deleted' };
   }
 
