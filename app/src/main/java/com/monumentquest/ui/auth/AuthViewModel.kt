@@ -62,8 +62,8 @@ class AuthViewModel @Inject constructor(
                 val res = withContext(Dispatchers.IO) {
                     monumentApi.sendOtp(SendOtpRequest(cleanEmail))
                 }
-                _uiState.value = AuthUiState.Idle
                 if (res.success) {
+                    _uiState.value = AuthUiState.Idle
                     onSuccess()
                 } else {
                     val err = res.message.ifBlank { "Could not send OTP email. Please try again." }
@@ -71,8 +71,11 @@ class AuthViewModel @Inject constructor(
                     onError(err)
                 }
             } catch (e: Exception) {
-                _uiState.value = AuthUiState.Idle
-                val err = e.message ?: "Network error. Could not reach server."
+                val err = when {
+                    e.message?.contains("Unable to resolve host") == true ||
+                    e.message?.contains("failed to connect") == true -> "No internet connection. Check your network and try again."
+                    else -> "Server error. Please try again shortly."
+                }
                 _uiState.value = AuthUiState.Error(err)
                 onError(err)
             }
@@ -96,22 +99,33 @@ class AuthViewModel @Inject constructor(
                     _uiState.value = AuthUiState.Idle
                     onNeedsSignup()
                 } else {
-                    val err = "Authentication failed. Invalid verification code."
+                    val err = "Invalid or expired OTP code. Please request a new one."
                     _uiState.value = AuthUiState.Error(err)
                     onError(err)
                 }
             } catch (e: HttpException) {
-                if (e.code() == 404) {
-                    // New user! OTP was verified, transition smoothly to Name Signup
-                    _uiState.value = AuthUiState.Idle
-                    onNeedsSignup()
-                } else {
-                    val err = "Invalid or expired 6-digit verification code."
-                    _uiState.value = AuthUiState.Error(err)
-                    onError(err)
+                when (e.code()) {
+                    404 -> {
+                        _uiState.value = AuthUiState.Idle
+                        onNeedsSignup()
+                    }
+                    400 -> {
+                        val err = "Invalid or expired OTP code. Please request a new one."
+                        _uiState.value = AuthUiState.Error(err)
+                        onError(err)
+                    }
+                    else -> {
+                        val err = "Server error (${e.code()}). Please try again."
+                        _uiState.value = AuthUiState.Error(err)
+                        onError(err)
+                    }
                 }
             } catch (e: Exception) {
-                val err = "Invalid or expired 6-digit verification code."
+                val err = when {
+                    e.message?.contains("Unable to resolve host") == true ||
+                    e.message?.contains("failed to connect") == true -> "No internet connection. Check your network and try again."
+                    else -> "Could not connect to server. Please try again."
+                }
                 _uiState.value = AuthUiState.Error(err)
                 onError(err)
             }
@@ -149,19 +163,19 @@ class AuthViewModel @Inject constructor(
                     onError(err)
                 }
             } catch (e: HttpException) {
-                val err = if (e.code() == 409) {
-                    "Username \"$cleanName\" is already taken. Please choose another username."
-                } else {
-                    "Registration failed. Invalid 6-digit code."
+                val err = when (e.code()) {
+                    409 -> "Username \"$cleanName\" is already taken. Please choose another username."
+                    400 -> "Invalid or expired OTP code. Please go back and request a new one."
+                    else -> "Registration failed (${e.code()}). Please try again."
                 }
                 _uiState.value = AuthUiState.Error(err)
                 onError(err)
             } catch (e: Exception) {
-                val msg = e.message ?: ""
-                val err = if (msg.contains("taken", ignoreCase = true) || msg.contains("409")) {
-                    "Username \"$cleanName\" is already taken. Please choose another username."
-                } else {
-                    "Registration failed. Invalid 6-digit code."
+                val err = when {
+                    e.message?.contains("Unable to resolve host") == true ||
+                    e.message?.contains("failed to connect") == true -> "No internet connection. Check your network and try again."
+                    e.message?.contains("taken", ignoreCase = true) == true -> "Username \"$cleanName\" is already taken. Please choose another username."
+                    else -> "Registration failed. Please try again."
                 }
                 _uiState.value = AuthUiState.Error(err)
                 onError(err)

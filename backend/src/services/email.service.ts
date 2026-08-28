@@ -31,8 +31,9 @@ export class EmailService {
     try {
       await prisma.rateLimitBucket.upsert({
         where: { key },
-        update: { count: Number(code), resetAt: expiresAt },
-        create: { key, count: Number(code), resetAt: expiresAt }
+        // Store code as-is padded to 6 digits to preserve leading zeros
+        update: { count: parseInt(code, 10), resetAt: expiresAt },
+        create: { key, count: parseInt(code, 10), resetAt: expiresAt }
       });
     } catch (_e) {}
 

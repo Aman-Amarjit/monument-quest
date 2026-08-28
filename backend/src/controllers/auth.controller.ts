@@ -56,7 +56,7 @@ export class AuthController {
         return res.status(400).json({ success: false, error: 'Invalid or expired OTP code' });
 
       try {
-        const data = await AuthService.registerWithOtp(email, name);
+        const data = await AuthService.registerWithOtp(email.trim().toLowerCase(), name);
         return res.status(201).json({ success: true, data });
       } catch (error: any) {
         if (error?.status === 409 && error?.code === 'EMAIL_EXISTS') {
