@@ -423,7 +423,8 @@ private fun PostCard(
                             .border(1.dp, tagFg.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
-                        Text(tagLabel, color = tagFg, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                        Text(tagLabel, color = tagFg, fontSize = 10.5.sp, fontWeight = FontWeight.Bold,
+                            maxLines = 1, softWrap = false)
                     }
 
                     // Delete post option button for user's own posts

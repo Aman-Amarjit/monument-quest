@@ -122,6 +122,39 @@ class SocialFeedViewModel @Inject constructor(
         purgeLocalPhotoStubs()
         restoreCache()
         fetchPosts()
+        fetchStories()
+    }
+
+    private fun fetchStories() {
+        viewModelScope.launch {
+            try {
+                // Fetch stories from Firestore: any user who posted in the last 24 hours
+                val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
+                val snapshot = firestore.collection("posts")
+                    .whereGreaterThan("timestamp", cutoff)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .get()
+                    .await()
+
+                val seen = mutableSetOf<String>()
+                val storyList = mutableListOf<DiscovererStory>()
+                for (doc in snapshot.documents) {
+                    val userId = doc.getString("userId") ?: continue
+                    if (seen.contains(userId)) continue
+                    seen.add(userId)
+                    val name = doc.getString("userName") ?: doc.getString("authorName") ?: "Explorer"
+                    val avatar = doc.getString("userAvatarUrl") ?: doc.getString("avatarUrl")
+                        ?: "https://ui-avatars.com/api/?name=${android.net.Uri.encode(name)}&background=1E293B&color=D4AF37&bold=true&size=200"
+                    storyList.add(DiscovererStory(id = userId, userName = name, avatarUrl = avatar))
+                    if (storyList.size >= 20) break
+                }
+                if (storyList.isNotEmpty()) {
+                    _stories.value = storyList
+                }
+            } catch (e: Exception) {
+                // Stories are non-critical; silently ignore fetch failure
+            }
+        }
     }
 
     private fun restoreCache() {
@@ -336,8 +369,14 @@ class SocialFeedViewModel @Inject constructor(
     private fun filterList(list: List<SocialPost>, filter: FeedFilter): List<SocialPost> {
         val filteredByTab = when (filter) {
             FeedFilter.GLOBAL -> list
-            FeedFilter.GUILD -> list.filter { it.isFollowing || it.userId == currentUserId }
-            FeedFilter.NEARBY -> list.filter { it.locationName.contains("Bhubaneswar") || it.locationName.contains("Odisha") }
+            // Guild: show all posts if the user hasn't followed anyone yet (new users see content
+            // immediately); once they follow someone, narrow to followed + own posts.
+            FeedFilter.GUILD -> if (_followedUsers.value.isEmpty()) list
+                                else list.filter { it.isFollowing || it.userId == currentUserId }
+            // Nearby: don't hard-code a single city — show all posts until real GPS distance
+            // filtering is implemented. The Nearby tab previously hid everything for users
+            // outside Bhubaneswar and for posts with a missing/different locationName.
+            FeedFilter.NEARBY -> list
         }
 
         val query = _searchQuery.value.trim().lowercase()

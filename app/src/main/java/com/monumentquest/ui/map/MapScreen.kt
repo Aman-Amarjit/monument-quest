@@ -1155,7 +1155,8 @@ private fun DarkStat(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(icon, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(12.dp))
-            Text(label, color = Color(0xFF94A3B8), fontSize = 10.5.sp, fontWeight = FontWeight.Medium)
+            Text(label, color = Color(0xFF94A3B8), fontSize = 10.5.sp, fontWeight = FontWeight.Medium,
+                maxLines = 1, softWrap = false)
         }
         Spacer(Modifier.height(3.dp))
         Text(value, fontWeight = FontWeight.ExtraBold, color = Color(0xFFF8FAFC), fontSize = 14.sp)
