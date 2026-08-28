@@ -5,9 +5,15 @@ dotenv.config();
 const nodeEnv = process.env.NODE_ENV || 'development';
 const isProduction = nodeEnv === 'production';
 const configuredJwtSecret = process.env.JWT_SECRET?.trim();
-const jwtSecret = configuredJwtSecret && configuredJwtSecret.length >= 16 
-  ? configuredJwtSecret 
-  : 'monument_quest_secure_production_jwt_secret_key_2026_v1_prod';
+if (!configuredJwtSecret || configuredJwtSecret.length < 16) {
+  if (nodeEnv === 'production') {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set or is too short. Set a strong secret before deploying.');
+  }
+  console.warn('[WARN] JWT_SECRET is not set. Using an insecure development fallback. DO NOT use this in production.');
+}
+const jwtSecret = (configuredJwtSecret && configuredJwtSecret.length >= 16)
+  ? configuredJwtSecret
+  : 'monument_quest_dev_only_jwt_secret_not_for_production';
 const databaseUrl = process.env.DATABASE_URL?.trim() || '';
 function integer(name: string, fallback: number, min: number, max: number): number { const value = Number(process.env[name] || fallback); return Number.isInteger(value) ? Math.min(Math.max(value, min), max) : fallback; }
 export const config = {
