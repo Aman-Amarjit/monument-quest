@@ -60,17 +60,9 @@ export class AuthService {
       });
       return this.result(this.toProfile(newUser));
     } catch (_e) {
-      const fallbackUser = {
-        id: 'usr_' + normalizedEmail.replace(/[^a-zA-Z0-9]/g, '_'),
-        email: normalizedEmail,
-        name: normalizedEmail.split('@')[0] || 'Heritage Explorer',
-        avatarUrl: null,
-        userRank: 'Bhubaneswar Explorer',
-        points: 500,
-        role: 'EXPLORER',
-        guild: null
-      };
-      return this.result(this.toProfile(fallbackUser));
+      // Re-throw so the error handler returns a proper 503 instead of
+      // silently issuing a JWT for a phantom user that doesn't exist in the DB.
+      throw _e;
     }
   }
 
