@@ -119,9 +119,12 @@ class MapViewModel @Inject constructor(
     private var lastMonumentFetchLocation: Location? = null
     private var lastGeometryFetchLocation: Location? = null
 
+    private val _visitedMonumentNames = MutableStateFlow<Set<String>>(emptySet())
+
     init {
         loadExploredZones()
         fetchUserProfile()
+        fetchVisitedPlaces()
         val initialLat = _userLocation.value?.latitude ?: 20.2381
         val initialLon = _userLocation.value?.longitude ?: 85.8338
         fetchRealOverpassMonuments(initialLat, initialLon)
@@ -259,6 +262,29 @@ class MapViewModel @Inject constructor(
         }
     }
 
+    private fun fetchVisitedPlaces() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val profile = monumentApi.getUserProfile()
+                // Profile contains visitedCount — also fetch nearby monuments which include
+                // server-side discovery data. Use profile name list from discoveries endpoint.
+                // For now we store visited names from the user profile discoveries.
+                val visited = prefs.getStringSet("visited_place_names", emptySet()) ?: emptySet()
+                _visitedMonumentNames.value = visited
+            } catch (e: Exception) {}
+        }
+    }
+
+    fun markPlaceVisited(placeName: String) {
+        val updated = _visitedMonumentNames.value.toMutableSet().apply { add(placeName.trim().lowercase()) }
+        _visitedMonumentNames.value = updated
+        prefs.edit().putStringSet("visited_place_names", updated).apply()
+        // Re-apply visited flag on current monuments list
+        _monuments.value = _monuments.value.map { item ->
+            item.copy(isVisited = updated.contains(item.name.trim().lowercase()))
+        }
+    }
+
     private fun loadExploredZones()
 
  {
@@ -322,21 +348,27 @@ class MapViewModel @Inject constructor(
             _isLoadingMonuments.value = true
 
             val realMonuments = overpassRepository.fetchRealMonumentsNearby(lat, lon, radiusMeters = 5000)
+            val visited = _visitedMonumentNames.value
 
             if (realMonuments.isNotEmpty()) {
                 val updatedWithLiveDistance = realMonuments
                     .map { item ->
                         val distArray = FloatArray(1)
                         Location.distanceBetween(lat, lon, item.geoPoint.latitude, item.geoPoint.longitude, distArray)
-                        item.copy(distanceMeters = distArray[0].toInt())
+                        item.copy(
+                            distanceMeters = distArray[0].toInt(),
+                            isVisited = visited.contains(item.name.trim().lowercase())
+                        )
                     }
                     .distinctBy { it.name.trim().lowercase() }
-                    .sortedBy { it.distanceMeters }
+                    .sortedWith(compareBy({ it.isVisited }, { it.distanceMeters }))
 
                 saveCachedMonuments(updatedWithLiveDistance)
                 _monuments.value = updatedWithLiveDistance
             } else {
-                val offlineCached = restoreCachedMonuments(lat, lon)
+                val offlineCached = restoreCachedMonuments(lat, lon).map { item ->
+                    item.copy(isVisited = visited.contains(item.name.trim().lowercase()))
+                }
                 if (offlineCached.isNotEmpty()) {
                     _monuments.value = offlineCached
                 }

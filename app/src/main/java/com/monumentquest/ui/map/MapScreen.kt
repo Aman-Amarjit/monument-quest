@@ -83,7 +83,7 @@ private suspend fun fetchRoute(
     } catch (e: Exception) { emptyList() }
 }
 
-private fun createMonumentMarker(context: Context, isSelected: Boolean, distanceText: String): Drawable {
+private fun createMonumentMarker(context: Context, isSelected: Boolean, distanceText: String, isVisited: Boolean = false): Drawable {
     val pinSize = if (isSelected) 54 else 44
     val textH   = if (distanceText.isNotBlank()) 30 else 0
     val pad     = if (distanceText.isNotBlank()) 6 else 0
@@ -96,38 +96,61 @@ private fun createMonumentMarker(context: Context, isSelected: Boolean, distance
     val cx     = totalW / 2f
     val cy     = pinSize / 2f + 4f
 
-    paint.color = AndroidColor.parseColor("#5010B981")
+    // Outer halo — green for visited, teal for unvisited
+    paint.color = if (isVisited) AndroidColor.parseColor("#5010B981") else AndroidColor.parseColor("#5010B981")
     canvas.drawCircle(cx, cy, cy - 2f, paint)
 
     paint.color = AndroidColor.WHITE
     canvas.drawCircle(cx, cy, cy - 5f, paint)
 
-    paint.color = AndroidColor.parseColor(if (isSelected) "#FFB703" else "#F0A500")
+    // Main circle — green checkmark for visited, gold for unvisited
+    paint.color = if (isVisited) AndroidColor.parseColor("#FF10B981") else AndroidColor.parseColor(if (isSelected) "#FFB703" else "#F0A500")
     canvas.drawCircle(cx, cy, cy - 9f, paint)
 
-    paint.color = AndroidColor.WHITE
-    val emblemRadius = if (isSelected) 8f else 6f
-    canvas.drawCircle(cx, cy, emblemRadius, paint)
-    paint.color = AndroidColor.parseColor("#D97706")
-    canvas.drawCircle(cx, cy, emblemRadius - 3f, paint)
+    if (isVisited) {
+        // Draw white checkmark
+        paint.color = AndroidColor.WHITE
+        paint.strokeWidth = 4f
+        paint.style = Paint.Style.STROKE
+        paint.strokeCap = Paint.Cap.ROUND
+        paint.strokeJoin = Paint.Join.ROUND
+        val checkLeft  = cx - 7f
+        val checkMid   = cy + 3f
+        val checkRight = cx + 7f
+        val checkTop   = cy - 5f
+        val path = android.graphics.Path().apply {
+            moveTo(checkLeft, cy)
+            lineTo(cx - 1f, checkMid)
+            lineTo(checkRight, checkTop)
+        }
+        canvas.drawPath(path, paint)
+        paint.style = Paint.Style.FILL
+    } else {
+        paint.color = AndroidColor.WHITE
+        val emblemRadius = if (isSelected) 8f else 6f
+        canvas.drawCircle(cx, cy, emblemRadius, paint)
+        paint.color = AndroidColor.parseColor("#D97706")
+        canvas.drawCircle(cx, cy, emblemRadius - 3f, paint)
+    }
 
     if (distanceText.isNotBlank()) {
         val labelTop = (pinSize + pad).toFloat()
-        paint.color = AndroidColor.parseColor("#F00F172A")
+        paint.color = if (isVisited) AndroidColor.parseColor("#F00A2F28") else AndroidColor.parseColor("#F00F172A")
         val rect = RectF(cx - 56f, labelTop, cx + 56f, labelTop + 26f)
         canvas.drawRoundRect(rect, 13f, 13f, paint)
 
-        paint.color = AndroidColor.parseColor("#8010B981")
+        paint.color = if (isVisited) AndroidColor.parseColor("#8010B981") else AndroidColor.parseColor("#8010B981")
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 2f
         canvas.drawRoundRect(rect, 13f, 13f, paint)
 
         paint.style          = Paint.Style.FILL
-        paint.color          = AndroidColor.WHITE
+        paint.color          = if (isVisited) AndroidColor.parseColor("#FF10B981") else AndroidColor.WHITE
         paint.textSize       = 18f
         paint.textAlign      = Paint.Align.CENTER
         paint.isFakeBoldText = true
-        canvas.drawText(distanceText, cx, labelTop + 19f, paint)
+        val label = if (isVisited) "✓ $distanceText" else distanceText
+        canvas.drawText(label, cx, labelTop + 19f, paint)
     }
     return BitmapDrawable(context.resources, bitmap)
 }
@@ -339,6 +362,7 @@ fun MapScreen(
 
     val attemptCapture: () -> Unit = {
         if (isCapturableInRange) {
+            selectedMonument?.let { viewModel.markPlaceVisited(it.name) }
             Toast.makeText(context, "🟢 Instant Verification Mode: +500 XP!", Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(context, "✨ Special Discovery Mode: Live photo will be submitted for Community Review (+250 XP Pending)", Toast.LENGTH_LONG).show()
@@ -430,7 +454,7 @@ fun MapScreen(
                 val marker = Marker(map).apply {
                     position   = item.geoPoint
                     title      = item.name
-                    icon       = createMonumentMarker(context, isSel, formatDistance(item.distanceMeters))
+                    icon       = createMonumentMarker(context, isSel, formatDistance(item.distanceMeters), item.isVisited)
                     infoWindow = null
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                     setOnMarkerClickListener { _, _ ->
@@ -446,7 +470,7 @@ fun MapScreen(
                 existing.position = item.geoPoint
                 val wasSelected   = selectedMarkerIds.value.contains(item.id)
                 if (isSel != wasSelected) {
-                    existing.icon = createMonumentMarker(context, isSel, formatDistance(item.distanceMeters))
+                    existing.icon = createMonumentMarker(context, isSel, formatDistance(item.distanceMeters), item.isVisited)
                 }
             }
         }

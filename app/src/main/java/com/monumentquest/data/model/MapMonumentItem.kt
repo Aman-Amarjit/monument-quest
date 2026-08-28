@@ -9,5 +9,6 @@ data class MapMonumentItem(
     val geoPoint: GeoPoint = GeoPoint(0.0, 0.0),
     val points: Int = 0,
     val category: String = "",
-    val distanceMeters: Int = 0
+    val distanceMeters: Int = 0,
+    val isVisited: Boolean = false
 )
