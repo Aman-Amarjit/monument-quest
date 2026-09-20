@@ -1,6 +1,6 @@
-# 🏛️ MonumentQuest — Heritage Exploration & Gamified AR Platform
+# ROAM — Heritage Exploration & Gamified AR Platform
 
-**MonumentQuest** is a production-grade, gamified mobile application and backend ecosystem designed for exploring historic monuments, temples, stupas, and living cultural heritage. Powered by **Photorealistic 4K Satellite Imagery**, **Instantaneous 5Hz GPS Tracking**, **AI Cultural Historians**, and **Real-Time Social Expeditions**.
+**ROAM** is a production-grade, gamified mobile application and backend ecosystem designed for exploring historic monuments, temples, stupas, and living cultural heritage. Powered by **Photorealistic 4K Satellite Imagery**, **Instantaneous 5Hz GPS Tracking**, **AI Cultural Historians**, and **Real-Time Social Expeditions**.
 
 ---
 
