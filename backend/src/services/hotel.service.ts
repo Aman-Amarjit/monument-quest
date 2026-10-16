@@ -45,7 +45,8 @@ export class HotelService {
   }
 
   static claim(hotelId: string) {
-    const target = this.partners.find((h) => h.id === hotelId) || this.partners[0];
+    const target = this.partners.find((h) => h.id === hotelId);
+    if (!target) throw { status: 404, message: 'Hotel not found' };
     return {
       success: true,
       voucherCode: target.voucherCode,

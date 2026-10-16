@@ -127,23 +127,11 @@ export class AuthService {
   }
 
   static async getProfile(userId: string) {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: { guild: true }
-      });
-      if (user) return this.toProfile(user, user.email.endsWith('@guest.monumentquest.app'));
-    } catch (_e) {}
-
-    return {
-      id: userId,
-      email: 'explorer@monumentquest.app',
-      name: 'Heritage Explorer',
-      avatarUrl: null,
-      userRank: 'Bhubaneswar Explorer',
-      points: 1500,
-      role: 'EXPLORER',
-      guildName: 'Kalinga Guardians'
-    };
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { guild: true }
+    });
+    if (!user) throw { status: 404, message: 'User not found' };
+    return this.toProfile(user, user.email.endsWith('@guest.monumentquest.app'));
   }
 }

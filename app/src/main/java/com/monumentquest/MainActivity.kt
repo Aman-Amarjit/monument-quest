@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -227,14 +228,14 @@ private fun FloatingNavBar(
     onNavigate: (Screen) -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp),
         shape = RoundedCornerShape(24.dp),
         color = Surface1.copy(alpha = 0.98f),
         border = androidx.compose.foundation.BorderStroke(1.dp, Border),
         shadowElevation = 18.dp
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 4.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 2.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
@@ -257,8 +258,8 @@ private fun NavPillItem(
     Box(
         modifier = modifier
             .fillMaxHeight()
-            .heightIn(min = 48.dp)   // accessibility minimum touch target
-            .clip(RoundedCornerShape(18.dp))
+            .heightIn(min = 44.dp)   // accessibility touch target
+            .clip(RoundedCornerShape(16.dp))
             .background(if (isSelected) GoldTint else Color.Transparent)
             .clickable(
                 indication = null,
@@ -267,10 +268,26 @@ private fun NavPillItem(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(imageVector = if (isSelected) screen.icon else screen.outlinedIcon, contentDescription = screen.label, tint = tint, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.height(3.dp))
-            Text(screen.label, color = tint, fontSize = 9.5.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp)
+        ) {
+            Icon(
+                imageVector = if (isSelected) screen.icon else screen.outlinedIcon,
+                contentDescription = screen.label,
+                tint = tint,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = screen.label,
+                color = tint,
+                fontSize = 9.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

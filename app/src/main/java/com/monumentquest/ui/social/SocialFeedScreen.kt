@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -143,8 +146,11 @@ fun SocialFeedScreen(
 
                 // Filter tabs
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    modifier = Modifier.padding(top = 2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(top = 2.dp)
                 ) {
                     FeedTabItem(
                         text = "Global Expeditions",
@@ -293,11 +299,11 @@ private fun FeedTabItem(
     ) {
         Text(
             text = text,
-            fontSize = 13.5.sp,
+            fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             color = if (selected) Gold else TextSecondary,
             maxLines = 1,
-            softWrap = false
+            overflow = TextOverflow.Ellipsis
         )
         Spacer(modifier = Modifier.height(4.dp))
         Box(
@@ -432,7 +438,7 @@ private fun PostCard(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(tagLabel, color = tagFg, fontSize = 10.5.sp, fontWeight = FontWeight.Bold,
-                            maxLines = 1, softWrap = false)
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
 
                     // Delete post option button for user's own posts

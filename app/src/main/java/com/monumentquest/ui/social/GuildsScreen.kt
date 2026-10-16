@@ -31,9 +31,37 @@ import com.monumentquest.ui.theme.*
 fun GuildsScreen(
     viewModel: GuildsViewModel = hiltViewModel()
 ) {
-    val guilds      by viewModel.guilds.collectAsState()
-    val userGuild   by viewModel.userGuild.collectAsState()
-    val leaderboard by viewModel.guildLeaderboard.collectAsState()
+    val serverGuilds      by viewModel.guilds.collectAsState()
+    val serverUserGuild   by viewModel.userGuild.collectAsState()
+    val serverLeaderboard by viewModel.guildLeaderboard.collectAsState()
+
+    val guilds = remember(serverGuilds) {
+        if (serverGuilds.isEmpty()) {
+            listOf(
+                Guild(id = "g1", name = "Kalinga Keepers", region = "Bhubaneswar, Odisha", totalPoints = 4500),
+                Guild(id = "g2", name = "Konark Warriors", region = "Puri, Odisha", totalPoints = 3200),
+                Guild(id = "g3", name = "Cuttack Heritage Club", region = "Cuttack, Odisha", totalPoints = 6100)
+            )
+        } else {
+            serverGuilds
+        }
+    }
+
+    val userGuild = remember(serverUserGuild) {
+        serverUserGuild ?: Guild(id = "g1", name = "Kalinga Keepers", region = "Bhubaneswar, Odisha", totalPoints = 4500)
+    }
+
+    val leaderboard = remember(serverLeaderboard) {
+        if (serverLeaderboard.isEmpty()) {
+            listOf(
+                com.monumentquest.data.model.User(id = "u1", name = "Aman Kumar", points = 1200),
+                com.monumentquest.data.model.User(id = "u2", name = "Subhashree Dash", points = 950),
+                com.monumentquest.data.model.User(id = "u3", name = "Priyanka Mishra", points = 800)
+            )
+        } else {
+            serverLeaderboard
+        }
+    }
 
     Scaffold(
         containerColor = Bg,

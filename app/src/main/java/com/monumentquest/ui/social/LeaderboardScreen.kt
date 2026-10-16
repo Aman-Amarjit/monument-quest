@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -30,7 +32,21 @@ import com.monumentquest.ui.theme.*
 fun LeaderboardScreen(
     viewModel: LeaderboardViewModel = hiltViewModel()
 ) {
-    val allUsers by viewModel.users.collectAsState()
+    val serverUsers by viewModel.users.collectAsState()
+    val allUsers = remember(serverUsers) {
+        if (serverUsers.isEmpty()) {
+            listOf(
+                User(id = "u1", name = "Aman Kumar", points = 2450),
+                User(id = "u2", name = "Subhashree Dash", points = 2100),
+                User(id = "u3", name = "Priyanka Mishra", points = 1850),
+                User(id = "u4", name = "Rohan Mohanty", points = 1500),
+                User(id = "u5", name = "Sneha Patra", points = 1200),
+                User(id = "u6", name = "Amit Biswal", points = 900)
+            )
+        } else {
+            serverUsers
+        }
+    }
     var selectedTab by remember { mutableStateOf(0) }
     var activeProfile by remember { mutableStateOf<ExplorerProfileData?>(null) }
     var followedUserIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -86,8 +102,10 @@ fun LeaderboardScreen(
 
                 // Tab row
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp)
                 ) {
                     LeaderboardTab("Friends",          selected = selectedTab == 0) { selectedTab = 0 }
                     LeaderboardTab("Regional (Odisha)", selected = selectedTab == 1) { selectedTab = 1 }

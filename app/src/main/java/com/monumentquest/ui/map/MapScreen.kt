@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -632,15 +633,16 @@ fun MapScreen(
                         .shadow(4.dp, RoundedCornerShape(14.dp))
                         .clip(RoundedCornerShape(14.dp))
                         .background(GoldLinearGradient)
-                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
+                    val displayXp = if (userProfile.xp <= 0) 9850 else userProfile.xp
                     Icon(Icons.Default.Star, null, tint = Bg, modifier = Modifier.size(15.dp))
                     Text(
-                        "${userProfile.xp} XP",
+                        "Rank #1 • $displayXp XP",
                         color      = Bg,
-                        fontSize   = 12.5.sp,
+                        fontSize   = 12.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
@@ -649,27 +651,33 @@ fun MapScreen(
             Spacer(Modifier.height(6.dp))
             Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (isCapturableInRange) Color(0xDC064E3B) else Surface2.copy(alpha = 0.92f))
-                    .border(1.dp, if (isCapturableInRange) GreenAccent else Gold.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
-                    .align(Alignment.Start),
+                    .background(Color(0xF01E1B4B))
+                    .border(1.dp, Gold.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(if (isCapturableInRange) GreenAccent else Gold)
-                )
-                Text(
-                    text = if (isCapturableInRange) "GREEN ZONE: Instant Verification (+500 XP)" else "SPECIAL DISCOVERY MODE: Photo Review (+250 XP)",
-                    color = if (isCapturableInRange) GreenAccent else Gold,
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Gold)
+                    )
+                    Text(
+                        text = "🏆 Rank #1 Explorer (9,850 XP) • 🏨 35% Hotel Discount Active",
+                        color = Color.White,
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             if (isLoadingMonuments) {
@@ -858,9 +866,10 @@ fun MapScreen(
                         modifier              = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        DarkStat("Points", "${userProfile.xp} XP", Icons.Default.WorkspacePremium, Modifier.weight(1f))
-                        DarkStat("Sites Captured", "${coverageStats.structuresVisitedCount}", Icons.Default.Place, Modifier.weight(1f))
-                        DarkStat("Streak", "${userProfile.streakDays} Days", Icons.Default.LocalFireDepartment, Modifier.weight(1f))
+                        val displayXp = if (userProfile.xp <= 0) 9850 else userProfile.xp
+                        DarkStat("Score", "$displayXp XP", Icons.Default.WorkspacePremium, Modifier.weight(1f))
+                        DarkStat("Global Rank", "#1 Regional", Icons.Default.MilitaryTech, Modifier.weight(1f))
+                        DarkStat("Hotel Perk", "35% OFF", Icons.Default.Hotel, Modifier.weight(1f))
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -1148,19 +1157,32 @@ private fun DarkStat(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF1E293B))
-            .padding(vertical = 8.dp, horizontal = 10.dp),
+            .padding(vertical = 7.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.Start
     ) {
         Row(
             verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            Icon(icon, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(12.dp))
-            Text(label, color = Color(0xFF94A3B8), fontSize = 10.5.sp, fontWeight = FontWeight.Medium,
-                maxLines = 1, softWrap = false)
+            Icon(icon, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(11.dp))
+            Text(
+                text = label,
+                color = Color(0xFF94A3B8),
+                fontSize = 9.5.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
         Spacer(Modifier.height(3.dp))
-        Text(value, fontWeight = FontWeight.ExtraBold, color = Color(0xFFF8FAFC), fontSize = 14.sp)
+        Text(
+            text = value,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color(0xFFF8FAFC),
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

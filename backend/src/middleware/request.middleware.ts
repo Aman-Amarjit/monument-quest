@@ -19,17 +19,18 @@ function localLimit(key: string, max: number, windowMs: number, now = Date.now()
 }
 
 async function databaseLimit(key: string, max: number, windowMs: number): Promise<LimitResult> {
-  const resetAt = new Date(Date.now() + windowMs);
+  const now = Date.now();
+  const resetAt = new Date(now + windowMs);
   const rows = await prisma.$queryRaw<Array<{ count: number; resetAt: Date }>>`
     INSERT INTO "RateLimitBucket" ("key", "count", "resetAt")
     VALUES (${key}, 1, ${resetAt})
     ON CONFLICT ("key") DO UPDATE SET
       "count" = CASE
-        WHEN "RateLimitBucket"."resetAt" <= NOW() THEN 1
+        WHEN "RateLimitBucket"."resetAt" <= ${now} THEN 1
         ELSE "RateLimitBucket"."count" + 1
       END,
       "resetAt" = CASE
-        WHEN "RateLimitBucket"."resetAt" <= NOW() THEN EXCLUDED."resetAt"
+        WHEN "RateLimitBucket"."resetAt" <= ${now} THEN EXCLUDED."resetAt"
         ELSE "RateLimitBucket"."resetAt"
       END
     RETURNING "count", "resetAt"

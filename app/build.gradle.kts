@@ -8,10 +8,6 @@ plugins {
 }
 
 val monumentQuestApiBaseUrl = project.providers.gradleProperty("MONUMENTQUEST_API_BASE_URL")
-    .orElse("https://monument-quest-mocha.vercel.app/api/v1/")
-    .get()
-    .replace("\\", "\\\\")
-    .replace("\"", "\\\"")
 
 android {
     namespace = "com.monumentquest"
@@ -22,8 +18,8 @@ android {
         applicationId = "com.monumentquest"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "3.0.0"
+        versionCode = 5
+        versionName = "5.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -33,11 +29,17 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "API_BASE_URL", "\"$monumentQuestApiBaseUrl\"")
+            buildConfigField("String", "API_BASE_URL", 
+                monumentQuestApiBaseUrl
+                    .orElse("\"http://10.0.2.2:3000/api/v1/\"")
+                    .get())
         }
         release {
             isMinifyEnabled = false
-            buildConfigField("String", "API_BASE_URL", "\"$monumentQuestApiBaseUrl\"")
+            buildConfigField("String", "API_BASE_URL", 
+                monumentQuestApiBaseUrl
+                    .orElse("\"https://monument-quest-mocha.vercel.app/api/v1/\"")
+                    .get())
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

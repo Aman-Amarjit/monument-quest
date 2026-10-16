@@ -72,7 +72,7 @@ export class FeedService {
       const followingIds = userId && rows.length ? new Set((await prisma.follow.findMany({ where: { followerId: userId, followingId: { in: rows.map((post) => post.userId) } }, select: { followingId: true } })).map((item) => item.followingId)) : new Set<string>();
       return { items: rows.map((post) => toFeedItem(post, liked.has(post.id), saved.has(post.id), followingIds.has(post.userId))), nextCursor: hasMore ? rows[rows.length - 1].id : null };
     } catch (e) {
-      return { items: [], nextCursor: null };
+      throw e;
     }
   }
 
@@ -121,9 +121,9 @@ export class FeedService {
   }
 
   static async getComments(postId: string, limit?: unknown) {
-    const comments = await prisma.comment.findMany({
-      where: { postId },
-      take: clamp(limit, 100, 100),
+      const comments = await prisma.comment.findMany({
+        where: { postId },
+        take: clamp(limit, 10, 50),
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       include: { user: { select: { id: true, name: true, avatarUrl: true } } }
     });

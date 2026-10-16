@@ -144,7 +144,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 ) {
                     Icon(
                         imageVector        = Icons.Default.Explore,
-                        contentDescription = "Monument Quest",
+                        contentDescription = "ROAM",
                         tint               = Gold,
                         modifier           = Modifier.size(40.dp)
                     )
@@ -155,11 +155,11 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
 
             // ── Title ─────────────────────────────────────────────────────────
             Text(
-                text       = "Monument Quest",
+                text       = "ROAM",
                 color      = TextPrimary,
                 fontWeight = FontWeight.Bold,
-                fontSize   = 30.sp,
-                letterSpacing = (-0.5).sp
+                fontSize   = 34.sp,
+                letterSpacing = 1.sp
             )
 
             Spacer(modifier = Modifier.height(6.dp))

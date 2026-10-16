@@ -31,6 +31,20 @@ app.get('/favicon.ico', (_req, res) => res.status(204).end());
 app.get('/favicon.png', (_req, res) => res.status(204).end());
 
 import { renderDashboardHtml } from './views/dashboard';
+import diagnosticsRouter from './routes/diagnostics';
+
+function detectDbProvider(url: string): string {
+  if (!url) return 'Not configured';
+  const lower = url.toLowerCase();
+  if (lower.includes('supabase')) return 'Supabase PostgreSQL';
+  if (lower.includes('neon')) return 'Neon PostgreSQL';
+  if (lower.includes('railway')) return 'Railway PostgreSQL';
+  if (lower.includes('render')) return 'Render PostgreSQL';
+  if (lower.includes('vercel')) return 'Vercel Postgres';
+  if (lower.includes('localhost') || lower.includes('127.0.0.1')) return 'Local PostgreSQL';
+  if (lower.startsWith('postgres://') || lower.startsWith('postgresql://')) return 'PostgreSQL';
+  return 'Database';
+}
 
 // Root welcome route for browser & health monitoring
 app.get('/', (req, res) => {
@@ -39,7 +53,7 @@ app.get('/', (req, res) => {
       status: 'online',
       service: 'MonumentQuest Production API',
       version: '3.1.0',
-      database: 'Supabase PostgreSQL (Connected)',
+      database: detectDbProvider(config.databaseUrl),
       timestamp: new Date().toISOString()
     });
   }

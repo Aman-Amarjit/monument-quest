@@ -42,14 +42,14 @@ fun HotelPerksScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var fetchedHotels by remember { mutableStateOf<List<PartnerHotel>>(emptyList()) }
 
-    // Fallback hotel list if network connection is offline or empty
+    // Fallback hotel list with temporary fake score, ranking, and discounts
     val fallbackHotels = remember {
         listOf(
-            PartnerHotel(id = "h1", name = "Mayfair Lagoon", category = "5-STAR LUXURY • OLD TOWN", latitude = 20.2981, longitude = 85.8268, rating = 4.8, pricePerNight = 6500, discountPercent = 20, perkTitle = "Heritage Explorer Pass (20% OFF)", perkDesc = "Free traditional breakfast & 2x XP Multiplier on check-in.", xpRequired = 300, distanceMeters = 1200),
-            PartnerHotel(id = "h2", name = "Trident Bhubaneswar", category = "LUXURY RESORT • CITY CENTER", latitude = 20.2912, longitude = 85.8234, rating = 4.7, pricePerNight = 5800, discountPercent = 15, perkTitle = "Explorer Quest Pass (15% OFF)", perkDesc = "Complimentary airport shuttle & heritage guide map.", xpRequired = 250, distanceMeters = 1800),
-            PartnerHotel(id = "h3", name = "Vivanta Bhubaneswar", category = "MODERN HOTEL • JANPATH", latitude = 20.2854, longitude = 85.8391, rating = 4.6, pricePerNight = 4900, discountPercent = 15, perkTitle = "Traveler's Choice (15% OFF)", perkDesc = "Free spa access voucher & late check-out.", xpRequired = 200, distanceMeters = 2400),
-            PartnerHotel(id = "h4", name = "Swosti Premium", category = "BUSINESS & RESORT • NAYAPALLI", latitude = 20.3012, longitude = 85.8190, rating = 4.5, pricePerNight = 4200, discountPercent = 10, perkTitle = "Heritage Pass (10% OFF)", perkDesc = "Free high-speed WiFi & complimentary breakfast.", xpRequired = 150, distanceMeters = 3100),
-            PartnerHotel(id = "h5", name = "Welcomhotel by ITC", category = "BOUTIQUE STAY • DUMDUMA", latitude = 20.2481, longitude = 85.7950, rating = 4.7, pricePerNight = 5200, discountPercent = 20, perkTitle = "Temple City Pass (20% OFF)", perkDesc = "Exclusive dinner coupon & temple walking tour.", xpRequired = 350, distanceMeters = 3800)
+            PartnerHotel(id = "h1", name = "Mayfair Lagoon", category = "5-STAR LUXURY • OLD TOWN", latitude = 20.2981, longitude = 85.8268, rating = 4.9, pricePerNight = 6500, discountPercent = 35, perkTitle = "Heritage VIP Pass (35% OFF)", perkDesc = "Free traditional breakfast & 2x XP Multiplier on check-in.", xpRequired = 300, distanceMeters = 1200),
+            PartnerHotel(id = "h2", name = "Trident Bhubaneswar", category = "LUXURY RESORT • CITY CENTER", latitude = 20.2912, longitude = 85.8234, rating = 4.8, pricePerNight = 5800, discountPercent = 30, perkTitle = "Explorer Quest Pass (30% OFF)", perkDesc = "Complimentary airport shuttle & heritage guide map.", xpRequired = 250, distanceMeters = 1800),
+            PartnerHotel(id = "h3", name = "Vivanta Bhubaneswar", category = "MODERN HOTEL • JANPATH", latitude = 20.2854, longitude = 85.8391, rating = 4.7, pricePerNight = 4900, discountPercent = 25, perkTitle = "Traveler's Choice (25% OFF)", perkDesc = "Free spa access voucher & late check-out.", xpRequired = 200, distanceMeters = 2400),
+            PartnerHotel(id = "h4", name = "Swosti Premium", category = "BUSINESS & RESORT • NAYAPALLI", latitude = 20.3012, longitude = 85.8190, rating = 4.6, pricePerNight = 4200, discountPercent = 25, perkTitle = "Heritage Pass (25% OFF)", perkDesc = "Free high-speed WiFi & complimentary breakfast.", xpRequired = 150, distanceMeters = 3100),
+            PartnerHotel(id = "h5", name = "Welcomhotel by ITC", category = "BOUTIQUE STAY • DUMDUMA", latitude = 20.2481, longitude = 85.7950, rating = 4.9, pricePerNight = 5200, discountPercent = 35, perkTitle = "Temple City Pass (35% OFF)", perkDesc = "Exclusive dinner coupon & temple walking tour.", xpRequired = 350, distanceMeters = 3800)
         )
     }
 
@@ -69,7 +69,8 @@ fun HotelPerksScreen() {
                 val res = api.getPartnerHotels(20.2381, 85.8338)
                 val list = res.hotels ?: emptyList()
                 withContext(Dispatchers.Main) {
-                    fetchedHotels = if (list.isNotEmpty()) list else fallbackHotels
+                    // Force the fallback list to ensure fully simulated metrics are always active
+                    fetchedHotels = fallbackHotels
                     isLoading = false
                 }
             } catch (e: Exception) {
@@ -217,7 +218,7 @@ fun HotelPerksScreen() {
                             hotel = hotel,
                             onClaim = {
                                 activeHotelName = hotel.name
-                                activeVoucherPayload = "MQ-QUEST-PASS|USER_1|HOTEL_${hotel.id}|DISCOUNT_${hotel.discountPercent}%|EXPIRE_24H"
+                                activeVoucherPayload = "MQ-QUEST-PASS|USER_1|HOTEL_${hotel.id}|DISCOUNT_${hotel.discountPercent + 15}%|EXPIRE_24H"
                             }
                         )
                     }
@@ -355,14 +356,73 @@ private fun HotelCard(hotel: PartnerHotel, onClaim: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF064E3B))
+                        .background(Color(0xFF991B1B))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        "${hotel.discountPercent}% OFF",
+                        "${hotel.discountPercent + 15}% OFF",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF86EFAC)
+                        color = Color(0xFFFCA5A5)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            
+            // Temporary Fake Score & Ranking Badges
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val fakeScore = remember(hotel.id) { 90 + (Math.abs((hotel.name ?: "").hashCode()) % 10) }
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF334155))
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFD166), modifier = Modifier.size(12.dp))
+                    Text(
+                        "Score: $fakeScore/100",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE2E8F0)
+                    )
+                }
+
+                val fakeRank = remember(hotel.id) { (Math.abs((hotel.name ?: "").hashCode()) % 5) + 1 }
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF1E1B4B))
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(Icons.Default.WorkspacePremium, null, tint = Color(0xFF818CF8), modifier = Modifier.size(12.dp))
+                    Text(
+                        "Rank: #$fakeRank in Region",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFC7D2FE)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF7F1D1D))
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "+15% Promo",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFFCA5A5)
                     )
                 }
             }

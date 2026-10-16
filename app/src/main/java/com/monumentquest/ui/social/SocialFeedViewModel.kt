@@ -115,14 +115,27 @@ class SocialFeedViewModel @Inject constructor(
             if (postsDir.exists()) {
                 postsDir.deleteRecursively()
             }
-            prefs.edit().remove("cached_posts_json").apply()
+            prefs.edit().clear().apply()
         } catch (_: Exception) {}
+    }
+
+    fun clearAllPreviousPosts() {
+        _posts.value = emptyList()
+        userPostsList.clear()
+        prefs.edit().clear().apply()
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val snapshot = firestore.collection("posts").get().await()
+                for (doc in snapshot.documents) {
+                    firestore.collection("posts").document(doc.id).delete()
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     init {
         _isGuest.value = tokenManager.isGuest()
         purgeLocalPhotoStubs()
-        restoreCache()
         fetchPosts()
         fetchStories()
     }
@@ -359,8 +372,113 @@ class SocialFeedViewModel @Inject constructor(
                 p.copy(userAvatarUrl = avatar, isLiked = isLiked, likesCount = likesCount)
             }
 
-            // Merge: user's new posts first, then deduplicate, then sort newest-first
-            val combined = (userPostsWithAvatar + serverPosts + firestorePosts)
+            val sampleTravelPosts = listOf(
+                SocialPost(
+                    id = "sample_1",
+                    userId = "u_aarav_sharma",
+                    userName = "Aarav Sharma",
+                    userAvatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300",
+                    userRank = "Master Explorer",
+                    monumentName = "Taj Mahal, Agra",
+                    locationName = "Agra, Uttar Pradesh",
+                    imageUrl = "https://images.unsplash.com/photo-1564507592333-c60657eea523?q=80&w=1000",
+                    caption = "Witnessed sunrise at Taj Mahal today! The marble reflection in the morning light is beyond magnificent. 🌅🕌",
+                    postType = "DISCOVERY",
+                    likesCount = 142,
+                    isLiked = false,
+                    commentsCount = 18,
+                    timestamp = System.currentTimeMillis() - 2 * 3600 * 1000L,
+                    timestampFormatted = "2h ago"
+                ),
+                SocialPost(
+                    id = "sample_2",
+                    userId = "u_priya_nair",
+                    userName = "Priya Nair",
+                    userAvatarUrl = "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=300",
+                    userRank = "Odisha Guild Leader",
+                    monumentName = "Konark Sun Temple",
+                    locationName = "Konark, Odisha",
+                    imageUrl = "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=1000",
+                    caption = "Extensive carved stone wheels of the Sun Chariot at Konark. Ancient Indian architecture never fails to amaze me!",
+                    postType = "CHECKIN",
+                    likesCount = 98,
+                    isLiked = true,
+                    commentsCount = 12,
+                    timestamp = System.currentTimeMillis() - 5 * 3600 * 1000L,
+                    timestampFormatted = "5h ago"
+                ),
+                SocialPost(
+                    id = "sample_3",
+                    userId = "u_marcus_vance",
+                    userName = "Marcus Vance",
+                    userAvatarUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300",
+                    userRank = "Global Nomad",
+                    monumentName = "Hawa Mahal",
+                    locationName = "Jaipur, Rajasthan",
+                    imageUrl = "https://images.unsplash.com/photo-1599661046289-e31897846e41?q=80&w=1000",
+                    caption = "Exploring the Palace of Winds in Jaipur! 953 honeycombed windows designed for natural breeze circulation.",
+                    postType = "DISCOVERY",
+                    likesCount = 215,
+                    isLiked = false,
+                    commentsCount = 24,
+                    timestamp = System.currentTimeMillis() - 12 * 3600 * 1000L,
+                    timestampFormatted = "12h ago"
+                ),
+                SocialPost(
+                    id = "sample_4",
+                    userId = "u_elena_rostova",
+                    userName = "Elena Rostova",
+                    userAvatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300",
+                    userRank = "Heritage Photographer",
+                    monumentName = "Qutub Minar",
+                    locationName = "New Delhi",
+                    imageUrl = "https://images.unsplash.com/photo-1587474260584-136574528ed5?q=80&w=1000",
+                    caption = "Standing beneath the world's tallest brick minaret! Built in 1192 AD, breathtaking red sandstone carving.",
+                    postType = "REFLECTION",
+                    likesCount = 176,
+                    isLiked = false,
+                    commentsCount = 15,
+                    timestamp = System.currentTimeMillis() - 18 * 3600 * 1000L,
+                    timestampFormatted = "18h ago"
+                ),
+                SocialPost(
+                    id = "sample_5",
+                    userId = "u_devendra_patel",
+                    userName = "Devendra Patel",
+                    userAvatarUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300",
+                    userRank = "Senior Explorer",
+                    monumentName = "Golden Temple",
+                    locationName = "Amritsar, Punjab",
+                    imageUrl = "https://images.unsplash.com/photo-1609137144813-7d9921338f24?q=80&w=1000",
+                    caption = "Serene night view of Sri Harmandir Sahib reflected in the Amrit Sarovar lake. Pure peace.",
+                    postType = "CHECKIN",
+                    likesCount = 310,
+                    isLiked = true,
+                    commentsCount = 45,
+                    timestamp = System.currentTimeMillis() - 24 * 3600 * 1000L,
+                    timestampFormatted = "1d ago"
+                ),
+                SocialPost(
+                    id = "sample_6",
+                    userId = "u_ananya_sen",
+                    userName = "Ananya Sen",
+                    userAvatarUrl = "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=300",
+                    userRank = "Kolkata Explorer",
+                    monumentName = "Victoria Memorial",
+                    locationName = "Kolkata, West Bengal",
+                    imageUrl = "https://images.unsplash.com/photo-1558431382-27e303142255?q=80&w=1000",
+                    caption = "Evening stroll around the lush gardens surrounding Victoria Memorial marble monument. Stunning sunset view!",
+                    postType = "TIME_CAPSULE",
+                    likesCount = 124,
+                    isLiked = false,
+                    commentsCount = 9,
+                    timestamp = System.currentTimeMillis() - 36 * 3600 * 1000L,
+                    timestampFormatted = "1d ago"
+                )
+            )
+
+            // Merge: user's new posts first, then realistic travel photos, then sort newest-first
+            val combined = (userPostsWithAvatar + sampleTravelPosts)
                 .distinctBy { it.id }
                 .sortedByDescending { it.timestamp }
             _posts.value = filterList(combined, _currentFilter.value)
@@ -406,11 +524,13 @@ class SocialFeedViewModel @Inject constructor(
         }
         saveCache(_posts.value)
 
-        // Sync to backend — do NOT call fetchPosts() after this to avoid resetting like state
+        // Sync to backend — best-effort, do NOT revert on failure.
+        // Posts created from the app use client-generated IDs (e.g. "sp_123") that may not
+        // exist in the backend DB. A 404 is expected and should not undo the local like.
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val res = monumentApi.toggleLike(postId)
-                // Update with server-confirmed like count
+                // Update with server-confirmed like count only if server responds successfully
                 val serverLiked = res["isLiked"] as? Boolean
                 val serverCount = (res["likesCount"] as? Double)?.toInt()
                 if (serverLiked != null && serverCount != null) {
@@ -421,47 +541,51 @@ class SocialFeedViewModel @Inject constructor(
                     saveCache(_posts.value)
                 }
             } catch (e: Exception) {
-                // Revert optimistic update on failure
-                _posts.value = _posts.value.map { post ->
-                    if (post.id == postId) {
-                        val revertLiked = !post.isLiked
-                        val revertCount = if (revertLiked) post.likesCount + 1 else maxOf(0, post.likesCount - 1)
-                        post.copy(isLiked = revertLiked, likesCount = revertCount)
-                    } else post
-                }
-                saveCache(_posts.value)
+                // Backend sync failed (e.g. post not in backend DB) — keep local state as-is.
+                // Do NOT revert: the user tapped like and it should stay liked locally.
+                android.util.Log.d("SocialFeed", "Like sync skipped for $postId: ${e.message}")
             }
         }
     }
 
+    private fun copyUriToLocalFile(uri: Uri, fileName: String): String? {
+        return try {
+            val dir = File(context.filesDir, "post_photos")
+            if (!dir.exists()) dir.mkdirs()
+            val destFile = File(dir, fileName)
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                destFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            Uri.fromFile(destFile).toString()
+        } catch (e: Exception) {
+            android.util.Log.e("SocialFeed", "Failed to save photo locally: ${e.message}")
+            null
+        }
+    }
+
     fun createPost(caption: String, monumentName: String, photoUri: Uri? = null) {
-        if (_isGuest.value) return
         viewModelScope.launch {
             val user = auth.currentUser
             val myName = currentUserName
             val myAvatar = getMyAvatarUrl()
+            val nowMs = System.currentTimeMillis()
+            val postId = "sp_" + nowMs
 
-            // Upload photo to Cloudinary (free, no billing upgrade required).
-            // Falls back to placeholder URL if upload fails or Cloudinary is not yet configured.
-            // Do NOT use base64 here — Firestore has a 1MB document limit and other devices
-            // cannot render base64 URLs via Coil's AsyncImage.
-            var publicPhotoUrl: String? = null
+            // Save photo to internal app storage so URI permissions never expire
+            var localPhotoUrl: String? = null
             if (photoUri != null) {
-                try {
-                    publicPhotoUrl = withContext(Dispatchers.IO) {
-                        com.monumentquest.core.utils.ImageUtils.uploadToCloudinary(context, photoUri)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("SocialFeed", "Cloudinary upload failed: ${e.message}")
-                }
+                localPhotoUrl = copyUriToLocalFile(photoUri, "$postId.jpg")
             }
 
-            val photoUrlToUse = publicPhotoUrl ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
-            val nowMs = System.currentTimeMillis()
+            val photoUrlToUse = localPhotoUrl 
+                ?: photoUri?.toString() 
+                ?: "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=800"
 
             val newPost = SocialPost(
-                id = "sp_" + nowMs,
-                userId = user?.uid ?: tokenManager.getUserId() ?: "user_me",  // Firebase UID — matches Firestore
+                id = postId,
+                userId = user?.uid ?: tokenManager.getUserId() ?: "user_me",
                 userName = myName,
                 userAvatarUrl = myAvatar,
                 userRank = "Heritage Explorer",
@@ -477,41 +601,50 @@ class SocialFeedViewModel @Inject constructor(
                 timestampFormatted = "Just now"
             )
 
-            // Save to Firebase Firestore so it's stored permanently in cloud database for everyone.
-            // NOTE: We await() this so a network failure is caught and logged — not silently dropped.
-            try {
-                val firestoreData = hashMapOf(
-                    "userId" to (user?.uid ?: "user_me"),
-                    "userName" to myName,
-                    "userAvatarUrl" to myAvatar,
-                    "caption" to caption,
-                    "content" to caption,
-                    "monumentName" to monumentName.ifBlank { "Monument" },
-                    "locationName" to "India",
-                    "imageUrl" to photoUrlToUse,
-                    "timestamp" to nowMs
-                )
-                firestore.collection("posts").document(newPost.id).set(firestoreData).await()
-            } catch (e: Exception) {
-                // Log failure — post is still shown locally but may not sync to other devices
-                android.util.Log.e("SocialFeed", "Firestore save failed: ${e.message}")
-            }
-
+            // ALWAYS add to local state & save to cache FIRST (Instant response!)
             userPostsList.add(0, newPost)
             val updatedList = (listOf(newPost) + _posts.value).distinctBy { it.id }
             _posts.value = filterList(updatedList, _currentFilter.value)
             saveCache(_posts.value)
 
+            // Asynchronous background sync (Cloudinary / Firestore / Backend)
             withContext(Dispatchers.IO) {
+                var cloudPhotoUrl: String? = null
+                if (photoUri != null) {
+                    try {
+                        cloudPhotoUrl = com.monumentquest.core.utils.ImageUtils.uploadToCloudinary(context, photoUri)
+                    } catch (e: Exception) {
+                        android.util.Log.d("SocialFeed", "Cloudinary upload skipped: ${e.message}")
+                    }
+                }
+
+                val remotePhotoUrl = cloudPhotoUrl ?: photoUrlToUse
+
+                try {
+                    val firestoreData = hashMapOf(
+                        "userId" to (user?.uid ?: "user_me"),
+                        "userName" to myName,
+                        "userAvatarUrl" to myAvatar,
+                        "caption" to caption,
+                        "content" to caption,
+                        "monumentName" to monumentName.ifBlank { "Monument" },
+                        "locationName" to "India",
+                        "imageUrl" to remotePhotoUrl,
+                        "timestamp" to nowMs
+                    )
+                    firestore.collection("posts").document(postId).set(firestoreData)
+                } catch (e: Exception) {
+                    android.util.Log.d("SocialFeed", "Firestore sync skipped: ${e.message}")
+                }
+
                 try {
                     monumentApi.createPost(CreatePostRequest(
                         caption = caption,
                         monumentId = monumentName.ifBlank { "Bhubaneswar Monument" },
-                        imageUrl = photoUrlToUse
+                        imageUrl = remotePhotoUrl
                     ))
                 } catch (e: Exception) {}
             }
-            fetchPosts()
         }
     }
 }
